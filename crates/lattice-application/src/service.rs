@@ -204,7 +204,7 @@ impl LatticeService {
     /// Lists missions newest first.
     pub async fn list_missions(&self) -> Result<Vec<Mission>, ApplicationError> {
         let mut missions = self.missions.list().await?;
-        missions.sort_by(|left, right| right.created_at.cmp(&left.created_at));
+        missions.sort_by_key(|mission| std::cmp::Reverse(mission.created_at));
         Ok(missions)
     }
 
