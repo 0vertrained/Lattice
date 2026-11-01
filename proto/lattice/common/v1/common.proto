@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package lattice.common.v1;
+
+import "google/protobuf/timestamp.proto";
+
+message RequestContext {
+  string request_id = 1;
+  string trace_id = 2;
+  string principal_id = 3;
+  google.protobuf.Timestamp issued_at = 4;
+}

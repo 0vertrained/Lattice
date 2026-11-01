@@ -1,0 +1,485 @@
+use std::collections::BTreeSet;
+use std::sync::Arc;
+use std::time::Duration;
+
+use chrono::Duration as ChronoDuration;
+use lattice_domain::{
+    AuditActor, AuditRecord, BatteryPercent, BodyId, BodyKind, BodySnapshot, BodyStatus,
+    CommandEnvelope, CommandId, CommandResult, CommandResultStatus, Mission, MissionId,
+    MissionStatus, SignedCommand, SkillCommand, VerificationKey,
+};
+use serde::{Deserialize, Serialize};
+use serde_json::json;
+use uuid::Uuid;
+
+use crate::{
+    ApplicationError, AuditSink, BodyRepository, Clock, CommandQueue, CommandSigner,
+    MissionRepository,
+};
+
+/// Timing and availability policy for the trusted core.
+#[derive(Debug, Clone)]
+pub struct ServiceConfig {
+    /// Signed-command lifetime.
+    pub command_ttl: Duration,
+    /// Maximum heartbeat age for assignment.
+    pub heartbeat_timeout: Duration,
+}
+
+impl Default for ServiceConfig {
+    fn default() -> Self {
+        Self {
+            command_ttl: Duration::from_secs(30),
+            heartbeat_timeout: Duration::from_secs(10),
+        }
+    }
+}
+
+/// Body registration input.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RegisterBodyRequest {
+    /// Stable identity.
+    pub id: BodyId,
+    /// Operator-facing name.
+    pub display_name: String,
+    /// Physical category.
+    pub kind: BodyKind,
+    /// Explicit capabilities.
+    pub capabilities: BTreeSet<lattice_domain::Capability>,
+    /// Adapter software version.
+    pub adapter_version: String,
+}
+
+/// Authenticated body heartbeat.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HeartbeatRequest {
+    /// Current readiness.
+    pub status: BodyStatus,
+    /// Current battery.
+    pub battery: BatteryPercent,
+    /// Semantic location.
+    pub location: String,
+}
+
+/// New mission input.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateMissionRequest {
+    /// Operator-facing title.
+    pub title: String,
+    /// Typed skill.
+    pub command: SkillCommand,
+}
+
+/// Application facade used by transports.
+#[derive(Clone)]
+pub struct LatticeService {
+    bodies: Arc<dyn BodyRepository>,
+    missions: Arc<dyn MissionRepository>,
+    commands: Arc<dyn CommandQueue>,
+    signer: Arc<dyn CommandSigner>,
+    audit: Arc<dyn AuditSink>,
+    clock: Arc<dyn Clock>,
+    config: ServiceConfig,
+}
+
+impl LatticeService {
+    /// Creates the application facade.
+    pub fn new(
+        bodies: Arc<dyn BodyRepository>,
+        missions: Arc<dyn MissionRepository>,
+        commands: Arc<dyn CommandQueue>,
+        signer: Arc<dyn CommandSigner>,
+        audit: Arc<dyn AuditSink>,
+        clock: Arc<dyn Clock>,
+        config: ServiceConfig,
+    ) -> Self {
+        Self {
+            bodies,
+            missions,
+            commands,
+            signer,
+            audit,
+            clock,
+            config,
+        }
+    }
+
+    /// Registers or updates a body identity.
+    pub async fn register_body(
+        &self,
+        request: RegisterBodyRequest,
+        actor: AuditActor,
+    ) -> Result<BodySnapshot, ApplicationError> {
+        validate_display_name(&request.display_name)?;
+        validate_version(&request.adapter_version)?;
+
+        let now = self.clock.now();
+        let body = BodySnapshot {
+            id: request.id,
+            display_name: request.display_name.trim().to_owned(),
+            kind: request.kind,
+            status: BodyStatus::Online,
+            battery: BatteryPercent::new(100)?,
+            location: "registration".to_owned(),
+            capabilities: request.capabilities,
+            last_seen: now,
+            adapter_version: request.adapter_version,
+        };
+
+        self.bodies.save(body.clone()).await?;
+        self.audit
+            .append(AuditRecord {
+                occurred_at: now,
+                actor,
+                event_type: "body.registered".to_owned(),
+                object_id: body.id.to_string(),
+                metadata: json!({
+                    "kind": body.kind,
+                    "capabilities": body.capabilities,
+                    "adapter_version": body.adapter_version,
+                }),
+            })
+            .await?;
+
+        Ok(body)
+    }
+
+    /// Applies a body heartbeat.
+    pub async fn heartbeat(
+        &self,
+        body_id: &BodyId,
+        request: HeartbeatRequest,
+    ) -> Result<BodySnapshot, ApplicationError> {
+        let Some(mut body) = self.bodies.get(body_id).await? else {
+            return Err(ApplicationError::NotFound { entity: "body" });
+        };
+
+        validate_location(&request.location)?;
+        body.status = request.status;
+        body.battery = request.battery;
+        body.location = request.location.trim().to_owned();
+        body.last_seen = self.clock.now();
+        self.bodies.save(body.clone()).await?;
+        Ok(body)
+    }
+
+    /// Lists known bodies.
+    pub async fn list_bodies(&self) -> Result<Vec<BodySnapshot>, ApplicationError> {
+        let mut bodies = self.bodies.list().await?;
+        bodies.sort_by(|left, right| left.id.cmp(&right.id));
+        Ok(bodies)
+    }
+
+    /// Creates and, when possible, dispatches a mission.
+    pub async fn create_mission(
+        &self,
+        request: CreateMissionRequest,
+        actor: AuditActor,
+    ) -> Result<Mission, ApplicationError> {
+        let now = self.clock.now();
+        let mission_id = MissionId::new(format!("mission-{}", Uuid::new_v4().simple()))?;
+        let mut mission = Mission::new(mission_id, request.title, request.command, now)?;
+
+        if let Some(body) = self.select_body(&mission, None).await? {
+            self.assign_and_enqueue(&mut mission, body.id, actor)
+                .await?;
+        } else {
+            self.missions.save(mission.clone()).await?;
+            self.audit
+                .append(AuditRecord {
+                    occurred_at: now,
+                    actor,
+                    event_type: "mission.queued".to_owned(),
+                    object_id: mission.id.to_string(),
+                    metadata: json!({
+                        "required_capability": mission.command.required_capability(),
+                    }),
+                })
+                .await?;
+        }
+
+        Ok(mission)
+    }
+
+    /// Lists missions newest first.
+    pub async fn list_missions(&self) -> Result<Vec<Mission>, ApplicationError> {
+        let mut missions = self.missions.list().await?;
+        missions.sort_by(|left, right| right.created_at.cmp(&left.created_at));
+        Ok(missions)
+    }
+
+    /// Retrieves the next valid command for one body.
+    pub async fn next_command(
+        &self,
+        body_id: &BodyId,
+    ) -> Result<Option<SignedCommand>, ApplicationError> {
+        let now = self.clock.now();
+
+        while let Some(command) = self.commands.dequeue(body_id).await? {
+            if command.envelope.body_id != *body_id {
+                self.audit_rejection(
+                    "command.wrong_body_rejected",
+                    &command.envelope.command_id,
+                    body_id,
+                )
+                .await?;
+                continue;
+            }
+
+            if command.envelope.is_expired(now) {
+                self.audit_rejection("command.expired", &command.envelope.command_id, body_id)
+                    .await?;
+                continue;
+            }
+
+            return Ok(Some(command));
+        }
+
+        Ok(None)
+    }
+
+    /// Applies a result after the transport resolves the parent mission.
+    pub async fn report_result(
+        &self,
+        mission_id: &MissionId,
+        result: CommandResult,
+    ) -> Result<Mission, ApplicationError> {
+        if result.progress_pct > 100 {
+            return Err(ApplicationError::Conflict(
+                "progress_pct must not exceed 100".to_owned(),
+            ));
+        }
+
+        let Some(mut mission) = self.missions.get(mission_id).await? else {
+            return Err(ApplicationError::NotFound { entity: "mission" });
+        };
+
+        if mission.assigned_body_id.as_ref() != Some(&result.body_id) {
+            return Err(ApplicationError::Conflict(
+                "result body does not own the mission".to_owned(),
+            ));
+        }
+
+        let now = self.clock.now();
+        match result.status {
+            CommandResultStatus::Running => {
+                mission.mark_running(&result.command_id, result.progress_pct, now)?;
+            }
+            CommandResultStatus::Succeeded => {
+                mission.mark_succeeded(&result.command_id, now)?;
+            }
+            CommandResultStatus::Failed | CommandResultStatus::Rejected => {
+                mission.mark_failed(
+                    &result.command_id,
+                    result
+                        .detail
+                        .clone()
+                        .unwrap_or_else(|| "body reported failure".to_owned()),
+                    now,
+                )?;
+            }
+        }
+
+        self.missions.save(mission.clone()).await?;
+        self.audit
+            .append(AuditRecord {
+                occurred_at: now,
+                actor: AuditActor::Body(result.body_id.to_string()),
+                event_type: format!("command.result.{:?}", result.status).to_lowercase(),
+                object_id: result.command_id.to_string(),
+                metadata: json!({
+                    "mission_id": mission.id,
+                    "progress_pct": result.progress_pct,
+                    "reported_at": result.reported_at,
+                }),
+            })
+            .await?;
+
+        Ok(mission)
+    }
+
+    /// Reassigns queued or interrupted missions and work owned by stale bodies.
+    pub async fn reassign_unavailable(
+        &self,
+        actor: AuditActor,
+    ) -> Result<Vec<Mission>, ApplicationError> {
+        let now = self.clock.now();
+        let mut changed = Vec::new();
+
+        for mut mission in self.missions.list().await? {
+            if matches!(
+                mission.status,
+                MissionStatus::Succeeded | MissionStatus::Failed | MissionStatus::Cancelled
+            ) {
+                continue;
+            }
+
+            let old_body_id = mission.assigned_body_id.clone();
+            let current_is_eligible = match &old_body_id {
+                Some(body_id) => self.bodies.get(body_id).await?.is_some_and(|body| {
+                    body.is_eligible(
+                        mission.command.required_capability(),
+                        now,
+                        self.config.heartbeat_timeout,
+                    )
+                }),
+                None => false,
+            };
+
+            if current_is_eligible {
+                continue;
+            }
+
+            if matches!(
+                mission.status,
+                MissionStatus::Assigned | MissionStatus::Running
+            ) {
+                mission.interrupt("assigned body became unavailable", now)?;
+                self.missions.save(mission.clone()).await?;
+            }
+
+            if let Some(replacement) = self.select_body(&mission, old_body_id.as_ref()).await? {
+                self.assign_and_enqueue(&mut mission, replacement.id, actor.clone())
+                    .await?;
+            } else if mission.status == MissionStatus::Interrupted {
+                mission.queue_after_interruption(now)?;
+                self.missions.save(mission.clone()).await?;
+            }
+
+            changed.push(mission);
+        }
+
+        Ok(changed)
+    }
+
+    /// Returns the current command-verification key.
+    pub async fn verification_key(&self) -> Result<VerificationKey, ApplicationError> {
+        self.signer.verification_key().await
+    }
+
+    /// Lists development audit records.
+    pub async fn list_audit(&self) -> Result<Vec<AuditRecord>, ApplicationError> {
+        self.audit.list().await
+    }
+
+    async fn assign_and_enqueue(
+        &self,
+        mission: &mut Mission,
+        body_id: BodyId,
+        actor: AuditActor,
+    ) -> Result<(), ApplicationError> {
+        let now = self.clock.now();
+        let sequence = self.commands.next_sequence(&body_id).await?;
+        let command_id = CommandId::new(format!("command-{}", Uuid::new_v4().simple()))?;
+        let ttl = ChronoDuration::from_std(self.config.command_ttl)
+            .map_err(|_| ApplicationError::Conflict("invalid command TTL".to_owned()))?;
+
+        mission.assign(body_id.clone(), command_id.clone(), now)?;
+        let envelope = CommandEnvelope {
+            command_id,
+            mission_id: mission.id.clone(),
+            body_id,
+            sequence,
+            command: mission.command.clone(),
+            issued_at: now,
+            expires_at: now + ttl,
+        };
+        let signed = self.signer.sign(envelope.clone()).await?;
+
+        self.missions.save(mission.clone()).await?;
+        self.commands.enqueue(signed).await?;
+        self.audit
+            .append(AuditRecord {
+                occurred_at: now,
+                actor,
+                event_type: "command.authorized".to_owned(),
+                object_id: envelope.command_id.to_string(),
+                metadata: json!({
+                    "mission_id": envelope.mission_id,
+                    "body_id": envelope.body_id,
+                    "sequence": envelope.sequence,
+                    "expires_at": envelope.expires_at,
+                }),
+            })
+            .await?;
+        Ok(())
+    }
+
+    async fn select_body(
+        &self,
+        mission: &Mission,
+        exclude: Option<&BodyId>,
+    ) -> Result<Option<BodySnapshot>, ApplicationError> {
+        let now = self.clock.now();
+        let capability = mission.command.required_capability();
+
+        let mut candidates = self
+            .bodies
+            .list()
+            .await?
+            .into_iter()
+            .filter(|body| exclude != Some(&body.id))
+            .filter(|body| body.is_eligible(capability, now, self.config.heartbeat_timeout))
+            .collect::<Vec<_>>();
+
+        candidates.sort_by(|left, right| {
+            right
+                .battery
+                .cmp(&left.battery)
+                .then_with(|| left.id.cmp(&right.id))
+        });
+
+        Ok(candidates.into_iter().next())
+    }
+
+    async fn audit_rejection(
+        &self,
+        event_type: &str,
+        command_id: &CommandId,
+        body_id: &BodyId,
+    ) -> Result<(), ApplicationError> {
+        self.audit
+            .append(AuditRecord {
+                occurred_at: self.clock.now(),
+                actor: AuditActor::Service("command-broker".to_owned()),
+                event_type: event_type.to_owned(),
+                object_id: command_id.to_string(),
+                metadata: json!({ "body_id": body_id }),
+            })
+            .await
+    }
+}
+
+fn validate_display_name(value: &str) -> Result<(), ApplicationError> {
+    let trimmed = value.trim();
+    if !(2..=80).contains(&trimmed.len()) || trimmed.chars().any(char::is_control) {
+        return Err(ApplicationError::Conflict(
+            "display_name must contain 2 to 80 printable characters".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_version(value: &str) -> Result<(), ApplicationError> {
+    if value.is_empty()
+        || value.len() > 40
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-' | b'+'))
+    {
+        return Err(ApplicationError::Conflict(
+            "adapter_version has an invalid format".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_location(value: &str) -> Result<(), ApplicationError> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() || trimmed.len() > 100 || trimmed.chars().any(char::is_control) {
+        return Err(ApplicationError::Conflict(
+            "location must contain 1 to 100 printable characters".to_owned(),
+        ));
+    }
+    Ok(())
+}

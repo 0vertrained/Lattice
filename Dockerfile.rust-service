@@ -1,0 +1,16 @@
+ARG RUST_VERSION=1.97.1
+FROM rust:${RUST_VERSION}-bookworm AS build
+ARG PACKAGE
+WORKDIR /workspace
+COPY . .
+RUN cargo build --release --package "${PACKAGE}"
+
+FROM debian:bookworm-slim
+ARG PACKAGE
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --create-home --uid 10001 lattice
+COPY --from=build /workspace/target/release/${PACKAGE} /usr/local/bin/service
+USER lattice
+ENTRYPOINT ["/usr/local/bin/service"]

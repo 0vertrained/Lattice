@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package lattice.mission.v1;
+
+import "google/protobuf/timestamp.proto";
+import "lattice/common/v1/common.proto";
+
+service MissionService {
+  rpc CreateMission(CreateMissionRequest) returns (Mission);
+  rpc GetMission(GetMissionRequest) returns (Mission);
+}
+
+message CreateMissionRequest {
+  lattice.common.v1.RequestContext context = 1;
+  string title = 2;
+  SkillCommand command = 3;
+}
+
+message GetMissionRequest {
+  lattice.common.v1.RequestContext context = 1;
+  string mission_id = 2;
+}
+
+message Mission {
+  string mission_id = 1;
+  string title = 2;
+  string status = 3;
+  string assigned_body_id = 4;
+  string active_command_id = 5;
+  uint32 progress_pct = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+message SkillCommand {
+  oneof command {
+    Navigate navigate = 1;
+    Inspect inspect = 2;
+    Follow follow = 3;
+    Carry carry = 4;
+    AerialInspect aerial_inspect = 5;
+    TraverseRoughTerrain traverse_rough_terrain = 6;
+  }
+}
+
+message Navigate {
+  string destination = 1;
+  float max_speed_mps = 2;
+}
+
+message Inspect {
+  string location = 1;
+}
+
+message Follow {
+  string target = 1;
+  float max_distance_m = 2;
+}
+
+message Carry {
+  string item = 1;
+  string destination = 2;
+  float max_mass_kg = 3;
+}
+
+message AerialInspect {
+  string location = 1;
+  float max_altitude_m = 2;
+}
+
+message TraverseRoughTerrain {
+  string destination = 1;
+}

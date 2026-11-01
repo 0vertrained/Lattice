@@ -1,0 +1,147 @@
+name: lattice
+
+x-body-defaults: &body-defaults
+  build:
+    context: .
+    dockerfile: Dockerfile.rust-service
+    args:
+      PACKAGE: lattice-mock-body
+  environment:
+    LATTICE_DEV_API_KEY: ${LATTICE_DEV_API_KEY}
+    LATTICE_CORE_URL: http://core-api:8000
+    RUST_LOG: info
+  depends_on:
+    - core-api
+  read_only: true
+  tmpfs:
+    - /tmp
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+services:
+  core-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.rust-service
+      args:
+        PACKAGE: lattice-core-api
+    environment:
+      LATTICE_DEV_API_KEY: ${LATTICE_DEV_API_KEY}
+      LATTICE_BIND_ADDRESS: 0.0.0.0:8000
+      LATTICE_ALLOWED_ORIGIN: http://localhost:8080
+      LATTICE_COMMAND_TTL_SECONDS: 30
+      LATTICE_HEARTBEAT_TIMEOUT_SECONDS: 10
+      RUST_LOG: info,lattice=debug
+    ports:
+      - "8000:8000"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  mock-rover:
+    <<: *body-defaults
+    environment:
+      LATTICE_DEV_API_KEY: ${LATTICE_DEV_API_KEY}
+      LATTICE_CORE_URL: http://core-api:8000
+      LATTICE_BODY_ID: rover-r1
+      LATTICE_BODY_NAME: Rover R1
+      LATTICE_BODY_KIND: rover
+      LATTICE_BODY_CAPABILITIES: navigate,inspect,follow,carry
+      RUST_LOG: info
+
+  mock-quadruped:
+    <<: *body-defaults
+    environment:
+      LATTICE_DEV_API_KEY: ${LATTICE_DEV_API_KEY}
+      LATTICE_CORE_URL: http://core-api:8000
+      LATTICE_BODY_ID: quad-q1
+      LATTICE_BODY_NAME: Quadruped Q1
+      LATTICE_BODY_KIND: quadruped
+      LATTICE_BODY_CAPABILITIES: navigate,inspect,follow,stairs,rough_terrain
+      RUST_LOG: info
+
+  mock-drone:
+    <<: *body-defaults
+    environment:
+      LATTICE_DEV_API_KEY: ${LATTICE_DEV_API_KEY}
+      LATTICE_CORE_URL: http://core-api:8000
+      LATTICE_BODY_ID: drone-d1
+      LATTICE_BODY_NAME: Drone D1
+      LATTICE_BODY_KIND: drone
+      LATTICE_BODY_CAPABILITIES: aerial,inspect
+      RUST_LOG: info
+
+  control-center:
+    build:
+      context: apps/control-center
+    ports:
+      - "8080:8080"
+    depends_on:
+      - core-api
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  postgres:
+    image: postgres:18.4-alpine
+    profiles: ["platform"]
+    environment:
+      POSTGRES_DB: lattice
+      POSTGRES_USER: lattice
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/migrations:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+
+  nats:
+    image: nats:2.12-alpine
+    profiles: ["platform"]
+    command: ["-c", "/etc/nats/nats-server.conf"]
+    volumes:
+      - ./infrastructure/nats/nats-server.conf:/etc/nats/nats-server.conf:ro
+      - nats-data:/data
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.156.0
+    profiles: ["observability"]
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./infrastructure/otel/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+
+  ai-gateway:
+    build:
+      context: services/lattice-ai-gateway
+    profiles: ["ai"]
+    ports:
+      - "8100:8100"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  postgres-data:
+  nats-data:

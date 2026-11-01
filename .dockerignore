@@ -1,0 +1,9 @@
+target
+.git
+.env
+**/node_modules
+**/dist
+**/coverage
+**/__pycache__
+.dev-pki
+*.zip

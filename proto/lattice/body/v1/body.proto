@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package lattice.body.v1;
+
+import "google/protobuf/timestamp.proto";
+import "lattice/common/v1/common.proto";
+
+service BodyGateway {
+  rpc RegisterBody(RegisterBodyRequest) returns (RegisterBodyResponse);
+  rpc Exchange(stream BodyFrame) returns (stream CoreFrame);
+}
+
+message RegisterBodyRequest {
+  lattice.common.v1.RequestContext context = 1;
+  string body_id = 2;
+  string hardware_serial = 3;
+  string adapter_version = 4;
+  repeated Capability capabilities = 5;
+}
+
+message RegisterBodyResponse {
+  bool accepted = 1;
+  string body_lease_id = 2;
+  google.protobuf.Timestamp lease_expires_at = 3;
+}
+
+enum Capability {
+  CAPABILITY_UNSPECIFIED = 0;
+  CAPABILITY_NAVIGATE = 1;
+  CAPABILITY_INSPECT = 2;
+  CAPABILITY_FOLLOW = 3;
+  CAPABILITY_CARRY = 4;
+  CAPABILITY_STAIRS = 5;
+  CAPABILITY_AERIAL = 6;
+  CAPABILITY_ROUGH_TERRAIN = 7;
+}
+
+message BodyFrame {
+  oneof payload {
+    Heartbeat heartbeat = 1;
+    CommandResult command_result = 2;
+  }
+}
+
+message CoreFrame {
+  oneof payload {
+    SignedCommand command = 1;
+    LeaseUpdate lease_update = 2;
+  }
+}
+
+message Heartbeat {
+  string body_id = 1;
+  uint32 battery_pct = 2;
+  string status = 3;
+  string semantic_location = 4;
+  google.protobuf.Timestamp observed_at = 5;
+}
+
+message SignedCommand {
+  bytes deterministic_envelope = 1;
+  bytes signature = 2;
+  string key_id = 3;
+  string contract_version = 4;
+}
+
+message CommandResult {
+  string command_id = 1;
+  string status = 2;
+  uint32 progress_pct = 3;
+  string detail = 4;
+  google.protobuf.Timestamp reported_at = 5;
+}
+
+message LeaseUpdate {
+  string body_lease_id = 1;
+  google.protobuf.Timestamp lease_expires_at = 2;
+}

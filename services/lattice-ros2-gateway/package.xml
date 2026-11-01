@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>lattice_ros2_gateway</name>
+  <version>0.1.0</version>
+  <description>ROS 2 Jazzy gateway for the Lattice embodiment platform.</description>
+  <maintainer email="maintainers@example.invalid">Lattice contributors</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_lifecycle</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

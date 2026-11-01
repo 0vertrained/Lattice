@@ -1,0 +1,19 @@
+[package]
+name = "lattice-application"
+description = "Use cases and infrastructure ports for Lattice."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+chrono.workspace = true
+lattice-domain = { path = "../lattice-domain" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+
+[lints]
+workspace = true
