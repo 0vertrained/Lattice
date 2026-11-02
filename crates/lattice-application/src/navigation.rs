@@ -289,8 +289,13 @@ impl LatticeService {
             .iter()
             .find(|body| body.body_id == plan.source_body_id)
             .ok_or_else(|| conflict("planned source is unavailable"))?;
-        if source.place_id.as_deref() != Some(plan.source_place_id.as_str()) {
-            return Err(conflict("source left the reviewed starting place"));
+        if !source.ready
+            || !source.available
+            || source.place_id.as_deref() != Some(plan.source_place_id.as_str())
+        {
+            return Err(conflict(
+                "source must remain fresh, ready, unfenced and idle at the reviewed starting place",
+            ));
         }
         for transfer in &plan.transfers {
             let target = candidates

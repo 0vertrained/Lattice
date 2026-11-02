@@ -3,7 +3,7 @@
 use base64::{Engine, engine::general_purpose::STANDARD};
 use chrono::{DateTime, Utc};
 use lattice_application::{
-    Clock, CommandSigner, HeartbeatRequest, LatticeService, RegisterBodyRequest,
+    Clock, CommandSigner, HandoffRepository, HeartbeatRequest, LatticeService, RegisterBodyRequest,
     RouteObjectiveRequest, ServiceConfig,
 };
 use lattice_domain::{
@@ -252,6 +252,58 @@ async fn capability_routes_bind_map_bodies_transfer_and_retained_evidence() {
         service.propose_route_plan(request()).await.unwrap().status,
         "blocked"
     );
+    pose(&service, b.as_str(), 1.0, Some(0.0)).await;
+    // An immediate transfer leaves the source out of step_body_ids. Its readiness
+    // and availability must still be rechecked before creating any held round.
+    pose(&service, a.as_str(), 1.0, None).await;
+    let mut immediate = request();
+    immediate.route.source_place_id = "transfer".into();
+    immediate.inspect_source = false;
+    let immediate = service.propose_route_plan(immediate).await.unwrap();
+    assert_eq!(immediate.step_body_ids, vec![b.clone(), b.clone()]);
+    assert_eq!(
+        immediate.plan.as_ref().unwrap().transfers[0].before_leg_index,
+        0
+    );
+    service
+        .heartbeat(
+            &a,
+            HeartbeatRequest {
+                status: BodyStatus::Faulted,
+                battery: BatteryPercent::new(95).unwrap(),
+                location: "transfer".into(),
+                pose: Some(BodyPose {
+                    x: 1.0,
+                    y: 0.0,
+                    z: None,
+                    yaw: 0.0,
+                }),
+            },
+        )
+        .await
+        .unwrap();
+    assert!(
+        service
+            .approve_route_plan(&immediate.id, &immediate.digest, actor())
+            .await
+            .is_err()
+    );
+    assert!(service.list_rounds().await.unwrap().is_empty());
+    assert!(service.next_command(&b).await.unwrap().is_none());
+    pose(&service, a.as_str(), 1.0, None).await;
+    tx.fence_body(&a, clock.now() + chrono::Duration::seconds(2))
+        .await
+        .unwrap();
+    assert!(
+        service
+            .approve_route_plan(&immediate.id, &immediate.digest, actor())
+            .await
+            .is_err()
+    );
+    assert!(service.list_rounds().await.unwrap().is_empty());
+    assert!(service.next_command(&b).await.unwrap().is_none());
+    clock.0.fetch_add(3, Ordering::SeqCst);
+    pose(&service, a.as_str(), 0.0, None).await;
     pose(&service, b.as_str(), 1.0, Some(0.0)).await;
     let proposal = service.propose_route_plan(request()).await.unwrap();
     assert_eq!(proposal.status, "pending");
