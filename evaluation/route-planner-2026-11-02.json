@@ -1,0 +1,3555 @@
+{
+  "all_match_expected": true,
+  "evaluation": "deterministic_semantic_route_planner",
+  "recorded_at": "2026-11-02T05:42:05.593235383+00:00",
+  "runtime": {
+    "architecture": "x86_64",
+    "debug_assertions": false,
+    "os": "linux"
+  },
+  "scenarios": [
+    {
+      "expected": {
+        "destination_body": "quad-b",
+        "outcome": "plan",
+        "segment_body_pairs": [
+          [
+            "bay_to_transfer",
+            "rover-a"
+          ],
+          [
+            "stairs_to_upper",
+            "quad-b"
+          ]
+        ],
+        "transfers": 1
+      },
+      "input": {
+        "candidates": [
+          {
+            "available": true,
+            "body_id": "rover-a",
+            "capabilities": [
+              "navigate",
+              "inspect"
+            ],
+            "place_id": "inspection_bay",
+            "ready": true
+          },
+          {
+            "available": true,
+            "body_id": "quad-b",
+            "capabilities": [
+              "navigate",
+              "inspect",
+              "stairs"
+            ],
+            "place_id": "stair_transfer",
+            "ready": true
+          }
+        ],
+        "map": {
+          "frame_id": "map",
+          "id": "warehouse_stairs",
+          "places": [
+            {
+              "arrival_radius_m": 0.45,
+              "id": "inspection_bay",
+              "label": "Inspection bay · ground floor",
+              "pose": {
+                "x": 0.0,
+                "y": 2.5,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.4,
+              "id": "stair_transfer",
+              "label": "Stair transfer · staging area",
+              "pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              },
+              "transfer_allowed": true
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "upper_inspection",
+              "label": "Upper inspection · raised platform",
+              "pose": {
+                "x": 4.5,
+                "y": -2.0,
+                "z": 0.15
+              },
+              "transfer_allowed": false
+            }
+          ],
+          "revision": 1,
+          "segments": [
+            {
+              "enabled": true,
+              "from": "inspection_bay",
+              "id": "bay_to_transfer",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "stair_transfer"
+            },
+            {
+              "enabled": true,
+              "from": "stair_transfer",
+              "id": "stairs_to_upper",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate",
+                "stairs"
+              ],
+              "to": "upper_inspection"
+            }
+          ]
+        },
+        "request": {
+          "destination_capability": "inspect",
+          "destination_place_id": "upper_inspection",
+          "source_body_id": "rover-a",
+          "source_place_id": "inspection_bay"
+        }
+      },
+      "matches_expected": true,
+      "observed": {
+        "Ok": {
+          "assessments": [
+            {
+              "body_id": "quad-b",
+              "capability_gaps": [],
+              "eligible": true,
+              "place_id": "stair_transfer",
+              "reasons": []
+            },
+            {
+              "body_id": "rover-a",
+              "capability_gaps": [
+                {
+                  "missing_capabilities": [
+                    "stairs"
+                  ],
+                  "segment_id": "stairs_to_upper"
+                }
+              ],
+              "eligible": true,
+              "place_id": "inspection_bay",
+              "reasons": []
+            }
+          ],
+          "destination_body_id": "quad-b",
+          "destination_capability": "inspect",
+          "destination_place_id": "upper_inspection",
+          "distance_m": 8.112985039767116,
+          "explanation": [
+            "Selected 2 route legs with 1 body transfers; minimise transfers before summed straight-line graph distance.",
+            "rover-a lacks [stairs] needed after stair_transfer; quad-b provides them and is ready and staged at that allowed transfer point.",
+            "This proposal grants no motion authority. Approval must recheck the map, body readiness, placement and source-stop boundary; adapters remain responsible for local path and motion safety."
+          ],
+          "legs": [
+            {
+              "arrival_radius_m": 0.4,
+              "body_id": "rover-a",
+              "distance_m": 4.6097722286464435,
+              "from": "inspection_bay",
+              "from_pose": {
+                "x": 0.0,
+                "y": 2.5,
+                "z": 0.0
+              },
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "segment_id": "bay_to_transfer",
+              "to": "stair_transfer",
+              "to_pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              }
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "body_id": "quad-b",
+              "distance_m": 3.503212811120672,
+              "from": "stair_transfer",
+              "from_pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              },
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate",
+                "stairs"
+              ],
+              "segment_id": "stairs_to_upper",
+              "to": "upper_inspection",
+              "to_pose": {
+                "x": 4.5,
+                "y": -2.0,
+                "z": 0.15
+              }
+            }
+          ],
+          "map_digest": "1d93cd8e5a022db88ed3f9569579ef6365e5645b4d1a98e618a6fa6dd5de56c4",
+          "map_id": "warehouse_stairs",
+          "map_revision": 1,
+          "planner_id": "semantic-capability-dijkstra-v1",
+          "source_body_id": "rover-a",
+          "source_place_id": "inspection_bay",
+          "transfers": [
+            {
+              "before_leg_index": 1,
+              "place_id": "stair_transfer",
+              "reason": "rover-a lacks [stairs] needed after stair_transfer; quad-b provides them and is ready and staged at that allowed transfer point.",
+              "source_body_id": "rover-a",
+              "target_body_id": "quad-b"
+            }
+          ]
+        }
+      },
+      "planning_time_ns": {
+        "max": 103586,
+        "median": 5607,
+        "min": 5113,
+        "p95": 30948,
+        "samples": 100,
+        "warmup_calls": 5
+      },
+      "repeatable": true,
+      "scenario": "staged_stair_transfer"
+    },
+    {
+      "expected": {
+        "destination_body": "rover-a",
+        "outcome": "plan",
+        "segment_body_pairs": [
+          [
+            "bay_to_transfer",
+            "rover-a"
+          ]
+        ],
+        "transfers": 0
+      },
+      "input": {
+        "candidates": [
+          {
+            "available": true,
+            "body_id": "rover-a",
+            "capabilities": [
+              "navigate",
+              "inspect"
+            ],
+            "place_id": "inspection_bay",
+            "ready": true
+          },
+          {
+            "available": true,
+            "body_id": "quad-b",
+            "capabilities": [
+              "navigate",
+              "inspect",
+              "stairs"
+            ],
+            "place_id": "stair_transfer",
+            "ready": true
+          }
+        ],
+        "map": {
+          "frame_id": "map",
+          "id": "warehouse_stairs",
+          "places": [
+            {
+              "arrival_radius_m": 0.45,
+              "id": "inspection_bay",
+              "label": "Inspection bay · ground floor",
+              "pose": {
+                "x": 0.0,
+                "y": 2.5,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.4,
+              "id": "stair_transfer",
+              "label": "Stair transfer · staging area",
+              "pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              },
+              "transfer_allowed": true
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "upper_inspection",
+              "label": "Upper inspection · raised platform",
+              "pose": {
+                "x": 4.5,
+                "y": -2.0,
+                "z": 0.15
+              },
+              "transfer_allowed": false
+            }
+          ],
+          "revision": 1,
+          "segments": [
+            {
+              "enabled": true,
+              "from": "inspection_bay",
+              "id": "bay_to_transfer",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "stair_transfer"
+            },
+            {
+              "enabled": true,
+              "from": "stair_transfer",
+              "id": "stairs_to_upper",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate",
+                "stairs"
+              ],
+              "to": "upper_inspection"
+            }
+          ]
+        },
+        "request": {
+          "destination_capability": "inspect",
+          "destination_place_id": "stair_transfer",
+          "source_body_id": "rover-a",
+          "source_place_id": "inspection_bay"
+        }
+      },
+      "matches_expected": true,
+      "observed": {
+        "Ok": {
+          "assessments": [
+            {
+              "body_id": "quad-b",
+              "capability_gaps": [],
+              "eligible": true,
+              "place_id": "stair_transfer",
+              "reasons": []
+            },
+            {
+              "body_id": "rover-a",
+              "capability_gaps": [
+                {
+                  "missing_capabilities": [
+                    "stairs"
+                  ],
+                  "segment_id": "stairs_to_upper"
+                }
+              ],
+              "eligible": true,
+              "place_id": "inspection_bay",
+              "reasons": []
+            }
+          ],
+          "destination_body_id": "rover-a",
+          "destination_capability": "inspect",
+          "destination_place_id": "stair_transfer",
+          "distance_m": 4.6097722286464435,
+          "explanation": [
+            "Selected 1 route legs with 0 body transfers; minimise transfers before summed straight-line graph distance.",
+            "This proposal grants no motion authority. Approval must recheck the map, body readiness, placement and source-stop boundary; adapters remain responsible for local path and motion safety."
+          ],
+          "legs": [
+            {
+              "arrival_radius_m": 0.4,
+              "body_id": "rover-a",
+              "distance_m": 4.6097722286464435,
+              "from": "inspection_bay",
+              "from_pose": {
+                "x": 0.0,
+                "y": 2.5,
+                "z": 0.0
+              },
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "segment_id": "bay_to_transfer",
+              "to": "stair_transfer",
+              "to_pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              }
+            }
+          ],
+          "map_digest": "1d93cd8e5a022db88ed3f9569579ef6365e5645b4d1a98e618a6fa6dd5de56c4",
+          "map_id": "warehouse_stairs",
+          "map_revision": 1,
+          "planner_id": "semantic-capability-dijkstra-v1",
+          "source_body_id": "rover-a",
+          "source_place_id": "inspection_bay",
+          "transfers": []
+        }
+      },
+      "planning_time_ns": {
+        "max": 29568,
+        "median": 4070,
+        "min": 3876,
+        "p95": 5963,
+        "samples": 100,
+        "warmup_calls": 5
+      },
+      "repeatable": true,
+      "scenario": "same_body_flat_route"
+    },
+    {
+      "expected": {
+        "code": "no_capable_body",
+        "outcome": "refusal"
+      },
+      "input": {
+        "candidates": [
+          {
+            "available": true,
+            "body_id": "rover-a",
+            "capabilities": [
+              "navigate",
+              "inspect"
+            ],
+            "place_id": "inspection_bay",
+            "ready": true
+          },
+          {
+            "available": false,
+            "body_id": "quad-b",
+            "capabilities": [
+              "navigate",
+              "inspect",
+              "stairs"
+            ],
+            "place_id": "stair_transfer",
+            "ready": true
+          }
+        ],
+        "map": {
+          "frame_id": "map",
+          "id": "warehouse_stairs",
+          "places": [
+            {
+              "arrival_radius_m": 0.45,
+              "id": "inspection_bay",
+              "label": "Inspection bay · ground floor",
+              "pose": {
+                "x": 0.0,
+                "y": 2.5,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.4,
+              "id": "stair_transfer",
+              "label": "Stair transfer · staging area",
+              "pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              },
+              "transfer_allowed": true
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "upper_inspection",
+              "label": "Upper inspection · raised platform",
+              "pose": {
+                "x": 4.5,
+                "y": -2.0,
+                "z": 0.15
+              },
+              "transfer_allowed": false
+            }
+          ],
+          "revision": 1,
+          "segments": [
+            {
+              "enabled": true,
+              "from": "inspection_bay",
+              "id": "bay_to_transfer",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "stair_transfer"
+            },
+            {
+              "enabled": true,
+              "from": "stair_transfer",
+              "id": "stairs_to_upper",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate",
+                "stairs"
+              ],
+              "to": "upper_inspection"
+            }
+          ]
+        },
+        "request": {
+          "destination_capability": "inspect",
+          "destination_place_id": "upper_inspection",
+          "source_body_id": "rover-a",
+          "source_place_id": "inspection_bay"
+        }
+      },
+      "matches_expected": true,
+      "observed": {
+        "Err": {
+          "assessments": [
+            {
+              "body_id": "quad-b",
+              "capability_gaps": [],
+              "eligible": false,
+              "place_id": "stair_transfer",
+              "reasons": [
+                "body is busy, fenced or otherwise unavailable"
+              ]
+            },
+            {
+              "body_id": "rover-a",
+              "capability_gaps": [
+                {
+                  "missing_capabilities": [
+                    "stairs"
+                  ],
+                  "segment_id": "stairs_to_upper"
+                }
+              ],
+              "eligible": true,
+              "place_id": "inspection_bay",
+              "reasons": []
+            }
+          ],
+          "code": "no_capable_body",
+          "message": "no eligible body combination provides all required route and destination capabilities"
+        }
+      },
+      "planning_time_ns": {
+        "max": 26985,
+        "median": 1065,
+        "min": 1025,
+        "p95": 1834,
+        "samples": 100,
+        "warmup_calls": 5
+      },
+      "repeatable": true,
+      "scenario": "target_unavailable"
+    },
+    {
+      "expected": {
+        "code": "no_capable_body",
+        "outcome": "refusal"
+      },
+      "input": {
+        "candidates": [
+          {
+            "available": true,
+            "body_id": "rover-a",
+            "capabilities": [
+              "navigate",
+              "inspect"
+            ],
+            "place_id": "inspection_bay",
+            "ready": true
+          },
+          {
+            "available": true,
+            "body_id": "quad-b",
+            "capabilities": [
+              "navigate",
+              "inspect",
+              "stairs"
+            ],
+            "place_id": "stair_transfer",
+            "ready": false
+          }
+        ],
+        "map": {
+          "frame_id": "map",
+          "id": "warehouse_stairs",
+          "places": [
+            {
+              "arrival_radius_m": 0.45,
+              "id": "inspection_bay",
+              "label": "Inspection bay · ground floor",
+              "pose": {
+                "x": 0.0,
+                "y": 2.5,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.4,
+              "id": "stair_transfer",
+              "label": "Stair transfer · staging area",
+              "pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              },
+              "transfer_allowed": true
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "upper_inspection",
+              "label": "Upper inspection · raised platform",
+              "pose": {
+                "x": 4.5,
+                "y": -2.0,
+                "z": 0.15
+              },
+              "transfer_allowed": false
+            }
+          ],
+          "revision": 1,
+          "segments": [
+            {
+              "enabled": true,
+              "from": "inspection_bay",
+              "id": "bay_to_transfer",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "stair_transfer"
+            },
+            {
+              "enabled": true,
+              "from": "stair_transfer",
+              "id": "stairs_to_upper",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate",
+                "stairs"
+              ],
+              "to": "upper_inspection"
+            }
+          ]
+        },
+        "request": {
+          "destination_capability": "inspect",
+          "destination_place_id": "upper_inspection",
+          "source_body_id": "rover-a",
+          "source_place_id": "inspection_bay"
+        }
+      },
+      "matches_expected": true,
+      "observed": {
+        "Err": {
+          "assessments": [
+            {
+              "body_id": "quad-b",
+              "capability_gaps": [],
+              "eligible": false,
+              "place_id": "stair_transfer",
+              "reasons": [
+                "body is not currently ready and fresh"
+              ]
+            },
+            {
+              "body_id": "rover-a",
+              "capability_gaps": [
+                {
+                  "missing_capabilities": [
+                    "stairs"
+                  ],
+                  "segment_id": "stairs_to_upper"
+                }
+              ],
+              "eligible": true,
+              "place_id": "inspection_bay",
+              "reasons": []
+            }
+          ],
+          "code": "no_capable_body",
+          "message": "no eligible body combination provides all required route and destination capabilities"
+        }
+      },
+      "planning_time_ns": {
+        "max": 1258,
+        "median": 1060,
+        "min": 1020,
+        "p95": 1123,
+        "samples": 100,
+        "warmup_calls": 5
+      },
+      "repeatable": true,
+      "scenario": "target_unready"
+    },
+    {
+      "expected": {
+        "code": "no_capable_body",
+        "outcome": "refusal"
+      },
+      "input": {
+        "candidates": [
+          {
+            "available": true,
+            "body_id": "rover-a",
+            "capabilities": [
+              "navigate",
+              "inspect"
+            ],
+            "place_id": "inspection_bay",
+            "ready": true
+          },
+          {
+            "available": true,
+            "body_id": "quad-b",
+            "capabilities": [
+              "navigate",
+              "inspect"
+            ],
+            "place_id": "stair_transfer",
+            "ready": true
+          }
+        ],
+        "map": {
+          "frame_id": "map",
+          "id": "warehouse_stairs",
+          "places": [
+            {
+              "arrival_radius_m": 0.45,
+              "id": "inspection_bay",
+              "label": "Inspection bay · ground floor",
+              "pose": {
+                "x": 0.0,
+                "y": 2.5,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.4,
+              "id": "stair_transfer",
+              "label": "Stair transfer · staging area",
+              "pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              },
+              "transfer_allowed": true
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "upper_inspection",
+              "label": "Upper inspection · raised platform",
+              "pose": {
+                "x": 4.5,
+                "y": -2.0,
+                "z": 0.15
+              },
+              "transfer_allowed": false
+            }
+          ],
+          "revision": 1,
+          "segments": [
+            {
+              "enabled": true,
+              "from": "inspection_bay",
+              "id": "bay_to_transfer",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "stair_transfer"
+            },
+            {
+              "enabled": true,
+              "from": "stair_transfer",
+              "id": "stairs_to_upper",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate",
+                "stairs"
+              ],
+              "to": "upper_inspection"
+            }
+          ]
+        },
+        "request": {
+          "destination_capability": "inspect",
+          "destination_place_id": "upper_inspection",
+          "source_body_id": "rover-a",
+          "source_place_id": "inspection_bay"
+        }
+      },
+      "matches_expected": true,
+      "observed": {
+        "Err": {
+          "assessments": [
+            {
+              "body_id": "quad-b",
+              "capability_gaps": [
+                {
+                  "missing_capabilities": [
+                    "stairs"
+                  ],
+                  "segment_id": "stairs_to_upper"
+                }
+              ],
+              "eligible": true,
+              "place_id": "stair_transfer",
+              "reasons": []
+            },
+            {
+              "body_id": "rover-a",
+              "capability_gaps": [
+                {
+                  "missing_capabilities": [
+                    "stairs"
+                  ],
+                  "segment_id": "stairs_to_upper"
+                }
+              ],
+              "eligible": true,
+              "place_id": "inspection_bay",
+              "reasons": []
+            }
+          ],
+          "code": "no_capable_body",
+          "message": "no eligible body combination provides all required route and destination capabilities"
+        }
+      },
+      "planning_time_ns": {
+        "max": 1253,
+        "median": 1083,
+        "min": 1049,
+        "p95": 1124,
+        "samples": 100,
+        "warmup_calls": 5
+      },
+      "repeatable": true,
+      "scenario": "target_missing_stairs"
+    },
+    {
+      "expected": {
+        "code": "no_capable_body",
+        "outcome": "refusal"
+      },
+      "input": {
+        "candidates": [
+          {
+            "available": true,
+            "body_id": "rover-a",
+            "capabilities": [
+              "navigate"
+            ],
+            "place_id": "inspection_bay",
+            "ready": true
+          },
+          {
+            "available": true,
+            "body_id": "quad-b",
+            "capabilities": [
+              "navigate",
+              "stairs"
+            ],
+            "place_id": "stair_transfer",
+            "ready": true
+          }
+        ],
+        "map": {
+          "frame_id": "map",
+          "id": "warehouse_stairs",
+          "places": [
+            {
+              "arrival_radius_m": 0.45,
+              "id": "inspection_bay",
+              "label": "Inspection bay · ground floor",
+              "pose": {
+                "x": 0.0,
+                "y": 2.5,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.4,
+              "id": "stair_transfer",
+              "label": "Stair transfer · staging area",
+              "pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              },
+              "transfer_allowed": true
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "upper_inspection",
+              "label": "Upper inspection · raised platform",
+              "pose": {
+                "x": 4.5,
+                "y": -2.0,
+                "z": 0.15
+              },
+              "transfer_allowed": false
+            }
+          ],
+          "revision": 1,
+          "segments": [
+            {
+              "enabled": true,
+              "from": "inspection_bay",
+              "id": "bay_to_transfer",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "stair_transfer"
+            },
+            {
+              "enabled": true,
+              "from": "stair_transfer",
+              "id": "stairs_to_upper",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate",
+                "stairs"
+              ],
+              "to": "upper_inspection"
+            }
+          ]
+        },
+        "request": {
+          "destination_capability": "inspect",
+          "destination_place_id": "upper_inspection",
+          "source_body_id": "rover-a",
+          "source_place_id": "inspection_bay"
+        }
+      },
+      "matches_expected": true,
+      "observed": {
+        "Err": {
+          "assessments": [
+            {
+              "body_id": "quad-b",
+              "capability_gaps": [
+                {
+                  "missing_capabilities": [
+                    "inspect"
+                  ],
+                  "segment_id": "destination_task"
+                }
+              ],
+              "eligible": true,
+              "place_id": "stair_transfer",
+              "reasons": []
+            },
+            {
+              "body_id": "rover-a",
+              "capability_gaps": [
+                {
+                  "missing_capabilities": [
+                    "stairs"
+                  ],
+                  "segment_id": "stairs_to_upper"
+                },
+                {
+                  "missing_capabilities": [
+                    "inspect"
+                  ],
+                  "segment_id": "destination_task"
+                }
+              ],
+              "eligible": true,
+              "place_id": "inspection_bay",
+              "reasons": []
+            }
+          ],
+          "code": "no_capable_body",
+          "message": "no eligible body combination provides all required route and destination capabilities"
+        }
+      },
+      "planning_time_ns": {
+        "max": 16667,
+        "median": 1088,
+        "min": 1052,
+        "p95": 1160,
+        "samples": 100,
+        "warmup_calls": 5
+      },
+      "repeatable": true,
+      "scenario": "no_destination_inspection_capability"
+    },
+    {
+      "expected": {
+        "code": "no_capable_body",
+        "outcome": "refusal"
+      },
+      "input": {
+        "candidates": [
+          {
+            "available": true,
+            "body_id": "rover-a",
+            "capabilities": [
+              "navigate",
+              "inspect"
+            ],
+            "place_id": "inspection_bay",
+            "ready": true
+          },
+          {
+            "available": true,
+            "body_id": "quad-b",
+            "capabilities": [
+              "navigate",
+              "inspect",
+              "stairs"
+            ],
+            "place_id": null,
+            "ready": true
+          }
+        ],
+        "map": {
+          "frame_id": "map",
+          "id": "warehouse_stairs",
+          "places": [
+            {
+              "arrival_radius_m": 0.45,
+              "id": "inspection_bay",
+              "label": "Inspection bay · ground floor",
+              "pose": {
+                "x": 0.0,
+                "y": 2.5,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.4,
+              "id": "stair_transfer",
+              "label": "Stair transfer · staging area",
+              "pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              },
+              "transfer_allowed": true
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "upper_inspection",
+              "label": "Upper inspection · raised platform",
+              "pose": {
+                "x": 4.5,
+                "y": -2.0,
+                "z": 0.15
+              },
+              "transfer_allowed": false
+            }
+          ],
+          "revision": 1,
+          "segments": [
+            {
+              "enabled": true,
+              "from": "inspection_bay",
+              "id": "bay_to_transfer",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "stair_transfer"
+            },
+            {
+              "enabled": true,
+              "from": "stair_transfer",
+              "id": "stairs_to_upper",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate",
+                "stairs"
+              ],
+              "to": "upper_inspection"
+            }
+          ]
+        },
+        "request": {
+          "destination_capability": "inspect",
+          "destination_place_id": "upper_inspection",
+          "source_body_id": "rover-a",
+          "source_place_id": "inspection_bay"
+        }
+      },
+      "matches_expected": true,
+      "observed": {
+        "Err": {
+          "assessments": [
+            {
+              "body_id": "quad-b",
+              "capability_gaps": [],
+              "eligible": false,
+              "place_id": null,
+              "reasons": [
+                "body has no verified semantic placement"
+              ]
+            },
+            {
+              "body_id": "rover-a",
+              "capability_gaps": [
+                {
+                  "missing_capabilities": [
+                    "stairs"
+                  ],
+                  "segment_id": "stairs_to_upper"
+                }
+              ],
+              "eligible": true,
+              "place_id": "inspection_bay",
+              "reasons": []
+            }
+          ],
+          "code": "no_capable_body",
+          "message": "no eligible body combination provides all required route and destination capabilities"
+        }
+      },
+      "planning_time_ns": {
+        "max": 99627,
+        "median": 1039,
+        "min": 987,
+        "p95": 2422,
+        "samples": 100,
+        "warmup_calls": 5
+      },
+      "repeatable": true,
+      "scenario": "target_unknown_placement"
+    },
+    {
+      "expected": {
+        "code": "transfer_unavailable",
+        "outcome": "refusal"
+      },
+      "input": {
+        "candidates": [
+          {
+            "available": true,
+            "body_id": "rover-a",
+            "capabilities": [
+              "navigate",
+              "inspect"
+            ],
+            "place_id": "inspection_bay",
+            "ready": true
+          },
+          {
+            "available": true,
+            "body_id": "quad-b",
+            "capabilities": [
+              "navigate",
+              "inspect",
+              "stairs"
+            ],
+            "place_id": "inspection_bay",
+            "ready": true
+          }
+        ],
+        "map": {
+          "frame_id": "map",
+          "id": "warehouse_stairs",
+          "places": [
+            {
+              "arrival_radius_m": 0.45,
+              "id": "inspection_bay",
+              "label": "Inspection bay · ground floor",
+              "pose": {
+                "x": 0.0,
+                "y": 2.5,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.4,
+              "id": "stair_transfer",
+              "label": "Stair transfer · staging area",
+              "pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              },
+              "transfer_allowed": true
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "upper_inspection",
+              "label": "Upper inspection · raised platform",
+              "pose": {
+                "x": 4.5,
+                "y": -2.0,
+                "z": 0.15
+              },
+              "transfer_allowed": false
+            }
+          ],
+          "revision": 1,
+          "segments": [
+            {
+              "enabled": true,
+              "from": "inspection_bay",
+              "id": "bay_to_transfer",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "stair_transfer"
+            },
+            {
+              "enabled": true,
+              "from": "stair_transfer",
+              "id": "stairs_to_upper",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate",
+                "stairs"
+              ],
+              "to": "upper_inspection"
+            }
+          ]
+        },
+        "request": {
+          "destination_capability": "inspect",
+          "destination_place_id": "upper_inspection",
+          "source_body_id": "rover-a",
+          "source_place_id": "inspection_bay"
+        }
+      },
+      "matches_expected": true,
+      "observed": {
+        "Err": {
+          "assessments": [
+            {
+              "body_id": "quad-b",
+              "capability_gaps": [],
+              "eligible": true,
+              "place_id": "inspection_bay",
+              "reasons": []
+            },
+            {
+              "body_id": "rover-a",
+              "capability_gaps": [
+                {
+                  "missing_capabilities": [
+                    "stairs"
+                  ],
+                  "segment_id": "stairs_to_upper"
+                }
+              ],
+              "eligible": true,
+              "place_id": "inspection_bay",
+              "reasons": []
+            }
+          ],
+          "code": "transfer_unavailable",
+          "message": "capabilities exist, but no route within twelve legs can use them through allowed transfer points with replacements already staged; unknown positions and repeated-body transfers are not assumed"
+        }
+      },
+      "planning_time_ns": {
+        "max": 50915,
+        "median": 1586,
+        "min": 1506,
+        "p95": 2199,
+        "samples": 100,
+        "warmup_calls": 5
+      },
+      "repeatable": true,
+      "scenario": "target_wrong_staging_place"
+    },
+    {
+      "expected": {
+        "code": "transfer_unavailable",
+        "outcome": "refusal"
+      },
+      "input": {
+        "candidates": [
+          {
+            "available": true,
+            "body_id": "rover-a",
+            "capabilities": [
+              "navigate",
+              "inspect"
+            ],
+            "place_id": "inspection_bay",
+            "ready": true
+          },
+          {
+            "available": true,
+            "body_id": "quad-b",
+            "capabilities": [
+              "navigate",
+              "inspect",
+              "stairs"
+            ],
+            "place_id": "stair_transfer",
+            "ready": true
+          }
+        ],
+        "map": {
+          "frame_id": "map",
+          "id": "warehouse_stairs",
+          "places": [
+            {
+              "arrival_radius_m": 0.45,
+              "id": "inspection_bay",
+              "label": "Inspection bay · ground floor",
+              "pose": {
+                "x": 0.0,
+                "y": 2.5,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.4,
+              "id": "stair_transfer",
+              "label": "Stair transfer · staging area",
+              "pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "upper_inspection",
+              "label": "Upper inspection · raised platform",
+              "pose": {
+                "x": 4.5,
+                "y": -2.0,
+                "z": 0.15
+              },
+              "transfer_allowed": false
+            }
+          ],
+          "revision": 1,
+          "segments": [
+            {
+              "enabled": true,
+              "from": "inspection_bay",
+              "id": "bay_to_transfer",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "stair_transfer"
+            },
+            {
+              "enabled": true,
+              "from": "stair_transfer",
+              "id": "stairs_to_upper",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate",
+                "stairs"
+              ],
+              "to": "upper_inspection"
+            }
+          ]
+        },
+        "request": {
+          "destination_capability": "inspect",
+          "destination_place_id": "upper_inspection",
+          "source_body_id": "rover-a",
+          "source_place_id": "inspection_bay"
+        }
+      },
+      "matches_expected": true,
+      "observed": {
+        "Err": {
+          "assessments": [
+            {
+              "body_id": "quad-b",
+              "capability_gaps": [],
+              "eligible": true,
+              "place_id": "stair_transfer",
+              "reasons": []
+            },
+            {
+              "body_id": "rover-a",
+              "capability_gaps": [
+                {
+                  "missing_capabilities": [
+                    "stairs"
+                  ],
+                  "segment_id": "stairs_to_upper"
+                }
+              ],
+              "eligible": true,
+              "place_id": "inspection_bay",
+              "reasons": []
+            }
+          ],
+          "code": "transfer_unavailable",
+          "message": "capabilities exist, but no route within twelve legs can use them through allowed transfer points with replacements already staged; unknown positions and repeated-body transfers are not assumed"
+        }
+      },
+      "planning_time_ns": {
+        "max": 2063,
+        "median": 1533,
+        "min": 1484,
+        "p95": 1665,
+        "samples": 100,
+        "warmup_calls": 5
+      },
+      "repeatable": true,
+      "scenario": "transfer_disallowed"
+    },
+    {
+      "expected": {
+        "code": "blocked_route",
+        "outcome": "refusal"
+      },
+      "input": {
+        "candidates": [
+          {
+            "available": true,
+            "body_id": "rover-a",
+            "capabilities": [
+              "navigate",
+              "inspect"
+            ],
+            "place_id": "inspection_bay",
+            "ready": true
+          },
+          {
+            "available": true,
+            "body_id": "quad-b",
+            "capabilities": [
+              "navigate",
+              "inspect",
+              "stairs"
+            ],
+            "place_id": "stair_transfer",
+            "ready": true
+          }
+        ],
+        "map": {
+          "frame_id": "map",
+          "id": "warehouse_stairs",
+          "places": [
+            {
+              "arrival_radius_m": 0.45,
+              "id": "inspection_bay",
+              "label": "Inspection bay · ground floor",
+              "pose": {
+                "x": 0.0,
+                "y": 2.5,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.4,
+              "id": "stair_transfer",
+              "label": "Stair transfer · staging area",
+              "pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              },
+              "transfer_allowed": true
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "upper_inspection",
+              "label": "Upper inspection · raised platform",
+              "pose": {
+                "x": 4.5,
+                "y": -2.0,
+                "z": 0.15
+              },
+              "transfer_allowed": false
+            }
+          ],
+          "revision": 1,
+          "segments": [
+            {
+              "enabled": true,
+              "from": "inspection_bay",
+              "id": "bay_to_transfer",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "stair_transfer"
+            },
+            {
+              "enabled": false,
+              "from": "stair_transfer",
+              "id": "stairs_to_upper",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate",
+                "stairs"
+              ],
+              "to": "upper_inspection"
+            }
+          ]
+        },
+        "request": {
+          "destination_capability": "inspect",
+          "destination_place_id": "upper_inspection",
+          "source_body_id": "rover-a",
+          "source_place_id": "inspection_bay"
+        }
+      },
+      "matches_expected": true,
+      "observed": {
+        "Err": {
+          "assessments": [
+            {
+              "body_id": "quad-b",
+              "capability_gaps": [],
+              "eligible": true,
+              "place_id": "stair_transfer",
+              "reasons": []
+            },
+            {
+              "body_id": "rover-a",
+              "capability_gaps": [],
+              "eligible": true,
+              "place_id": "inspection_bay",
+              "reasons": []
+            }
+          ],
+          "code": "blocked_route",
+          "message": "the route is blocked by disabled semantic segments"
+        }
+      },
+      "planning_time_ns": {
+        "max": 32355,
+        "median": 779,
+        "min": 755,
+        "p95": 831,
+        "samples": 100,
+        "warmup_calls": 5
+      },
+      "repeatable": true,
+      "scenario": "stair_segment_disabled"
+    },
+    {
+      "expected": {
+        "code": "unreachable",
+        "outcome": "refusal"
+      },
+      "input": {
+        "candidates": [
+          {
+            "available": true,
+            "body_id": "rover-a",
+            "capabilities": [
+              "navigate",
+              "inspect"
+            ],
+            "place_id": "inspection_bay",
+            "ready": true
+          },
+          {
+            "available": true,
+            "body_id": "quad-b",
+            "capabilities": [
+              "navigate",
+              "inspect",
+              "stairs"
+            ],
+            "place_id": "stair_transfer",
+            "ready": true
+          }
+        ],
+        "map": {
+          "frame_id": "map",
+          "id": "warehouse_stairs",
+          "places": [
+            {
+              "arrival_radius_m": 0.45,
+              "id": "inspection_bay",
+              "label": "Inspection bay · ground floor",
+              "pose": {
+                "x": 0.0,
+                "y": 2.5,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.4,
+              "id": "stair_transfer",
+              "label": "Stair transfer · staging area",
+              "pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              },
+              "transfer_allowed": true
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "upper_inspection",
+              "label": "Upper inspection · raised platform",
+              "pose": {
+                "x": 4.5,
+                "y": -2.0,
+                "z": 0.15
+              },
+              "transfer_allowed": false
+            }
+          ],
+          "revision": 1,
+          "segments": [
+            {
+              "enabled": true,
+              "from": "inspection_bay",
+              "id": "bay_to_transfer",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "stair_transfer"
+            }
+          ]
+        },
+        "request": {
+          "destination_capability": "inspect",
+          "destination_place_id": "upper_inspection",
+          "source_body_id": "rover-a",
+          "source_place_id": "inspection_bay"
+        }
+      },
+      "matches_expected": true,
+      "observed": {
+        "Err": {
+          "assessments": [
+            {
+              "body_id": "quad-b",
+              "capability_gaps": [],
+              "eligible": true,
+              "place_id": "stair_transfer",
+              "reasons": []
+            },
+            {
+              "body_id": "rover-a",
+              "capability_gaps": [],
+              "eligible": true,
+              "place_id": "inspection_bay",
+              "reasons": []
+            }
+          ],
+          "code": "unreachable",
+          "message": "no semantic path connects the source and destination"
+        }
+      },
+      "planning_time_ns": {
+        "max": 761,
+        "median": 625,
+        "min": 611,
+        "p95": 677,
+        "samples": 100,
+        "warmup_calls": 5
+      },
+      "repeatable": true,
+      "scenario": "destination_disconnected"
+    },
+    {
+      "expected": {
+        "code": "source_unavailable",
+        "outcome": "refusal"
+      },
+      "input": {
+        "candidates": [
+          {
+            "available": true,
+            "body_id": "rover-a",
+            "capabilities": [
+              "navigate",
+              "inspect"
+            ],
+            "place_id": "stair_transfer",
+            "ready": true
+          },
+          {
+            "available": true,
+            "body_id": "quad-b",
+            "capabilities": [
+              "navigate",
+              "inspect",
+              "stairs"
+            ],
+            "place_id": "stair_transfer",
+            "ready": true
+          }
+        ],
+        "map": {
+          "frame_id": "map",
+          "id": "warehouse_stairs",
+          "places": [
+            {
+              "arrival_radius_m": 0.45,
+              "id": "inspection_bay",
+              "label": "Inspection bay · ground floor",
+              "pose": {
+                "x": 0.0,
+                "y": 2.5,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.4,
+              "id": "stair_transfer",
+              "label": "Stair transfer · staging area",
+              "pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              },
+              "transfer_allowed": true
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "upper_inspection",
+              "label": "Upper inspection · raised platform",
+              "pose": {
+                "x": 4.5,
+                "y": -2.0,
+                "z": 0.15
+              },
+              "transfer_allowed": false
+            }
+          ],
+          "revision": 1,
+          "segments": [
+            {
+              "enabled": true,
+              "from": "inspection_bay",
+              "id": "bay_to_transfer",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "stair_transfer"
+            },
+            {
+              "enabled": true,
+              "from": "stair_transfer",
+              "id": "stairs_to_upper",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate",
+                "stairs"
+              ],
+              "to": "upper_inspection"
+            }
+          ]
+        },
+        "request": {
+          "destination_capability": "inspect",
+          "destination_place_id": "upper_inspection",
+          "source_body_id": "rover-a",
+          "source_place_id": "inspection_bay"
+        }
+      },
+      "matches_expected": true,
+      "observed": {
+        "Err": {
+          "assessments": [
+            {
+              "body_id": "quad-b",
+              "capability_gaps": [],
+              "eligible": true,
+              "place_id": "stair_transfer",
+              "reasons": []
+            },
+            {
+              "body_id": "rover-a",
+              "capability_gaps": [
+                {
+                  "missing_capabilities": [
+                    "stairs"
+                  ],
+                  "segment_id": "stairs_to_upper"
+                }
+              ],
+              "eligible": true,
+              "place_id": "stair_transfer",
+              "reasons": []
+            }
+          ],
+          "code": "source_unavailable",
+          "message": "source body must be ready, available and verified at the requested starting place"
+        }
+      },
+      "planning_time_ns": {
+        "max": 42279,
+        "median": 771,
+        "min": 746,
+        "p95": 867,
+        "samples": 100,
+        "warmup_calls": 5
+      },
+      "repeatable": true,
+      "scenario": "source_wrong_place"
+    },
+    {
+      "expected": {
+        "code": "source_unavailable",
+        "outcome": "refusal"
+      },
+      "input": {
+        "candidates": [
+          {
+            "available": false,
+            "body_id": "rover-a",
+            "capabilities": [
+              "navigate",
+              "inspect"
+            ],
+            "place_id": "inspection_bay",
+            "ready": true
+          },
+          {
+            "available": true,
+            "body_id": "quad-b",
+            "capabilities": [
+              "navigate",
+              "inspect",
+              "stairs"
+            ],
+            "place_id": "stair_transfer",
+            "ready": true
+          }
+        ],
+        "map": {
+          "frame_id": "map",
+          "id": "warehouse_stairs",
+          "places": [
+            {
+              "arrival_radius_m": 0.45,
+              "id": "inspection_bay",
+              "label": "Inspection bay · ground floor",
+              "pose": {
+                "x": 0.0,
+                "y": 2.5,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.4,
+              "id": "stair_transfer",
+              "label": "Stair transfer · staging area",
+              "pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              },
+              "transfer_allowed": true
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "upper_inspection",
+              "label": "Upper inspection · raised platform",
+              "pose": {
+                "x": 4.5,
+                "y": -2.0,
+                "z": 0.15
+              },
+              "transfer_allowed": false
+            }
+          ],
+          "revision": 1,
+          "segments": [
+            {
+              "enabled": true,
+              "from": "inspection_bay",
+              "id": "bay_to_transfer",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "stair_transfer"
+            },
+            {
+              "enabled": true,
+              "from": "stair_transfer",
+              "id": "stairs_to_upper",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate",
+                "stairs"
+              ],
+              "to": "upper_inspection"
+            }
+          ]
+        },
+        "request": {
+          "destination_capability": "inspect",
+          "destination_place_id": "upper_inspection",
+          "source_body_id": "rover-a",
+          "source_place_id": "inspection_bay"
+        }
+      },
+      "matches_expected": true,
+      "observed": {
+        "Err": {
+          "assessments": [
+            {
+              "body_id": "quad-b",
+              "capability_gaps": [],
+              "eligible": true,
+              "place_id": "stair_transfer",
+              "reasons": []
+            },
+            {
+              "body_id": "rover-a",
+              "capability_gaps": [
+                {
+                  "missing_capabilities": [
+                    "stairs"
+                  ],
+                  "segment_id": "stairs_to_upper"
+                }
+              ],
+              "eligible": false,
+              "place_id": "inspection_bay",
+              "reasons": [
+                "body is busy, fenced or otherwise unavailable"
+              ]
+            }
+          ],
+          "code": "source_unavailable",
+          "message": "source body must be ready, available and verified at the requested starting place"
+        }
+      },
+      "planning_time_ns": {
+        "max": 869,
+        "median": 777,
+        "min": 749,
+        "p95": 803,
+        "samples": 100,
+        "warmup_calls": 5
+      },
+      "repeatable": true,
+      "scenario": "source_unavailable"
+    },
+    {
+      "expected": {
+        "destination_body": "quad-b",
+        "outcome": "plan",
+        "segment_body_pairs": [
+          [
+            "bay_to_transfer",
+            "rover-a"
+          ],
+          [
+            "stairs_to_upper",
+            "quad-b"
+          ]
+        ],
+        "transfers": 1
+      },
+      "input": {
+        "candidates": [
+          {
+            "available": true,
+            "body_id": "rover-a",
+            "capabilities": [
+              "navigate",
+              "inspect"
+            ],
+            "place_id": "inspection_bay",
+            "ready": true
+          },
+          {
+            "available": true,
+            "body_id": "quad-b",
+            "capabilities": [
+              "navigate",
+              "inspect",
+              "stairs"
+            ],
+            "place_id": "stair_transfer",
+            "ready": true
+          }
+        ],
+        "map": {
+          "frame_id": "map",
+          "id": "warehouse_stairs",
+          "places": [
+            {
+              "arrival_radius_m": 0.45,
+              "id": "inspection_bay",
+              "label": "Inspection bay · ground floor",
+              "pose": {
+                "x": 0.0,
+                "y": 2.5,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.4,
+              "id": "stair_transfer",
+              "label": "Stair transfer · staging area",
+              "pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              },
+              "transfer_allowed": true
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "upper_inspection",
+              "label": "Upper inspection · raised platform",
+              "pose": {
+                "x": 4.5,
+                "y": -2.0,
+                "z": 0.15
+              },
+              "transfer_allowed": false
+            }
+          ],
+          "revision": 1,
+          "segments": [
+            {
+              "enabled": true,
+              "from": "inspection_bay",
+              "id": "bay_to_transfer",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "stair_transfer"
+            },
+            {
+              "enabled": true,
+              "from": "stair_transfer",
+              "id": "stairs_to_upper",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate",
+                "stairs"
+              ],
+              "to": "upper_inspection"
+            },
+            {
+              "enabled": true,
+              "from": "stair_transfer",
+              "id": "return_loop",
+              "max_speed_mps": 0.20000000298023224,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "inspection_bay"
+            }
+          ]
+        },
+        "request": {
+          "destination_capability": "inspect",
+          "destination_place_id": "upper_inspection",
+          "source_body_id": "rover-a",
+          "source_place_id": "inspection_bay"
+        }
+      },
+      "matches_expected": true,
+      "observed": {
+        "Ok": {
+          "assessments": [
+            {
+              "body_id": "quad-b",
+              "capability_gaps": [],
+              "eligible": true,
+              "place_id": "stair_transfer",
+              "reasons": []
+            },
+            {
+              "body_id": "rover-a",
+              "capability_gaps": [
+                {
+                  "missing_capabilities": [
+                    "stairs"
+                  ],
+                  "segment_id": "stairs_to_upper"
+                }
+              ],
+              "eligible": true,
+              "place_id": "inspection_bay",
+              "reasons": []
+            }
+          ],
+          "destination_body_id": "quad-b",
+          "destination_capability": "inspect",
+          "destination_place_id": "upper_inspection",
+          "distance_m": 8.112985039767116,
+          "explanation": [
+            "Selected 2 route legs with 1 body transfers; minimise transfers before summed straight-line graph distance.",
+            "rover-a lacks [stairs] needed after stair_transfer; quad-b provides them and is ready and staged at that allowed transfer point.",
+            "This proposal grants no motion authority. Approval must recheck the map, body readiness, placement and source-stop boundary; adapters remain responsible for local path and motion safety."
+          ],
+          "legs": [
+            {
+              "arrival_radius_m": 0.4,
+              "body_id": "rover-a",
+              "distance_m": 4.6097722286464435,
+              "from": "inspection_bay",
+              "from_pose": {
+                "x": 0.0,
+                "y": 2.5,
+                "z": 0.0
+              },
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "segment_id": "bay_to_transfer",
+              "to": "stair_transfer",
+              "to_pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              }
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "body_id": "quad-b",
+              "distance_m": 3.503212811120672,
+              "from": "stair_transfer",
+              "from_pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              },
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate",
+                "stairs"
+              ],
+              "segment_id": "stairs_to_upper",
+              "to": "upper_inspection",
+              "to_pose": {
+                "x": 4.5,
+                "y": -2.0,
+                "z": 0.15
+              }
+            }
+          ],
+          "map_digest": "386d1228135184c54aa4a619af74c0837787a36de57ab717393f0dd466aad624",
+          "map_id": "warehouse_stairs",
+          "map_revision": 1,
+          "planner_id": "semantic-capability-dijkstra-v1",
+          "source_body_id": "rover-a",
+          "source_place_id": "inspection_bay",
+          "transfers": [
+            {
+              "before_leg_index": 1,
+              "place_id": "stair_transfer",
+              "reason": "rover-a lacks [stairs] needed after stair_transfer; quad-b provides them and is ready and staged at that allowed transfer point.",
+              "source_body_id": "rover-a",
+              "target_body_id": "quad-b"
+            }
+          ]
+        }
+      },
+      "planning_time_ns": {
+        "max": 532127,
+        "median": 47274,
+        "min": 42797,
+        "p95": 124226,
+        "samples": 100,
+        "warmup_calls": 5
+      },
+      "repeatable": true,
+      "scenario": "cycle_preserves_shortest_route"
+    },
+    {
+      "expected": {
+        "destination_body": "quad-b",
+        "outcome": "plan",
+        "segment_body_pairs": [
+          [
+            "bay_to_transfer",
+            "rover-a"
+          ],
+          [
+            "stairs_to_upper",
+            "quad-b"
+          ]
+        ],
+        "transfers": 1
+      },
+      "input": {
+        "candidates": [
+          {
+            "available": true,
+            "body_id": "quad-b",
+            "capabilities": [
+              "navigate",
+              "inspect",
+              "stairs"
+            ],
+            "place_id": "stair_transfer",
+            "ready": true
+          },
+          {
+            "available": true,
+            "body_id": "rover-a",
+            "capabilities": [
+              "navigate",
+              "inspect"
+            ],
+            "place_id": "inspection_bay",
+            "ready": true
+          }
+        ],
+        "map": {
+          "frame_id": "map",
+          "id": "warehouse_stairs",
+          "places": [
+            {
+              "arrival_radius_m": 0.25,
+              "id": "upper_inspection",
+              "label": "Upper inspection · raised platform",
+              "pose": {
+                "x": 4.5,
+                "y": -2.0,
+                "z": 0.15
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.4,
+              "id": "stair_transfer",
+              "label": "Stair transfer · staging area",
+              "pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              },
+              "transfer_allowed": true
+            },
+            {
+              "arrival_radius_m": 0.45,
+              "id": "inspection_bay",
+              "label": "Inspection bay · ground floor",
+              "pose": {
+                "x": 0.0,
+                "y": 2.5,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            }
+          ],
+          "revision": 1,
+          "segments": [
+            {
+              "enabled": true,
+              "from": "stair_transfer",
+              "id": "stairs_to_upper",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate",
+                "stairs"
+              ],
+              "to": "upper_inspection"
+            },
+            {
+              "enabled": true,
+              "from": "inspection_bay",
+              "id": "bay_to_transfer",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "stair_transfer"
+            }
+          ]
+        },
+        "request": {
+          "destination_capability": "inspect",
+          "destination_place_id": "upper_inspection",
+          "source_body_id": "rover-a",
+          "source_place_id": "inspection_bay"
+        }
+      },
+      "matches_expected": true,
+      "observed": {
+        "Ok": {
+          "assessments": [
+            {
+              "body_id": "quad-b",
+              "capability_gaps": [],
+              "eligible": true,
+              "place_id": "stair_transfer",
+              "reasons": []
+            },
+            {
+              "body_id": "rover-a",
+              "capability_gaps": [
+                {
+                  "missing_capabilities": [
+                    "stairs"
+                  ],
+                  "segment_id": "stairs_to_upper"
+                }
+              ],
+              "eligible": true,
+              "place_id": "inspection_bay",
+              "reasons": []
+            }
+          ],
+          "destination_body_id": "quad-b",
+          "destination_capability": "inspect",
+          "destination_place_id": "upper_inspection",
+          "distance_m": 8.112985039767116,
+          "explanation": [
+            "Selected 2 route legs with 1 body transfers; minimise transfers before summed straight-line graph distance.",
+            "rover-a lacks [stairs] needed after stair_transfer; quad-b provides them and is ready and staged at that allowed transfer point.",
+            "This proposal grants no motion authority. Approval must recheck the map, body readiness, placement and source-stop boundary; adapters remain responsible for local path and motion safety."
+          ],
+          "legs": [
+            {
+              "arrival_radius_m": 0.4,
+              "body_id": "rover-a",
+              "distance_m": 4.6097722286464435,
+              "from": "inspection_bay",
+              "from_pose": {
+                "x": 0.0,
+                "y": 2.5,
+                "z": 0.0
+              },
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "segment_id": "bay_to_transfer",
+              "to": "stair_transfer",
+              "to_pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              }
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "body_id": "quad-b",
+              "distance_m": 3.503212811120672,
+              "from": "stair_transfer",
+              "from_pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              },
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate",
+                "stairs"
+              ],
+              "segment_id": "stairs_to_upper",
+              "to": "upper_inspection",
+              "to_pose": {
+                "x": 4.5,
+                "y": -2.0,
+                "z": 0.15
+              }
+            }
+          ],
+          "map_digest": "1d93cd8e5a022db88ed3f9569579ef6365e5645b4d1a98e618a6fa6dd5de56c4",
+          "map_id": "warehouse_stairs",
+          "map_revision": 1,
+          "planner_id": "semantic-capability-dijkstra-v1",
+          "source_body_id": "rover-a",
+          "source_place_id": "inspection_bay",
+          "transfers": [
+            {
+              "before_leg_index": 1,
+              "place_id": "stair_transfer",
+              "reason": "rover-a lacks [stairs] needed after stair_transfer; quad-b provides them and is ready and staged at that allowed transfer point.",
+              "source_body_id": "rover-a",
+              "target_body_id": "quad-b"
+            }
+          ]
+        }
+      },
+      "planning_time_ns": {
+        "max": 106210,
+        "median": 5757,
+        "min": 5498,
+        "p95": 7650,
+        "samples": 100,
+        "warmup_calls": 5
+      },
+      "repeatable": true,
+      "scenario": "reordered_input_preserves_assignments"
+    },
+    {
+      "expected": {
+        "code": "invalid_input",
+        "outcome": "refusal"
+      },
+      "input": {
+        "candidates": [
+          {
+            "available": true,
+            "body_id": "rover-a",
+            "capabilities": [
+              "navigate",
+              "inspect"
+            ],
+            "place_id": "inspection_bay",
+            "ready": true
+          },
+          {
+            "available": true,
+            "body_id": "quad-b",
+            "capabilities": [
+              "navigate",
+              "inspect",
+              "stairs"
+            ],
+            "place_id": "stair_transfer",
+            "ready": true
+          }
+        ],
+        "map": {
+          "frame_id": "map",
+          "id": "warehouse_stairs",
+          "places": [
+            {
+              "arrival_radius_m": 0.45,
+              "id": "inspection_bay",
+              "label": "Inspection bay · ground floor",
+              "pose": {
+                "x": 0.0,
+                "y": 2.5,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.4,
+              "id": "stair_transfer",
+              "label": "Stair transfer · staging area",
+              "pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              },
+              "transfer_allowed": true
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "upper_inspection",
+              "label": "Upper inspection · raised platform",
+              "pose": {
+                "x": 4.5,
+                "y": -2.0,
+                "z": 0.15
+              },
+              "transfer_allowed": false
+            }
+          ],
+          "revision": 1,
+          "segments": [
+            {
+              "enabled": true,
+              "from": "inspection_bay",
+              "id": "bay_to_transfer",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "stair_transfer"
+            },
+            {
+              "enabled": true,
+              "from": "stair_transfer",
+              "id": "stairs_to_upper",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "stairs"
+              ],
+              "to": "upper_inspection"
+            }
+          ]
+        },
+        "request": {
+          "destination_capability": "inspect",
+          "destination_place_id": "upper_inspection",
+          "source_body_id": "rover-a",
+          "source_place_id": "inspection_bay"
+        }
+      },
+      "matches_expected": true,
+      "observed": {
+        "Err": {
+          "assessments": [],
+          "code": "invalid_input",
+          "message": "invalid command: segment requires navigate, optional stairs/rough_terrain, and a speed within 0.05..1 metre per second"
+        }
+      },
+      "planning_time_ns": {
+        "max": 464,
+        "median": 349,
+        "min": 338,
+        "p95": 372,
+        "samples": 100,
+        "warmup_calls": 5
+      },
+      "repeatable": true,
+      "scenario": "invalid_mobility_requirement"
+    },
+    {
+      "expected": {
+        "code": "search_limit",
+        "outcome": "refusal"
+      },
+      "input": {
+        "candidates": [
+          {
+            "available": true,
+            "body_id": "rover-a",
+            "capabilities": [
+              "navigate",
+              "inspect"
+            ],
+            "place_id": "place_0",
+            "ready": true
+          }
+        ],
+        "map": {
+          "frame_id": "map",
+          "id": "warehouse_stairs",
+          "places": [
+            {
+              "arrival_radius_m": 0.25,
+              "id": "place_0",
+              "label": "Place 0",
+              "pose": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "place_1",
+              "label": "Place 1",
+              "pose": {
+                "x": 1.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "place_2",
+              "label": "Place 2",
+              "pose": {
+                "x": 2.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "place_3",
+              "label": "Place 3",
+              "pose": {
+                "x": 3.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "place_4",
+              "label": "Place 4",
+              "pose": {
+                "x": 4.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "place_5",
+              "label": "Place 5",
+              "pose": {
+                "x": 5.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "place_6",
+              "label": "Place 6",
+              "pose": {
+                "x": 6.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "place_7",
+              "label": "Place 7",
+              "pose": {
+                "x": 7.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "place_8",
+              "label": "Place 8",
+              "pose": {
+                "x": 8.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "place_9",
+              "label": "Place 9",
+              "pose": {
+                "x": 9.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "place_10",
+              "label": "Place 10",
+              "pose": {
+                "x": 10.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "place_11",
+              "label": "Place 11",
+              "pose": {
+                "x": 11.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "place_12",
+              "label": "Place 12",
+              "pose": {
+                "x": 12.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "place_13",
+              "label": "Place 13",
+              "pose": {
+                "x": 13.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            }
+          ],
+          "revision": 1,
+          "segments": [
+            {
+              "enabled": true,
+              "from": "place_0",
+              "id": "segment_0",
+              "max_speed_mps": 0.20000000298023224,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "place_1"
+            },
+            {
+              "enabled": true,
+              "from": "place_1",
+              "id": "segment_1",
+              "max_speed_mps": 0.20000000298023224,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "place_2"
+            },
+            {
+              "enabled": true,
+              "from": "place_2",
+              "id": "segment_2",
+              "max_speed_mps": 0.20000000298023224,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "place_3"
+            },
+            {
+              "enabled": true,
+              "from": "place_3",
+              "id": "segment_3",
+              "max_speed_mps": 0.20000000298023224,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "place_4"
+            },
+            {
+              "enabled": true,
+              "from": "place_4",
+              "id": "segment_4",
+              "max_speed_mps": 0.20000000298023224,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "place_5"
+            },
+            {
+              "enabled": true,
+              "from": "place_5",
+              "id": "segment_5",
+              "max_speed_mps": 0.20000000298023224,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "place_6"
+            },
+            {
+              "enabled": true,
+              "from": "place_6",
+              "id": "segment_6",
+              "max_speed_mps": 0.20000000298023224,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "place_7"
+            },
+            {
+              "enabled": true,
+              "from": "place_7",
+              "id": "segment_7",
+              "max_speed_mps": 0.20000000298023224,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "place_8"
+            },
+            {
+              "enabled": true,
+              "from": "place_8",
+              "id": "segment_8",
+              "max_speed_mps": 0.20000000298023224,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "place_9"
+            },
+            {
+              "enabled": true,
+              "from": "place_9",
+              "id": "segment_9",
+              "max_speed_mps": 0.20000000298023224,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "place_10"
+            },
+            {
+              "enabled": true,
+              "from": "place_10",
+              "id": "segment_10",
+              "max_speed_mps": 0.20000000298023224,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "place_11"
+            },
+            {
+              "enabled": true,
+              "from": "place_11",
+              "id": "segment_11",
+              "max_speed_mps": 0.20000000298023224,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "place_12"
+            },
+            {
+              "enabled": true,
+              "from": "place_12",
+              "id": "segment_12",
+              "max_speed_mps": 0.20000000298023224,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "place_13"
+            }
+          ]
+        },
+        "request": {
+          "destination_capability": "inspect",
+          "destination_place_id": "place_13",
+          "source_body_id": "rover-a",
+          "source_place_id": "place_0"
+        }
+      },
+      "matches_expected": true,
+      "observed": {
+        "Err": {
+          "assessments": [
+            {
+              "body_id": "rover-a",
+              "capability_gaps": [],
+              "eligible": true,
+              "place_id": "place_0",
+              "reasons": []
+            }
+          ],
+          "code": "search_limit",
+          "message": "the route exceeds the twelve-leg planning limit"
+        }
+      },
+      "planning_time_ns": {
+        "max": 31433,
+        "median": 4365,
+        "min": 4312,
+        "p95": 4425,
+        "samples": 100,
+        "warmup_calls": 5
+      },
+      "repeatable": true,
+      "scenario": "thirteen_legs_exceeds_bound"
+    },
+    {
+      "expected": {
+        "destination_body": "camera-c",
+        "outcome": "plan",
+        "segment_body_pairs": [
+          [
+            "bay_to_transfer",
+            "rover-a"
+          ],
+          [
+            "stairs_to_upper",
+            "quad-b"
+          ]
+        ],
+        "transfers": 2
+      },
+      "input": {
+        "candidates": [
+          {
+            "available": true,
+            "body_id": "rover-a",
+            "capabilities": [
+              "navigate",
+              "inspect"
+            ],
+            "place_id": "inspection_bay",
+            "ready": true
+          },
+          {
+            "available": true,
+            "body_id": "quad-b",
+            "capabilities": [
+              "navigate",
+              "stairs"
+            ],
+            "place_id": "stair_transfer",
+            "ready": true
+          },
+          {
+            "available": true,
+            "body_id": "camera-c",
+            "capabilities": [
+              "inspect"
+            ],
+            "place_id": "upper_inspection",
+            "ready": true
+          }
+        ],
+        "map": {
+          "frame_id": "map",
+          "id": "warehouse_stairs",
+          "places": [
+            {
+              "arrival_radius_m": 0.45,
+              "id": "inspection_bay",
+              "label": "Inspection bay · ground floor",
+              "pose": {
+                "x": 0.0,
+                "y": 2.5,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.4,
+              "id": "stair_transfer",
+              "label": "Stair transfer · staging area",
+              "pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              },
+              "transfer_allowed": true
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "upper_inspection",
+              "label": "Upper inspection · raised platform",
+              "pose": {
+                "x": 4.5,
+                "y": -2.0,
+                "z": 0.15
+              },
+              "transfer_allowed": true
+            }
+          ],
+          "revision": 1,
+          "segments": [
+            {
+              "enabled": true,
+              "from": "inspection_bay",
+              "id": "bay_to_transfer",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "stair_transfer"
+            },
+            {
+              "enabled": true,
+              "from": "stair_transfer",
+              "id": "stairs_to_upper",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate",
+                "stairs"
+              ],
+              "to": "upper_inspection"
+            }
+          ]
+        },
+        "request": {
+          "destination_capability": "inspect",
+          "destination_place_id": "upper_inspection",
+          "source_body_id": "rover-a",
+          "source_place_id": "inspection_bay"
+        }
+      },
+      "matches_expected": true,
+      "observed": {
+        "Ok": {
+          "assessments": [
+            {
+              "body_id": "camera-c",
+              "capability_gaps": [
+                {
+                  "missing_capabilities": [
+                    "navigate"
+                  ],
+                  "segment_id": "bay_to_transfer"
+                },
+                {
+                  "missing_capabilities": [
+                    "navigate",
+                    "stairs"
+                  ],
+                  "segment_id": "stairs_to_upper"
+                }
+              ],
+              "eligible": true,
+              "place_id": "upper_inspection",
+              "reasons": []
+            },
+            {
+              "body_id": "quad-b",
+              "capability_gaps": [
+                {
+                  "missing_capabilities": [
+                    "inspect"
+                  ],
+                  "segment_id": "destination_task"
+                }
+              ],
+              "eligible": true,
+              "place_id": "stair_transfer",
+              "reasons": []
+            },
+            {
+              "body_id": "rover-a",
+              "capability_gaps": [
+                {
+                  "missing_capabilities": [
+                    "stairs"
+                  ],
+                  "segment_id": "stairs_to_upper"
+                }
+              ],
+              "eligible": true,
+              "place_id": "inspection_bay",
+              "reasons": []
+            }
+          ],
+          "destination_body_id": "camera-c",
+          "destination_capability": "inspect",
+          "destination_place_id": "upper_inspection",
+          "distance_m": 8.112985039767116,
+          "explanation": [
+            "Selected 2 route legs with 2 body transfers; minimise transfers before summed straight-line graph distance.",
+            "rover-a lacks [stairs] needed after stair_transfer; quad-b provides them and is ready and staged at that allowed transfer point.",
+            "quad-b lacks [inspect] needed after upper_inspection; camera-c provides them and is ready and staged at that allowed transfer point.",
+            "This proposal grants no motion authority. Approval must recheck the map, body readiness, placement and source-stop boundary; adapters remain responsible for local path and motion safety."
+          ],
+          "legs": [
+            {
+              "arrival_radius_m": 0.4,
+              "body_id": "rover-a",
+              "distance_m": 4.6097722286464435,
+              "from": "inspection_bay",
+              "from_pose": {
+                "x": 0.0,
+                "y": 2.5,
+                "z": 0.0
+              },
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "segment_id": "bay_to_transfer",
+              "to": "stair_transfer",
+              "to_pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              }
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "body_id": "quad-b",
+              "distance_m": 3.503212811120672,
+              "from": "stair_transfer",
+              "from_pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              },
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate",
+                "stairs"
+              ],
+              "segment_id": "stairs_to_upper",
+              "to": "upper_inspection",
+              "to_pose": {
+                "x": 4.5,
+                "y": -2.0,
+                "z": 0.15
+              }
+            }
+          ],
+          "map_digest": "37e25b29b2aa1b0624d5079d20b406fcce5fe565b1a7ff1c0e132a43118d72d8",
+          "map_id": "warehouse_stairs",
+          "map_revision": 1,
+          "planner_id": "semantic-capability-dijkstra-v1",
+          "source_body_id": "rover-a",
+          "source_place_id": "inspection_bay",
+          "transfers": [
+            {
+              "before_leg_index": 1,
+              "place_id": "stair_transfer",
+              "reason": "rover-a lacks [stairs] needed after stair_transfer; quad-b provides them and is ready and staged at that allowed transfer point.",
+              "source_body_id": "rover-a",
+              "target_body_id": "quad-b"
+            },
+            {
+              "before_leg_index": 2,
+              "place_id": "upper_inspection",
+              "reason": "quad-b lacks [inspect] needed after upper_inspection; camera-c provides them and is ready and staged at that allowed transfer point.",
+              "source_body_id": "quad-b",
+              "target_body_id": "camera-c"
+            }
+          ]
+        }
+      },
+      "planning_time_ns": {
+        "max": 74325,
+        "median": 6785,
+        "min": 6437,
+        "p95": 9046,
+        "samples": 100,
+        "warmup_calls": 5
+      },
+      "repeatable": true,
+      "scenario": "destination_inspection_transfer"
+    },
+    {
+      "expected": {
+        "destination_body": "camera-c",
+        "outcome": "plan",
+        "segment_body_pairs": [],
+        "transfers": 1
+      },
+      "input": {
+        "candidates": [
+          {
+            "available": true,
+            "body_id": "rover-a",
+            "capabilities": [
+              "navigate"
+            ],
+            "place_id": "stair_transfer",
+            "ready": true
+          },
+          {
+            "available": true,
+            "body_id": "camera-c",
+            "capabilities": [
+              "inspect"
+            ],
+            "place_id": "stair_transfer",
+            "ready": true
+          }
+        ],
+        "map": {
+          "frame_id": "map",
+          "id": "warehouse_stairs",
+          "places": [
+            {
+              "arrival_radius_m": 0.45,
+              "id": "inspection_bay",
+              "label": "Inspection bay · ground floor",
+              "pose": {
+                "x": 0.0,
+                "y": 2.5,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.4,
+              "id": "stair_transfer",
+              "label": "Stair transfer · staging area",
+              "pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              },
+              "transfer_allowed": true
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "upper_inspection",
+              "label": "Upper inspection · raised platform",
+              "pose": {
+                "x": 4.5,
+                "y": -2.0,
+                "z": 0.15
+              },
+              "transfer_allowed": false
+            }
+          ],
+          "revision": 1,
+          "segments": [
+            {
+              "enabled": true,
+              "from": "inspection_bay",
+              "id": "bay_to_transfer",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "stair_transfer"
+            },
+            {
+              "enabled": true,
+              "from": "stair_transfer",
+              "id": "stairs_to_upper",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate",
+                "stairs"
+              ],
+              "to": "upper_inspection"
+            }
+          ]
+        },
+        "request": {
+          "destination_capability": "inspect",
+          "destination_place_id": "stair_transfer",
+          "source_body_id": "rover-a",
+          "source_place_id": "stair_transfer"
+        }
+      },
+      "matches_expected": true,
+      "observed": {
+        "Ok": {
+          "assessments": [
+            {
+              "body_id": "camera-c",
+              "capability_gaps": [
+                {
+                  "missing_capabilities": [
+                    "navigate"
+                  ],
+                  "segment_id": "bay_to_transfer"
+                },
+                {
+                  "missing_capabilities": [
+                    "navigate",
+                    "stairs"
+                  ],
+                  "segment_id": "stairs_to_upper"
+                }
+              ],
+              "eligible": true,
+              "place_id": "stair_transfer",
+              "reasons": []
+            },
+            {
+              "body_id": "rover-a",
+              "capability_gaps": [
+                {
+                  "missing_capabilities": [
+                    "stairs"
+                  ],
+                  "segment_id": "stairs_to_upper"
+                },
+                {
+                  "missing_capabilities": [
+                    "inspect"
+                  ],
+                  "segment_id": "destination_task"
+                }
+              ],
+              "eligible": true,
+              "place_id": "stair_transfer",
+              "reasons": []
+            }
+          ],
+          "destination_body_id": "camera-c",
+          "destination_capability": "inspect",
+          "destination_place_id": "stair_transfer",
+          "distance_m": 0.0,
+          "explanation": [
+            "Selected 0 route legs with 1 body transfers; minimise transfers before summed straight-line graph distance.",
+            "rover-a lacks [inspect] needed after stair_transfer; camera-c provides them and is ready and staged at that allowed transfer point.",
+            "This proposal grants no motion authority. Approval must recheck the map, body readiness, placement and source-stop boundary; adapters remain responsible for local path and motion safety."
+          ],
+          "legs": [],
+          "map_digest": "1d93cd8e5a022db88ed3f9569579ef6365e5645b4d1a98e618a6fa6dd5de56c4",
+          "map_id": "warehouse_stairs",
+          "map_revision": 1,
+          "planner_id": "semantic-capability-dijkstra-v1",
+          "source_body_id": "rover-a",
+          "source_place_id": "stair_transfer",
+          "transfers": [
+            {
+              "before_leg_index": 0,
+              "place_id": "stair_transfer",
+              "reason": "rover-a lacks [inspect] needed after stair_transfer; camera-c provides them and is ready and staged at that allowed transfer point.",
+              "source_body_id": "rover-a",
+              "target_body_id": "camera-c"
+            }
+          ]
+        }
+      },
+      "planning_time_ns": {
+        "max": 26068,
+        "median": 4247,
+        "min": 4045,
+        "p95": 4563,
+        "samples": 100,
+        "warmup_calls": 5
+      },
+      "repeatable": true,
+      "scenario": "colocated_zero_leg_inspection_transfer"
+    },
+    {
+      "expected": {
+        "destination_body": "quad-b",
+        "outcome": "plan",
+        "segment_body_pairs": [
+          [
+            "bay_to_transfer",
+            "rover-a"
+          ],
+          [
+            "stairs_to_upper",
+            "quad-b"
+          ]
+        ],
+        "transfers": 1
+      },
+      "input": {
+        "candidates": [
+          {
+            "available": true,
+            "body_id": "rover-a",
+            "capabilities": [
+              "navigate",
+              "inspect"
+            ],
+            "place_id": "inspection_bay",
+            "ready": true
+          },
+          {
+            "available": true,
+            "body_id": "quad-b",
+            "capabilities": [
+              "navigate",
+              "inspect",
+              "stairs"
+            ],
+            "place_id": "stair_transfer",
+            "ready": true
+          },
+          {
+            "available": true,
+            "body_id": "quad-c",
+            "capabilities": [
+              "navigate",
+              "inspect",
+              "stairs"
+            ],
+            "place_id": "stair_transfer",
+            "ready": true
+          }
+        ],
+        "map": {
+          "frame_id": "map",
+          "id": "warehouse_stairs",
+          "places": [
+            {
+              "arrival_radius_m": 0.45,
+              "id": "inspection_bay",
+              "label": "Inspection bay · ground floor",
+              "pose": {
+                "x": 0.0,
+                "y": 2.5,
+                "z": 0.0
+              },
+              "transfer_allowed": false
+            },
+            {
+              "arrival_radius_m": 0.4,
+              "id": "stair_transfer",
+              "label": "Stair transfer · staging area",
+              "pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              },
+              "transfer_allowed": true
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "id": "upper_inspection",
+              "label": "Upper inspection · raised platform",
+              "pose": {
+                "x": 4.5,
+                "y": -2.0,
+                "z": 0.15
+              },
+              "transfer_allowed": false
+            }
+          ],
+          "revision": 1,
+          "segments": [
+            {
+              "enabled": true,
+              "from": "inspection_bay",
+              "id": "bay_to_transfer",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "to": "stair_transfer"
+            },
+            {
+              "enabled": true,
+              "from": "stair_transfer",
+              "id": "stairs_to_upper",
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate",
+                "stairs"
+              ],
+              "to": "upper_inspection"
+            }
+          ]
+        },
+        "request": {
+          "destination_capability": "inspect",
+          "destination_place_id": "upper_inspection",
+          "source_body_id": "rover-a",
+          "source_place_id": "inspection_bay"
+        }
+      },
+      "matches_expected": true,
+      "observed": {
+        "Ok": {
+          "assessments": [
+            {
+              "body_id": "quad-b",
+              "capability_gaps": [],
+              "eligible": true,
+              "place_id": "stair_transfer",
+              "reasons": []
+            },
+            {
+              "body_id": "quad-c",
+              "capability_gaps": [],
+              "eligible": true,
+              "place_id": "stair_transfer",
+              "reasons": []
+            },
+            {
+              "body_id": "rover-a",
+              "capability_gaps": [
+                {
+                  "missing_capabilities": [
+                    "stairs"
+                  ],
+                  "segment_id": "stairs_to_upper"
+                }
+              ],
+              "eligible": true,
+              "place_id": "inspection_bay",
+              "reasons": []
+            }
+          ],
+          "destination_body_id": "quad-b",
+          "destination_capability": "inspect",
+          "destination_place_id": "upper_inspection",
+          "distance_m": 8.112985039767116,
+          "explanation": [
+            "Selected 2 route legs with 1 body transfers; minimise transfers before summed straight-line graph distance.",
+            "rover-a lacks [stairs] needed after stair_transfer; quad-b provides them and is ready and staged at that allowed transfer point.",
+            "This proposal grants no motion authority. Approval must recheck the map, body readiness, placement and source-stop boundary; adapters remain responsible for local path and motion safety."
+          ],
+          "legs": [
+            {
+              "arrival_radius_m": 0.4,
+              "body_id": "rover-a",
+              "distance_m": 4.6097722286464435,
+              "from": "inspection_bay",
+              "from_pose": {
+                "x": 0.0,
+                "y": 2.5,
+                "z": 0.0
+              },
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate"
+              ],
+              "segment_id": "bay_to_transfer",
+              "to": "stair_transfer",
+              "to_pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              }
+            },
+            {
+              "arrival_radius_m": 0.25,
+              "body_id": "quad-b",
+              "distance_m": 3.503212811120672,
+              "from": "stair_transfer",
+              "from_pose": {
+                "x": 1.0,
+                "y": -2.0,
+                "z": 0.0
+              },
+              "max_speed_mps": 0.30000001192092896,
+              "required_capabilities": [
+                "navigate",
+                "stairs"
+              ],
+              "segment_id": "stairs_to_upper",
+              "to": "upper_inspection",
+              "to_pose": {
+                "x": 4.5,
+                "y": -2.0,
+                "z": 0.15
+              }
+            }
+          ],
+          "map_digest": "1d93cd8e5a022db88ed3f9569579ef6365e5645b4d1a98e618a6fa6dd5de56c4",
+          "map_id": "warehouse_stairs",
+          "map_revision": 1,
+          "planner_id": "semantic-capability-dijkstra-v1",
+          "source_body_id": "rover-a",
+          "source_place_id": "inspection_bay",
+          "transfers": [
+            {
+              "before_leg_index": 1,
+              "place_id": "stair_transfer",
+              "reason": "rover-a lacks [stairs] needed after stair_transfer; quad-b provides them and is ready and staged at that allowed transfer point.",
+              "source_body_id": "rover-a",
+              "target_body_id": "quad-b"
+            }
+          ]
+        }
+      },
+      "planning_time_ns": {
+        "max": 90363,
+        "median": 10050,
+        "min": 8103,
+        "p95": 13730,
+        "samples": 100,
+        "warmup_calls": 5
+      },
+      "repeatable": true,
+      "scenario": "equal_cost_lexical_body_choice"
+    }
+  ],
+  "schema_version": 1,
+  "scope": "Synthetic pure-planner fixtures. No dispatch, controller, localization, perception, transport or physical traversal is evaluated. Expected refusals are recorded as refusals, not completed missions.",
+  "timing_method": "100 sequential calls after 5 warmups per fixed scenario; Instant wall time includes validation, search, explanations and successful map hashing; excludes serialization, compilation and I/O; nearest-rank p95. No latency acceptance threshold."
+}

@@ -159,12 +159,20 @@ impl SemanticMap {
                     "segment endpoints must be distinct by at least one millimetre",
                 ));
             }
-            if segment.required_capabilities.is_empty()
+            if !segment
+                .required_capabilities
+                .contains(&Capability::Navigate)
+                || segment.required_capabilities.iter().any(|capability| {
+                    !matches!(
+                        capability,
+                        Capability::Navigate | Capability::Stairs | Capability::RoughTerrain
+                    )
+                })
                 || !segment.max_speed_mps.is_finite()
                 || !(0.05..=1.0).contains(&segment.max_speed_mps)
             {
                 return Err(invalid(
-                    "segment requires capabilities and a speed within 0.05..1 metre per second",
+                    "segment requires navigate, optional stairs/rough_terrain, and a speed within 0.05..1 metre per second",
                 ));
             }
         }
@@ -1071,6 +1079,38 @@ mod tests {
         let plan = plan_route(&map, &request, &bodies).unwrap();
         assert_eq!(plan.legs.len(), 1);
         assert_eq!(plan.legs[0].segment_id, "direct_flat");
+    }
+    #[test]
+    fn every_valid_segment_can_be_frozen_as_an_executable_mobility_command() {
+        let (mut map, request, bodies) = fixture();
+        for capabilities in [
+            vec![],
+            vec![Capability::Stairs],
+            vec![Capability::Navigate, Capability::Inspect],
+            vec![Capability::Navigate, Capability::Aerial],
+        ] {
+            map.segments[0].required_capabilities = capabilities.into_iter().collect();
+            assert_eq!(
+                plan_route(&map, &request, &bodies).unwrap_err().code,
+                RouteFailureCode::InvalidInput
+            );
+        }
+        for capabilities in [
+            vec![Capability::Navigate],
+            vec![Capability::Navigate, Capability::Stairs],
+            vec![Capability::Navigate, Capability::RoughTerrain],
+            vec![
+                Capability::Navigate,
+                Capability::Stairs,
+                Capability::RoughTerrain,
+            ],
+        ] {
+            map.segments[0].required_capabilities = capabilities.into_iter().collect();
+            map.validate().unwrap();
+            for segment in &map.segments {
+                crate::RouteTraversal::from_segment(&map, segment).unwrap();
+            }
+        }
     }
     #[test]
     fn rejects_malformed_geometry_graph_ids_and_fleet_bounds() {

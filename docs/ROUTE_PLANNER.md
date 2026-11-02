@@ -9,7 +9,9 @@ it.
 The map contains named places in one three-dimensional coordinate frame, directed
 segments, arrival regions, transfer permissions, required capability sets and
 speed ceilings. Stairs require every listed capability, such as both `navigate`
-and `stairs`. Disabling a segment removes it from executable planning. Map IDs,
+and `stairs`. Every segment requires `navigate`; optional mobility requirements
+are `stairs` and `rough_terrain`. Task capabilities such as `inspect` belong to
+the destination task, not a traversal. Disabling a segment removes it from executable planning. Map IDs,
 revision and a SHA-256 digest bind the reviewed content; the digest is independent
 of the order in which places or segments were supplied.
 
@@ -67,3 +69,26 @@ Run the pure checks with:
 ```sh
 cargo test --locked -p lattice-domain navigation
 ```
+
+## Reproducible scenario evaluation
+
+The evaluation example runs twenty fixed synthetic scenarios: successful flat,
+stair and destination-task transfers; unavailable or incorrectly placed bodies;
+missing capabilities; forbidden transfers; closed and disconnected segments;
+invalid mobility requirements; the leg bound; cycles and deterministic tie breaks.
+Each scenario records its full input, expected outcome, observed plan or refusal,
+repeatability, and planning wall time across 100 calls after five warmups.
+
+```sh
+cargo run --locked --release -p lattice-domain --example evaluate-routes \
+  > evaluation/route-planner-2026-11-02.json
+```
+
+The command exits unsuccessfully if a case differs from its expected outcome or
+repeated calls produce different output. Timings include pure validation, graph
+search, explanations and successful map hashing; they exclude compilation,
+serialization and I/O. Hardware, build profile and concurrent system load affect
+the measurements. They are neither control-loop timing guarantees nor physical
+mission success rates. Expected refusals remain explicitly recorded as refusals.
+The zero-leg destination-transfer fixture exercises the domain contract; the
+application's two-to-six-step bound can reject that one-task objective.
