@@ -90,8 +90,12 @@ def render(environment):
                      "annotations": {"run.googleapis.com/ingress": "all", "run.googleapis.com/invoker-iam-disabled": "true"}},
         "spec": {"template": {
             "metadata": {"annotations": {
-                "autoscaling.knative.dev/minScale": "1", "autoscaling.knative.dev/maxScale": "1",
-                "run.googleapis.com/cpu-throttling": "false", "run.googleapis.com/startup-cpu-boost": "true",
+                # Scale to zero between demos and bill CPU only while requests are in flight. Connected robots
+                # heartbeat several times a second, which keeps the instance up for a whole session. The first
+                # request after an idle spell waits a few seconds for a new instance, which, like any restart,
+                # takes a new epoch and holds unfinished work for review.
+                "autoscaling.knative.dev/minScale": "0", "autoscaling.knative.dev/maxScale": "1",
+                "run.googleapis.com/cpu-throttling": "true", "run.googleapis.com/startup-cpu-boost": "true",
                 # The v1 (Knative) API connects Cloud SQL through this annotation alone; it serves the socket at
                 # /cloudsql/<connection>. v1 has no cloudSqlInstance volume and reserves the volume name "cloudsql".
                 "run.googleapis.com/cloudsql-instances": connection,

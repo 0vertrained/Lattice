@@ -7,8 +7,19 @@ need to create individual Cloud Run services in the Google console.
 
 The public recorded demo works as soon as Netlify builds the repository. The live
 operator interface additionally needs the backend and sign-in setup below.
-Google Cloud SQL and the always-running Cloud Run instance incur charges while
-idle; a Google Cloud budget alert is useful, but it is not a spending cap.
+
+The Cloud SQL database bills while idle. The backend on Cloud Run scales to zero:
+it costs nothing until someone opens the operator console or a robot connects, and
+that first request waits a few seconds while it starts. To stop paying for the
+database's compute between demos, stop it, and start it again before the next one;
+its storage is still billed:
+
+```bash
+gcloud sql instances patch lattice-db --activation-policy NEVER   # stop
+gcloud sql instances patch lattice-db --activation-policy ALWAYS  # start
+```
+
+A Google Cloud budget alert is useful, but it is not a spending cap.
 
 ## The quick way: one script
 

@@ -81,7 +81,7 @@ main() {
     stop "Couldn't read project $project. Check the project ID and that Cloud Shell is signed in to the right Google account."
   say "Project: $project ($name), region $region"
   if [[ "$(recall LATTICE_PROJECT_ID)" != "$project" ]]; then
-    say 'This creates resources that bill while idle: a small Cloud SQL database and an always-on Cloud Run service.'
+    say 'This creates a small Cloud SQL database, which bills while idle. The backend scales to zero between uses.'
     agree 'Set up Lattice in this project?' ||
       stop 'Nothing was changed. To use another project: gcloud config set project YOUR_PROJECT_ID, then run this again.'
     remember LATTICE_PROJECT_ID "$project"

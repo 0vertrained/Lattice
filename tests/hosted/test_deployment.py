@@ -197,6 +197,12 @@ class DeploymentTests(unittest.TestCase):
             self.assertEqual(env[name]['valueFrom']['secretKeyRef']['key'], '1')
         self.assertEqual(manifest['spec']['template']['metadata']['annotations']['autoscaling.knative.dev/maxScale'], '1')
 
+    def test_idle_backend_scales_to_zero_and_bills_only_requests(self):
+        annotations = render(inputs())['spec']['template']['metadata']['annotations']
+        self.assertEqual(annotations['autoscaling.knative.dev/minScale'], '0')
+        self.assertEqual(annotations['autoscaling.knative.dev/maxScale'], '1')
+        self.assertEqual(annotations['run.googleapis.com/cpu-throttling'], 'true')
+
     def test_manifest_only_uses_volumes_the_cloud_run_v1_api_accepts(self):
         # gcloud run services replace speaks the v1 API, whose volumes are secret, configMap, emptyDir, nfs or csi;
         # it reserves the name "cloudsql". Cloud SQL attaches through the annotation, which serves the socket that
