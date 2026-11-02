@@ -1,4 +1,89 @@
-# Shared observation memory and reviewed handoff — November 2, 2026
+# Capability routes and heterogeneous continuation — November 2, 2026
+
+The [recorded capability route](../apps/control-center/public/demo/capability-route.json)
+completed its four-step objective at **37.369 seconds**. The full recording lasts
+41.518 seconds including a physical standing interval after completion. A Gazebo
+rover inspected the bay and drove to the transfer point. The staged MuJoCo Go1
+received an explicitly approved continuation, verified the retained source JPEG,
+climbed three physical 5 cm steps and captured the upper marker. Both observations
+were retained, with no anomalies and no repeated source inspection.
+
+The recording contains 332 measured poses and the private proof retains 825
+physics samples with full joint positions and velocities. Reported paths were
+4.32 m for the rover and 3.57 m for Go1. Source drift after the completed approach
+and transfer hold was 0.008 m. The Go1 traversal was observed running at 25.488 s
+and succeeded at 35.908 s. Its physics history includes contacts on all three
+steps, four loaded feet at completion, maximum tilt 0.1934 radians and maximum
+motor torque 21.406 Nm. Navigation-reference height was 0.1805 m; raw base height
+was 0.4425 m. The fixed reference offset is documented in [QUADRUPED.md](QUADRUPED.md).
+
+The source-frame SHA-256 is
+`de0ba5b51cb9b4494a4ff7dd6a025ffeb20e8870199cdef9173e221726283b1c`;
+the upper-frame SHA-256 is
+`66c6f9ed94d50a037497be38c5d05c67c1b007f143d8e19d2d0e79598994db36`.
+The recorder verifies original JPEG bytes against retained observation hashes.
+The visual stair clip reconstructs the same run from measured complete joint
+states; it is a new camera rendering of that trace, not a separately filmed run.
+Its provenance binds the source proof, map, pinned model/policy, frame range and
+video hash. Polling timestamps in the event timeline are observation times;
+the authoritative handoff receipt timestamp and body command path establish
+that context verification preceded local actuation.
+
+Gazebo and MuJoCo use separate physics worlds with aligned semantic coordinates.
+This proves a bounded mission/evidence transfer between different simulated
+mobility types. It does not prove shared collision dynamics, real hardware,
+SLAM, stair descent, general terrain navigation or conversational continuity.
+The pretrained Walk These Ways policy and Menagerie model are credited in
+[THIRD_PARTY.md](../simulation/quadruped/THIRD_PARTY.md).
+
+Verified checks:
+
+- 42 Rust workspace tests, formatting and all-target/all-feature Clippy passed.
+  The final source-eligibility fix also passed focused PostgreSQL and Clippy checks.
+- The isolated PostgreSQL route scenario covers frozen map and body assignments,
+  unknown elevation, capability requirements, staged transfers, retained-image
+  acknowledgment, destination-only transfers, changed maps, explicit abandonment,
+  complete expiry fencing, late results and restart invalidation. The existing
+  PostgreSQL handoff regression also passed.
+- HTTP identity checks passed with real local JWT verification, viewer/operator/
+  device restrictions on the new route endpoints, revocation, revision fencing
+  and round recovery. Disposable database readiness now waits for TCP, avoiding
+  PostgreSQL's temporary bootstrap socket race.
+- The [planner evaluation](../evaluation/route-planner-2026-11-02.json) matched all
+  20 explicit expectations: seven plans and thirteen refusals, each repeated 100
+  times deterministically. Recorded timing is synthetic planner CPU work, not
+  locomotion or model-inference latency.
+- Eleven quadruped gateway tests passed. The
+  [six-case physics report](../evaluation/quadruped-2026-11-02.json) records three
+  yaw/friction arrival variants, lease loss, explicit stop and unsupported 25 cm
+  riser refusal. A separate real-time socket probe verified traversal, inspection,
+  actual image capture and watchdog stopping. None of these use a frozen base or
+  paused physics to implement stopping.
+- The pinned ROS gateway compiled and both CTests passed, including rejection of
+  Nav2 success outside a tighter signed arrival region. The Go1 installer passed
+  a repeat run against verified existing assets.
+- Operator TypeScript, lint, build/bundle budgets and browser fixtures passed,
+  including frozen review, map/expiry errors, unstaged targets, viewer restrictions,
+  explicit abandonment, read-only recommendations and a 390 px layout. Fixtures
+  test interface behavior; the real mission recording above establishes motion.
+- The actual public recording and exported `/lattice/` build passed browser
+  verification of JSON/JPEG/video hashes, MP4 playback, approval timestamps,
+  four viewport widths and no robot API calls. The prior two-rover and
+  single-rover stories also passed their regressions.
+- The main portfolio passed local media/link checks, 1440/390 px light and dark
+  layouts, and JavaScript-disabled checks. Its existing fonts, buttons, layout,
+  CSS and JavaScript were preserved; only the Lattice case study and generated
+  demo changed. Public artifacts were checked against local private credentials
+  without printing their values; no credentials were found.
+
+The recorder cleaned up its own simulator and application processes, preserving
+the durable PostgreSQL database and signing identity. Authenticated Cloud Run /
+Netlify provisioning remains unverified. CI jobs are configured; hosted CI results
+and the GitHub Pages rollout require separate verification.
+
+---
+
+# Previous shared observation memory and reviewed handoff — November 2, 2026
 
 The current increment implements immutable PostgreSQL observation memory, source
 image retrieval, a frozen handoff review, and a signed continuation context that

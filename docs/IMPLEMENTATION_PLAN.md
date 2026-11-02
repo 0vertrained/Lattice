@@ -182,8 +182,9 @@ object. Location combines the commanded station with the observing rover's lates
 heartbeat pose and its separate timestamp; it is not a triangulated marker
 coordinate. JPEGs remain on durable source missions, while raw camera-frame hashes
 refer to files in simulator run directories. Object storage, object-instance
-tracking, semantic transfer points and a shared geometric world model remain
-future work. Known-map body poses and recorded mission replay already appear in
+tracking and a shared geometric world model remain future work. Reviewed semantic
+places, transfer points and mobility edges now support bounded capability routes.
+Known-map body poses and recorded mission replay already appear in
 the digital twin; these do not satisfy the mapping and general replay exit tests.
 
 Build three distinct representations:
@@ -267,7 +268,9 @@ Exit test:
 immutable backend approval, specialized marker detection, camera evidence and
 held-out evaluation. Shared observation queries and handoff evidence retrieval now
 provide a bounded memory interface. General LLM/VLM reasoning, speech,
-conversational memory and autonomous multi-step planning remain future work. See
+conversational memory and general autonomous multi-step planning remain future work.
+The deterministic semantic route planner now derives bounded executable steps
+and explains staged capability transfers; this does not add LLM reasoning. See
 `INTELLIGENCE_DEMO.md` and [observation memory](OBSERVATION_MEMORY.md).
 
 Python remains outside the trusted command path.
@@ -346,6 +349,19 @@ Exit test:
 
 ## Milestone 7 — Multi-body handoff
 
+**Heterogeneous capability increment implemented and live-validated:** a Gazebo
+rover inspected the bay and reached a reviewed stair transfer point; a MuJoCo Go1
+verified its retained image, climbed three physical 5 cm steps, and captured the
+upper marker. The four-step objective completed in 37.369 seconds. All commands
+retained the signed, expiring contract and explicit operator approval. See the
+[capability route guide](CAPABILITY_ROUTES.md) and [physics scope](QUADRUPED.md).
+
+The deterministic planner grounds routes in configured semantic geometry and
+requires targets already staged at permitted transfer points. Both engines use
+the same semantic frame but separate contact dynamics. This implements the
+mission-and-evidence part of the stairs demonstration below; the rover does not
+map downstairs, and the robots do not share a collision world or conversation.
+
 **Reviewed same-rover-type increment implemented and live-validated:** the
 new launcher runs two namespaced Gazebo rover models with separate sensors,
 localization, motion gates, watchdogs and body-agent processes. The core can hold a
@@ -369,10 +385,11 @@ steps, retaining the dock's missing-marker anomaly and returning to charge.
 The completed inspection was not repeated. This run did not interrupt the core;
 restart retention was checked separately in PostgreSQL and HTTP tests.
 
-Two differential-drive rovers exercise continuity between instances of the same
-embodiment. A shared Gazebo process is also a common failure boundary. Different
-mobility types, transfer-point negotiation, conversation continuity, fleet traffic
-planning and the canonical stairs demo below remain future milestones.
+The earlier two-rover scenario exercises continuity between instances of the same
+embodiment; its shared Gazebo process is also a common failure boundary. The newer
+rover/Go1 scenario adds two mobility types and reviewed semantic transfer points.
+Negotiating unstaged transfers, conversation continuity, fleet traffic planning,
+shared mapping and the complete canonical vision below remain future milestones.
 
 Add in this order:
 
