@@ -397,6 +397,52 @@ async fn main() -> Result<(), Error> {
             tracing::warn!("core restarted; previous motion stopped and execution cleared");
         }
         local(&socket, &json!({"op":"lease"})).await?;
+        if let (Some(command), Some(observation)) = (&active, &state.route_observation) {
+            // The gateway already stopped before exposing this observation.
+            // Commit its condition/hold before ordinary terminal reporting; a
+            // blockage is retained recoverable work, not a completed failed round.
+            local(&socket, &json!({"op":"stop"})).await?;
+            let (input, bytes) =
+                lattice_ros2_body::route_observation::prepare(observation, command)?;
+            let parent = Path::new(&state_path)
+                .parent()
+                .ok_or("sequence parent missing")?;
+            let evidence_path = parent.join(format!("{}-scan.json", input.event_id));
+            if evidence_path.exists() {
+                if fs::read(&evidence_path)? != bytes {
+                    return Err("retained laser record changed".into());
+                }
+            } else {
+                use std::io::Write;
+                use std::os::unix::fs::OpenOptionsExt;
+                let mut file = fs::OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .mode(0o600)
+                    .open(&evidence_path)?;
+                file.write_all(&bytes)?;
+                file.sync_all()?;
+                fs::File::open(parent)?.sync_all()?;
+            }
+            match client
+                .post(format!("{url}/v1/bodies/{body_id}/route-conditions"))
+                .json(&input)
+                .send()
+                .await
+                .and_then(reqwest::Response::error_for_status)
+            {
+                Ok(_) => {
+                    tracing::info!(segment = %input.segment_id, event = %input.event_id, "laser condition retained; awaiting reviewed route continuation");
+                    active = None;
+                    pending_report = None;
+                }
+                Err(error) => {
+                    tracing::warn!(%error, "route observation acknowledgement pending; motion remains stopped");
+                }
+            }
+            tokio::time::sleep(Duration::from_millis(300)).await;
+            continue;
+        }
         if let (Some(command), Some((status, old_state, evidence))) = (&active, &pending_report) {
             match report(&client, &url, command, *status, old_state, evidence.clone()).await {
                 Ok(()) => {

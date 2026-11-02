@@ -4,11 +4,13 @@
 #include "lifecycle_msgs/srv/get_state.hpp"
 #include "motion_gate.hpp"
 #include "route_geometry.hpp"
+#include "route_obstacle.hpp"
 #include "nav2_msgs/action/navigate_to_pose.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "sensor_msgs/msg/image.hpp"
+#include "sensor_msgs/msg/laser_scan.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_listener.h"
@@ -115,6 +117,23 @@ public:
                       .count();
             }
           });
+      scan_subscription_ = create_subscription<sensor_msgs::msg::LaserScan>(
+          "scan", rclcpp::SensorDataQoS(),
+          [this](sensor_msgs::msg::LaserScan::ConstSharedPtr msg) {
+            if (!msg->ranges.empty() && msg->ranges.size() <= 720 &&
+                !msg->header.frame_id.empty() && msg->header.frame_id.size() <= 80 &&
+                std::isfinite(msg->angle_min) && std::isfinite(msg->angle_increment) &&
+                msg->angle_increment > 0 && std::isfinite(msg->range_min) &&
+                std::isfinite(msg->range_max) && msg->range_min > 0 &&
+                msg->range_max > msg->range_min && msg->range_max <= 100) {
+              scan_ = msg;
+              scan_at_ = MotionGate::Clock::now();
+              scan_unix_ms_ = std::chrono::duration_cast<std::chrono::milliseconds>(
+                  std::chrono::system_clock::now().time_since_epoch()).count();
+            } else {
+              scan_.reset();
+            }
+          });
       estop_ = create_subscription<std_msgs::msg::Bool>(
           "lattice/emergency_stop", 10,
           [this](std_msgs::msg::Bool::ConstSharedPtr msg) {
@@ -168,7 +187,8 @@ private:
             {"command_id", command_id_},
             {"detail", detail_},
             {"pose", pose_},
-            {"progress_pct", progress_}};
+            {"progress_pct", progress_},
+            {"route_observation", route_observation_}};
   }
   Json request(const Json &data) {
     const auto now = MotionGate::Clock::now();
@@ -217,6 +237,8 @@ private:
     Json target;
     std::optional<RouteRegion> arrival;
     if (op == "traverse_route") {
+      if (!scan_ || now - scan_at_ > 300ms)
+        throw std::runtime_error("fresh laser scan required before route traversal");
       const auto &route = data.at("traversal");
       const auto &from = route.at("from");
       const auto &to = route.at("to");
@@ -261,6 +283,8 @@ private:
       throw std::runtime_error("invalid command identity");
     }
     command_id_ = id_value;
+    active_route_ = op == "traverse_route" ? data.at("traversal") : Json(nullptr);
+    route_observation_ = nullptr;
     inspection_ = data.value("inspection", false);
     state_ = "running";
     detail_ = "Nav2 goal requested";
@@ -369,6 +393,8 @@ private:
     }
     if (gate_.active() && !gate_.fault(wall).empty())
       stop(gate_.fault(wall));
+    if (gate_.active() && !active_route_.is_null())
+      check_route_obstacle(wall);
     geometry_msgs::msg::Twist safe;
     if (wall - velocity_at_ < 300ms && gate_.active() &&
         gate_.fault(wall).empty()) {
@@ -379,6 +405,60 @@ private:
     }
     velocity_->publish(safe);
     serve(wall);
+  }
+  void check_route_obstacle(MotionGate::Time wall) {
+    if (!scan_ || wall - scan_at_ > 300ms || pose_.is_null()) {
+      stop("route laser/localization watchdog");
+      return;
+    }
+    const double age = (now() - rclcpp::Time(scan_->header.stamp)).seconds();
+    if (age < -0.1 || age > 0.3) {
+      stop("route laser timestamp watchdog");
+      return;
+    }
+    try {
+      // Transform the measured rays at their own timestamp, not at a later
+      // body heading; the route may start with the inspection camera facing away.
+      const auto transform = tf_->lookupTransform(
+          get_parameter("map_frame_id").as_string(), scan_->header.frame_id,
+          rclcpp::Time(scan_->header.stamp));
+      const auto &translation = transform.transform.translation;
+      const auto &q = transform.transform.rotation;
+      const double yaw = std::atan2(2 * (q.w * q.z + q.x * q.y),
+                                    1 - 2 * (q.y * q.y + q.z * q.z));
+      const auto &target = active_route_.at("to").at("pose");
+      const auto blocked = corridor_blockage(
+          pose_.at("x"), pose_.at("y"), target.at("x"), target.at("y"),
+          translation.x, translation.y, yaw, scan_->angle_min,
+          scan_->angle_increment, scan_->range_min, scan_->range_max, scan_->ranges);
+      if (!blocked)
+        return;
+      Json ranges = Json::array();
+      for (const auto value : scan_->ranges)
+        ranges.push_back(std::isfinite(value) ? Json(value) : Json(nullptr));
+      route_observation_ = {
+          {"command_id", command_id_},
+          {"map_digest", active_route_.at("map_digest")},
+          {"segment_id", active_route_.at("segment_id")},
+          {"observed_unix_ms", scan_unix_ms_},
+          {"observer_pose", pose_},
+          {"distance_m", blocked->distance_m},
+          {"blocked_samples", blocked->samples},
+          {"scan", {{"sensor_frame_id", scan_->header.frame_id},
+                    {"stamp_sec", scan_->header.stamp.sec},
+                    {"stamp_nanosec", scan_->header.stamp.nanosec},
+                    {"angle_min", scan_->angle_min},
+                    {"angle_increment", scan_->angle_increment},
+                    {"range_min", scan_->range_min},
+                    {"range_max", scan_->range_max},
+                    {"sensor_map_pose", {{"x", translation.x}, {"y", translation.y}, {"yaw", yaw}}},
+                    {"ranges", ranges}}}};
+      // Freeze evidence before withdrawing local motion; reporting to the core
+      // happens later and can never delay this stop.
+      stop("laser returns block the reviewed route corridor");
+    } catch (const tf2::TransformException &) {
+      stop("route laser transform unavailable");
+    }
   }
   void serve(MotionGate::Time now) {
     if (client_.get() < 0) {
@@ -417,6 +497,11 @@ private:
     client_.reset();
   }
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr camera_;
+  rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_subscription_;
+  sensor_msgs::msg::LaserScan::ConstSharedPtr scan_;
+  MotionGate::Time scan_at_{};
+  std::int64_t scan_unix_ms_{0};
+  Json active_route_ = nullptr, route_observation_ = nullptr;
   sensor_msgs::msg::Image::ConstSharedPtr frame_;
   MotionGate::Time frame_at_{}, arrived_at_{};
   std::int64_t frame_unix_ms_{0};

@@ -9,6 +9,9 @@ use lattice_domain::{
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
+/// Binding and hashing of body-local laser observations.
+pub mod route_observation;
+
 /// Local gateway response. The gateway owns ROS action state and localization.
 #[derive(Debug, Clone, Deserialize)]
 pub struct GatewayState {
@@ -30,6 +33,9 @@ pub struct GatewayState {
     pub capture_file: Option<String>,
     /// Wall time when the gateway received the frame.
     pub capture_unix_ms: Option<i64>,
+    /// Frozen laser evidence after an immediate local route-corridor stop.
+    #[serde(default)]
+    pub route_observation: Option<route_observation::LocalRouteObservation>,
 }
 
 /// A locally authorized goal. Only sent after verifying the signed envelope.
