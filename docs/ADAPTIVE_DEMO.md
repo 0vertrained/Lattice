@@ -7,6 +7,13 @@ laser scan detects returns inside its forward route corridor. The local gateway
 stops, and its authenticated body adapter reports bounded, hash-referenced sensor
 evidence. The recorder never writes a sensor result or changes a robot pose.
 
+If that report can't reach the core right away, the rover stays stopped and sends
+the same report again. The core accepts it while the command it was observed
+under is still active and the body is still where it took the scan. If the core
+declines it, because that command expired or no longer matches, the body reports
+the traversal as failed, which holds the round for a reviewed replan instead of
+leaving it running.
+
 The core retains the completed bay inspection and holds the same round. A frozen
 replan proposes two west-aisle legs in place of the blocked direct leg, preserving
 the observation and original objective. Explicit approval waits for the original

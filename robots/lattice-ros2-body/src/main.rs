@@ -7,7 +7,11 @@ use lattice_domain::{
     BatteryPercent, BodyId, BodyKind, BodyStatus, Capability, CommandResult, CommandResultStatus,
     InspectionEvidence, SignedCommand, SkillCommand, VerificationKey,
 };
-use lattice_ros2_body::{GatewayState, verify_navigation_with_capabilities};
+use lattice_ros2_body::{
+    GatewayState,
+    route_observation::{ConditionReply, condition_reply},
+    verify_navigation_with_capabilities,
+};
 use reqwest::{Client, StatusCode};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -397,7 +401,9 @@ async fn main() -> Result<(), Error> {
             tracing::warn!("core restarted; previous motion stopped and execution cleared");
         }
         local(&socket, &json!({"op":"lease"})).await?;
-        if let (Some(command), Some(observation)) = (&active, &state.route_observation) {
+        if let (Some(command), Some(observation), None) =
+            (&active, &state.route_observation, &pending_report)
+        {
             // The gateway already stopped before exposing this observation.
             // Commit its condition/hold before ordinary terminal reporting; a
             // blockage is retained recoverable work, not a completed failed round.
@@ -424,21 +430,40 @@ async fn main() -> Result<(), Error> {
                 file.sync_all()?;
                 fs::File::open(parent)?.sync_all()?;
             }
-            match client
+            let reply = client
                 .post(format!("{url}/v1/bodies/{body_id}/route-conditions"))
                 .json(&input)
                 .send()
-                .await
-                .and_then(reqwest::Response::error_for_status)
-            {
-                Ok(_) => {
+                .await;
+            let status = reply.as_ref().ok().map(reqwest::Response::status);
+            match condition_reply(status.map(|status| status.as_u16())) {
+                ConditionReply::Retained => {
                     tracing::info!(segment = %input.segment_id, event = %input.event_id, "laser condition retained; awaiting reviewed route continuation");
                     active = None;
-                    pending_report = None;
                 }
-                Err(error) => {
-                    tracing::warn!(%error, "route observation acknowledgement pending; motion remains stopped");
+                ConditionReply::Declined => {
+                    // Report the traversal as failed instead of retrying a report the core will
+                    // never take; the failure holds the round for a reviewed replan.
+                    tracing::warn!(
+                        ?status,
+                        "core declined the laser condition; reporting the traversal as failed"
+                    );
+                    let mut failed = state.clone();
+                    failed.detail = format!(
+                        "{}; the core declined the blockage report ({})",
+                        state.detail,
+                        status.map_or_else(String::new, |status| status.to_string())
+                    );
+                    pending_report = Some((CommandResultStatus::Failed, failed, None));
                 }
+                ConditionReply::Retry => match reply {
+                    Ok(response) => {
+                        tracing::warn!(status = %response.status(), "route observation acknowledgement pending; motion remains stopped");
+                    }
+                    Err(error) => {
+                        tracing::warn!(%error, "route observation acknowledgement pending; motion remains stopped");
+                    }
+                },
             }
             tokio::time::sleep(Duration::from_millis(300)).await;
             continue;

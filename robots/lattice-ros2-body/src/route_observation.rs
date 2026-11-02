@@ -125,10 +125,42 @@ pub fn prepare(
     Ok((input, bytes))
 }
 
+/// What the body does after sending a blockage report.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConditionReply {
+    /// The core recorded the condition and holds the affected rounds itself.
+    Retained,
+    /// The core will not take this report: its command expired or no longer matches. Retrying cannot
+    /// change that, so the body reports the traversal as failed, which holds the round for review.
+    Declined,
+    /// No answer, or a failure on the core's side: stay stopped and send the same report again.
+    Retry,
+}
+
+/// Classifies the core's HTTP status for a blockage report; `None` means no answer arrived.
+pub fn condition_reply(status: Option<u16>) -> ConditionReply {
+    match status {
+        Some(200..=299) => ConditionReply::Retained,
+        Some(400..=499) => ConditionReply::Declined,
+        _ => ConditionReply::Retry,
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_declined_report_stops_the_retries_and_an_outage_does_not() {
+        assert_eq!(condition_reply(Some(201)), ConditionReply::Retained);
+        for declined in [400, 403, 404, 409] {
+            assert_eq!(condition_reply(Some(declined)), ConditionReply::Declined);
+        }
+        for transient in [None, Some(500), Some(502), Some(503)] {
+            assert_eq!(condition_reply(transient), ConditionReply::Retry);
+        }
+    }
     use lattice_domain::{BodyId, CommandEnvelope, CommandId, MissionId, RouteTraversal};
 
     fn fixture() -> (LocalRouteObservation, SignedCommand) {
