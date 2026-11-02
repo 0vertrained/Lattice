@@ -10,6 +10,24 @@ operator interface additionally needs the backend and sign-in setup below.
 Google Cloud SQL and the always-running Cloud Run instance incur charges while
 idle; a Google Cloud budget alert is useful, but it is not a spending cap.
 
+## The quick way: one script
+
+Steps 2 to 6 also run as one script in Cloud Shell. Connect Netlify (step 1) and
+create the Google Cloud project with billing (step 2, items 1 to 4). Then, in Cloud
+Shell, either upload `infrastructure/cloud-run/put-online.sh` with the terminal's
+**More → Upload** and run `bash put-online.sh`, or run this from a checkout:
+
+```bash
+bash infrastructure/cloud-run/put-online.sh
+```
+
+It signs you into GitHub, asks for your Netlify address, creates the Google Cloud
+resources, prepares the Keycloak import file and asks for the realm issuer, saves
+the GitHub deployment settings after showing them, runs the deploy, and prints the
+two Netlify values. If Keycloak isn't ready yet, press Enter at the issuer prompt
+and it stops there. Run it again at any time, including after Cloud Shell
+disconnects: finished steps are skipped. The sections below describe each step.
+
 ## 1. Connect Netlify
 
 In Netlify, import `0vertrained/Lattice`, select `main`, and use its checked-in
@@ -43,13 +61,15 @@ gcloud billing projects describe "$LATTICE_PROJECT_ID" --format='value(billingEn
 ```
 
 Check that the displayed project is the new Lattice project and billing says
-`True`. Then obtain the code and sign into GitHub through its normal browser flow:
+`True`. Then sign into GitHub through its normal browser flow and obtain the code.
+The repository is private, so sign in before cloning. Step 5 needs `gh` 2.31 or
+newer (`gh --version`); `put-online.sh` installs a current one when it's older.
 
 ```bash
-git clone https://github.com/0vertrained/Lattice.git
-cd Lattice
 command -v gh || { sudo apt-get update && sudo apt-get install -y gh; }
 gh auth login --hostname github.com --git-protocol https --web
+gh repo clone 0vertrained/Lattice
+cd Lattice
 read -r -p 'Paste your actual Netlify HTTPS origin, with no trailing slash: ' LATTICE_SITE_ORIGIN
 export LATTICE_SITE_ORIGIN
 ```

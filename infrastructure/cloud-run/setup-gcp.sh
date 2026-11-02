@@ -78,6 +78,8 @@ retry gcloud artifacts repositories add-iam-policy-binding lattice --location "$
 exists gcloud iam workload-identity-pools describe lattice-github --location global || gcloud iam workload-identity-pools create lattice-github --location global --display-name 'Lattice GitHub deployments'
 exists gcloud iam workload-identity-pools providers describe lattice --location global --workload-identity-pool lattice-github || gcloud iam workload-identity-pools providers create-oidc lattice --location global --workload-identity-pool lattice-github --issuer-uri https://token.actions.githubusercontent.com --attribute-mapping 'google.subject=assertion.sub,attribute.repository_id=assertion.repository_id,attribute.ref=assertion.ref' --attribute-condition "assertion.repository_id == '$REPO_ID' && assertion.ref == 'refs/heads/main'"
 retry gcloud iam service-accounts add-iam-policy-binding "$DEPLOYER" --role roles/iam.workloadIdentityUser --member "principalSet://iam.googleapis.com/projects/$NUMBER/locations/global/workloadIdentityPools/lattice-github/attribute.repository_id/$REPO_ID"
+# put-online.sh sets the repository variables itself from configure-github.py.
+[[ -n "${LATTICE_PUT_ONLINE:-}" ]] && { echo 'Google Cloud resources are ready.'; exit 0; }
 cat <<OUTPUT
 Set these GitHub Actions repository variables:
 GCP_PROJECT=$PROJECT

@@ -96,7 +96,8 @@ def inputs():
 
 class DeploymentTests(unittest.TestCase):
     def test_setup_and_runner_shell_syntax(self):
-        for script in ('infrastructure/cloud-run/setup-gcp.sh', 'scripts/run-hosted-heterogeneous.sh'):
+        for script in ('infrastructure/cloud-run/setup-gcp.sh', 'infrastructure/cloud-run/put-online.sh',
+                       'scripts/run-hosted-heterogeneous.sh'):
             subprocess.run(['bash', '-n', str(ROOT / script)], check=True)
 
     def run_setup(self, directory):
