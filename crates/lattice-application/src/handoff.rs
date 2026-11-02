@@ -138,7 +138,9 @@ impl LatticeService {
                 "handoff requires a different body; use recovery to continue on the same rover",
             ));
         }
-        for step in &round.steps[round.current_step..] {
+        self.validate_route_transfer(&round, &target_body_id)
+            .await?;
+        for step in self.handoff_target_steps(&round, &target_body_id).await? {
             if !self.body_available(&target_body_id, &step.command).await? {
                 return Err(conflict(
                     "target body must be fresh, capable of every remaining step, unfenced and idle",
@@ -301,7 +303,12 @@ impl LatticeService {
                 "source mission is no longer held for this transfer",
             ));
         }
-        for step in &proposal.remaining_steps {
+        self.validate_route_transfer(&round, &proposal.target_body_id)
+            .await?;
+        for step in self
+            .handoff_target_steps(&round, &proposal.target_body_id)
+            .await?
+        {
             if !self
                 .body_available(&proposal.target_body_id, &step.command)
                 .await?
@@ -465,11 +472,9 @@ impl LatticeService {
         let Some(body) = self.bodies.get(body_id).await? else {
             return Ok(false);
         };
-        if !body.is_eligible(
-            command.required_capability(),
-            self.clock.now(),
-            self.config.heartbeat_timeout,
-        ) {
+        if command.required_capabilities().iter().any(|capability| {
+            !body.is_eligible(*capability, self.clock.now(), self.config.heartbeat_timeout)
+        }) {
             return Ok(false);
         }
         Ok(!self.missions.list().await?.iter().any(|m| {

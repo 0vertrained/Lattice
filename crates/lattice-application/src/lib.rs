@@ -3,6 +3,10 @@
 mod error;
 mod handoff;
 pub use handoff::{HandoffProposal, HandoffRepository};
+mod navigation;
+pub use navigation::{
+    RouteObjectiveRequest, RoutePlanProposal, RoutePlanRepository, RouteTransferOptions,
+};
 mod observation;
 pub use observation::{
     LastSeen, Observation, ObservationOutcome, ObservationRepository, validate_observation_query,

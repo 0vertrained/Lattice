@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use lattice_application::{
     ApplicationError, AuditSink, BodyRepository, CommandQueue, HandoffRepository, InspectionRound,
-    MissionRepository, Proposal, ProposalRepository, RoundRepository,
+    MissionRepository, Proposal, ProposalRepository, RoundRepository, RoutePlanRepository,
 };
 use lattice_domain::{
     AuditActor, AuditRecord, BodyId, BodySnapshot, Mission, MissionId, SignedCommand,
@@ -125,6 +125,10 @@ impl PostgresPlatform {
                 7_i32,
                 include_str!("../../../infrastructure/postgres/migrations/0007_handoffs.sql"),
             ),
+            (
+                8_i32,
+                include_str!("../../../infrastructure/postgres/migrations/0008_route_plans.sql"),
+            ),
         ] {
             if tx
                 .client()
@@ -230,6 +234,12 @@ impl PostgresPlatform {
             }
         }
         // Body fences are retained across core restart until their signed-command deadline.
+        for mut plan in RoutePlanRepository::list_route_plans(tx.as_ref()).await? {
+            if plan.status == "pending" {
+                plan.status = "invalidated".into();
+                RoutePlanRepository::save_route_plan(tx.as_ref(), plan).await?;
+            }
+        }
         for mut b in BodyRepository::list(tx.as_ref()).await? {
             b.status = lattice_domain::BodyStatus::Offline;
             BodyRepository::save(tx.as_ref(), b).await?;

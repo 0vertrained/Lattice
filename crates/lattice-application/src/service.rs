@@ -87,6 +87,8 @@ pub struct LatticeService {
     pub(crate) rounds: Option<Arc<dyn crate::RoundRepository>>,
     pub(crate) observations: Option<Arc<dyn crate::ObservationRepository>>,
     pub(crate) handoffs: Option<Arc<dyn crate::HandoffRepository>>,
+    pub(crate) route_plans: Option<Arc<dyn crate::RoutePlanRepository>>,
+    pub(crate) navigation_map: Option<Arc<lattice_domain::navigation::SemanticMap>>,
     pub(crate) approval_lock: Arc<tokio::sync::Mutex<()>>,
 }
 
@@ -105,6 +107,8 @@ impl LatticeService {
             rounds: None,
             observations: None,
             handoffs: None,
+            route_plans: None,
+            navigation_map: None,
             proposals: Arc::new(crate::proposal::Proposals::default()),
             approval_lock: Arc::default(),
             bodies,
@@ -134,9 +138,10 @@ impl LatticeService {
             + crate::RoundRepository
             + crate::ObservationRepository
             + crate::HandoffRepository
+            + crate::RoutePlanRepository
             + 'static,
     {
-        Self::new(
+        let mut service = Self::new(
             unit.clone(),
             unit.clone(),
             unit.clone(),
@@ -148,7 +153,10 @@ impl LatticeService {
         .with_proposals(unit.clone())
         .with_rounds(unit.clone())
         .with_observations(unit.clone())
-        .with_handoffs(unit)
+        .with_handoffs(unit.clone())
+        .with_route_plans(unit);
+        service.navigation_map = self.navigation_map.clone();
+        service
     }
 
     /// Installs the transaction-scoped round store.
@@ -169,6 +177,21 @@ impl LatticeService {
     /// Installs durable reviewed handoff and body-fence storage.
     pub fn with_handoffs(mut self, handoffs: Arc<dyn crate::HandoffRepository>) -> Self {
         self.handoffs = Some(handoffs);
+        self
+    }
+
+    /// Installs durable frozen capability-route proposals in the current unit of work.
+    pub fn with_route_plans(mut self, plans: Arc<dyn crate::RoutePlanRepository>) -> Self {
+        self.route_plans = Some(plans);
+        self
+    }
+
+    /// Installs the operator-configured semantic map; requests cannot replace this map.
+    pub fn with_navigation_map(
+        mut self,
+        map: Arc<lattice_domain::navigation::SemanticMap>,
+    ) -> Self {
+        self.navigation_map = Some(map);
         self
     }
 
@@ -513,11 +536,13 @@ impl LatticeService {
             let old_body_id = mission.assigned_body_id.clone();
             let current_is_eligible = match &old_body_id {
                 Some(body_id) => self.bodies.get(body_id).await?.is_some_and(|body| {
-                    body.is_eligible(
-                        mission.command.required_capability(),
-                        now,
-                        self.config.heartbeat_timeout,
-                    )
+                    mission
+                        .command
+                        .required_capabilities()
+                        .iter()
+                        .all(|capability| {
+                            body.is_eligible(*capability, now, self.config.heartbeat_timeout)
+                        })
                 }),
                 None => false,
             };
@@ -631,7 +656,7 @@ impl LatticeService {
         exclude: Option<&BodyId>,
     ) -> Result<Option<BodySnapshot>, ApplicationError> {
         let now = self.clock.now();
-        let capability = mission.command.required_capability();
+        let capabilities = mission.command.required_capabilities();
 
         let mut candidates = self
             .bodies
@@ -639,7 +664,11 @@ impl LatticeService {
             .await?
             .into_iter()
             .filter(|body| exclude != Some(&body.id))
-            .filter(|body| body.is_eligible(capability, now, self.config.heartbeat_timeout))
+            .filter(|body| {
+                capabilities.iter().all(|capability| {
+                    body.is_eligible(*capability, now, self.config.heartbeat_timeout)
+                })
+            })
             .collect::<Vec<_>>();
 
         candidates.sort_by(|left, right| {

@@ -10,7 +10,7 @@ use serde_json::json;
 use sha2::{Digest, Sha256};
 
 /// One bounded step; continuing after failure is an explicit part of the review.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RoundStep {
     /// Operator-facing task.
@@ -33,7 +33,7 @@ pub struct InspectionRound {
     pub created_at: DateTime<Utc>,
     /// Approval deadline.
     pub expires_at: DateTime<Utc>,
-    /// pending, active, recovery_required, completed, failed, invalidated.
+    /// pending, active, recovery_required, completed, failed, cancelled, invalidated.
     pub status: String,
     /// Approval identity and time.
     pub approved_by: Option<AuditActor>,
@@ -53,6 +53,9 @@ pub struct InspectionRound {
     /// Reviewed evidence context retained after a body transfer.
     #[serde(default)]
     pub continuation: Option<ContinuationContext>,
+    /// Optional frozen capability-route plan governing step assignments and transfers.
+    #[serde(default)]
+    pub route_plan_id: Option<String>,
 }
 impl LatticeService {
     /// Freezes an operator-authored round. No command is dispatched.
@@ -98,6 +101,7 @@ impl LatticeService {
             anomaly_count: 0,
             assigned_body_id: None,
             continuation: None,
+            route_plan_id: None,
         };
         self.round_store()?.save(round.clone()).await?;
         self.round_audit(
@@ -150,7 +154,106 @@ impl LatticeService {
         self.round_audit(&round, "round.approved", actor).await?;
         Ok(round)
     }
-    async fn dispatch_round_step(
+
+    /// Explicitly retires held work without deleting its evidence or releasing an old command early.
+    pub async fn abandon_round(
+        &self,
+        id: &str,
+        digest: &str,
+        actor: AuditActor,
+    ) -> Result<InspectionRound, ApplicationError> {
+        let _reservation = self.approval_lock.lock().await;
+        let mut round = self
+            .round_store()?
+            .get(id)
+            .await?
+            .ok_or(ApplicationError::NotFound { entity: "round" })?;
+        if round.digest != digest {
+            return Err(conflict("round abandonment digest mismatch"));
+        }
+        if round.status == "cancelled" {
+            return Ok(round);
+        }
+        if round.status != "recovery_required" {
+            return Err(conflict("only a held round can be abandoned"));
+        }
+        let mission_id = round
+            .current_mission_id
+            .as_ref()
+            .ok_or_else(|| conflict("held round has no current mission"))?;
+        let mut mission = self
+            .missions
+            .get(mission_id)
+            .await?
+            .ok_or(ApplicationError::NotFound { entity: "mission" })?;
+        if mission.status != MissionStatus::RecoveryRequired {
+            return Err(conflict("round mission is no longer held"));
+        }
+        let body_id = mission
+            .assigned_body_id
+            .clone()
+            .ok_or_else(|| conflict("held round has no assigned body"))?;
+        let handoffs = self
+            .handoffs
+            .as_ref()
+            .ok_or_else(|| conflict("round abandonment requires durable body fences"))?;
+        let now = self.clock.now();
+        let fence_until = if mission.active_command_id.is_some() {
+            mission
+                .command_expires_at
+                .unwrap_or(now + Duration::seconds(300))
+        } else {
+            now
+        }
+        .max(now)
+            + Duration::seconds(2);
+        handoffs.fence_body(&body_id, fence_until).await?;
+        if let Some(mut body) = self.bodies.get(&body_id).await? {
+            body.status = lattice_domain::BodyStatus::Offline;
+            self.bodies.save(body).await?;
+        }
+        // Command delivery rejects cancelled missions; an already-delivered command
+        // remains fenced until its signed authorization expires plus the stop margin.
+        mission.status = MissionStatus::Cancelled;
+        mission.updated_at = now;
+        mission.status_detail = Some(format!(
+            "Round explicitly abandoned; body authorization remains fenced through {}.",
+            fence_until.to_rfc3339()
+        ));
+        self.missions.save(mission).await?;
+        for mut proposal in handoffs.list_handoffs().await? {
+            if proposal.round_id == round.id && proposal.status == "pending" {
+                proposal.status = "invalidated".into();
+                handoffs.save_handoff(proposal).await?;
+            }
+        }
+        for mut proposal in self.proposals.list().await? {
+            if proposal.recovery_of.as_ref() == Some(mission_id) && proposal.status == "pending" {
+                proposal.status = "invalidated".into();
+                self.proposals.save(proposal).await?;
+            }
+        }
+        round.status = "cancelled".into();
+        self.round_store()?.save(round.clone()).await?;
+        self.audit
+            .append(AuditRecord {
+                occurred_at: now,
+                actor,
+                event_type: "round.abandoned".into(),
+                object_id: round.id.clone(),
+                metadata: json!({
+                    "digest": round.digest,
+                    "mission_id": round.current_mission_id,
+                    "body_id": body_id,
+                    "fence_until": fence_until,
+                    "route_plan_id": round.route_plan_id,
+                }),
+            })
+            .await?;
+        Ok(round)
+    }
+
+    pub(crate) async fn dispatch_round_step(
         &self,
         round: &mut InspectionRound,
     ) -> Result<(), ApplicationError> {
@@ -166,6 +269,43 @@ impl LatticeService {
             .approved_by
             .clone()
             .ok_or(ApplicationError::Security)?;
+        // A route review binds each step to a body. Reaching a transfer never
+        // dispatches the next body automatically, even when the source has that skill.
+        let route_policy = self.planned_route_body(round).await;
+        let hold_reason = match route_policy {
+            Ok(Some(ref planned)) if round.assigned_body_id.as_ref() != Some(planned) => {
+                Some(format!(
+                    "Route requires a reviewed transfer to {planned} before step {}. Open transfer recommendations.",
+                    round.current_step + 1
+                ))
+            }
+            Err(crate::ApplicationError::Conflict(reason)) => Some(format!(
+                "Route step held: {reason}. Review the route and current body position."
+            )),
+            Err(_) => Some(
+                "Route map or approved assignment changed. Work remains held for a fresh review."
+                    .into(),
+            ),
+            _ => None,
+        };
+        if let Some(reason) = hold_reason {
+            let mut mission = Mission::new(
+                MissionId::new(format!("mission-{}", uuid::Uuid::new_v4().simple()))?,
+                request.title,
+                request.command,
+                self.clock.now(),
+            )?;
+            mission.assigned_body_id = round.assigned_body_id.clone();
+            mission.continuation = round.continuation.clone();
+            mission.require_recovery(self.clock.now());
+            mission.status_detail = Some(reason);
+            self.missions.save(mission.clone()).await?;
+            round.status = "recovery_required".into();
+            round.current_mission_id = Some(mission.id.clone());
+            round.mission_ids.push(mission.id);
+            self.round_store()?.save(round.clone()).await?;
+            return Ok(());
+        }
         let mission = match &round.assigned_body_id {
             Some(body_id) if self.body_available(body_id, &request.command).await? => {
                 self.create_mission_for_body(

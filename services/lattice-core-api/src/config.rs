@@ -15,6 +15,8 @@ pub struct AppConfig {
     pub database_url: Option<String>,
     /// Stable local development signing seed (required with PostgreSQL).
     pub signing_key_file: Option<std::path::PathBuf>,
+    /// Trusted semantic route map; absent keeps route planning unavailable.
+    pub navigation_map_file: Option<std::path::PathBuf>,
     /// Listener address.
     pub bind_address: SocketAddr,
     /// Development-only shared key.
@@ -121,6 +123,8 @@ impl AppConfig {
             allow_takeover,
             database_url,
             signing_key_file,
+            navigation_map_file: env::var_os("LATTICE_NAVIGATION_MAP_FILE")
+                .map(std::path::PathBuf::from),
             bind_address,
             dev_api_key,
             allowed_origin,

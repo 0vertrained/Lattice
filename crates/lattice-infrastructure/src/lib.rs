@@ -5,6 +5,7 @@ mod devices;
 pub use devices::DeviceCredential;
 mod handoffs;
 mod memory;
+mod navigation;
 mod observations;
 mod postgres;
 pub use postgres::{PostgresPlatform, PostgresUnit};

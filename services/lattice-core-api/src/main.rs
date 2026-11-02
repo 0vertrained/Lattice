@@ -45,7 +45,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
     let platform = Arc::new(InMemoryPlatform::default());
-    let service = LatticeService::new(
+    let mut service = LatticeService::new(
         platform.clone(),
         platform.clone(),
         platform.clone(),
@@ -57,6 +57,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             heartbeat_timeout: config.heartbeat_timeout,
         },
     );
+
+    if let Some(path) = &config.navigation_map_file {
+        if std::fs::metadata(path)?.len() > 65_536 {
+            return Err("semantic navigation map exceeds 64 KiB".into());
+        }
+        let map: lattice_domain::navigation::SemanticMap =
+            serde_json::from_slice(&std::fs::read(path)?)?;
+        map.validate()?;
+        info!(map_id = %map.id, revision = map.revision, digest = %map.digest()?, "trusted semantic navigation map loaded");
+        service = service.with_navigation_map(Arc::new(map));
+    }
 
     let app = api::router(service, config.clone(), postgres, epoch, oidc)?;
     let listener = tokio::net::TcpListener::bind(config.bind_address).await?;

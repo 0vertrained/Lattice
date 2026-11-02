@@ -79,6 +79,11 @@ pub fn router(
         .route("/missions", get(list_missions))
         .route("/rounds", get(list_rounds).post(propose_round))
         .route("/rounds/{id}/approve", post(approve_round))
+        .route("/rounds/{id}/transfer-options", get(route_transfer_options))
+        .route("/rounds/{id}/abandon", post(abandon_round))
+        .route("/navigation/map", get(navigation_map))
+        .route("/navigation/plans", get(list_route_plans).post(propose_route_plan))
+        .route("/navigation/plans/{id}/approve", post(approve_route_plan))
         .route("/rounds/{id}/handoff-proposal", post(propose_handoff))
         .route("/handoffs", get(list_handoffs))
         .route("/handoffs/{id}/approve", post(approve_handoff))
@@ -232,6 +237,58 @@ async fn approve_round(
 
 async fn identity(Extension(principal): Extension<Principal>) -> Json<crate::auth::Identity> {
     Json(principal.identity())
+}
+
+async fn navigation_map(
+    Extension(state): Extension<ApiState>,
+) -> Result<impl IntoResponse, ApiError> {
+    Ok(Json(state.service.navigation_map()?))
+}
+async fn list_route_plans(
+    Extension(state): Extension<ApiState>,
+) -> Result<impl IntoResponse, ApiError> {
+    Ok(Json(state.service.list_route_plans().await?))
+}
+async fn propose_route_plan(
+    Extension(state): Extension<ApiState>,
+    Json(input): Json<lattice_application::RouteObjectiveRequest>,
+) -> Result<impl IntoResponse, ApiError> {
+    Ok((
+        StatusCode::CREATED,
+        Json(state.service.propose_route_plan(input).await?),
+    ))
+}
+async fn approve_route_plan(
+    Extension(state): Extension<ApiState>,
+    Extension(principal): Extension<Principal>,
+    Path(id): Path<String>,
+    Json(input): Json<ApprovalRequest>,
+) -> Result<impl IntoResponse, ApiError> {
+    Ok(Json(
+        state
+            .service
+            .approve_route_plan(&id, &input.digest, principal.actor())
+            .await?,
+    ))
+}
+async fn route_transfer_options(
+    Extension(state): Extension<ApiState>,
+    Path(id): Path<String>,
+) -> Result<impl IntoResponse, ApiError> {
+    Ok(Json(state.service.route_transfer_options(&id).await?))
+}
+async fn abandon_round(
+    Extension(state): Extension<ApiState>,
+    Extension(principal): Extension<Principal>,
+    Path(id): Path<String>,
+    Json(input): Json<ApprovalRequest>,
+) -> Result<impl IntoResponse, ApiError> {
+    Ok(Json(
+        state
+            .service
+            .abandon_round(&id, &input.digest, principal.actor())
+            .await?,
+    ))
 }
 
 #[derive(Deserialize)]
@@ -596,6 +653,7 @@ mod tests {
                 allow_takeover: false,
                 database_url: None,
                 signing_key_file: None,
+                navigation_map_file: None,
                 bind_address: "127.0.0.1:8000".parse().unwrap(),
                 dev_api_key: "a".repeat(32),
                 allowed_origin: "http://localhost:5173".into(),
@@ -639,5 +697,47 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn route_reviews_require_authentication_and_immutable_approval_payloads() {
+        for (method, path) in [
+            ("GET", "/v1/navigation/map"),
+            ("GET", "/v1/navigation/plans"),
+            ("POST", "/v1/navigation/plans"),
+            ("GET", "/v1/rounds/r/transfer-options"),
+            ("POST", "/v1/rounds/r/abandon"),
+        ] {
+            let response = app()
+                .oneshot(
+                    Request::builder()
+                        .method(method)
+                        .uri(path)
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::UNAUTHORIZED, "{path}");
+        }
+        for path in ["/v1/navigation/plans/p/approve", "/v1/rounds/r/abandon"] {
+            let response = app()
+                .oneshot(
+                    Request::builder()
+                        .method("POST")
+                        .uri(path)
+                        .header("content-type", "application/json")
+                        .header("x-lattice-api-key", "a".repeat(32))
+                        .body(Body::from(r#"{"digest":"abc","steps":[]}"#))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(
+                response.status(),
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "{path}"
+            );
+        }
     }
 }

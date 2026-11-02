@@ -160,7 +160,21 @@ impl LatticeService {
             return Err(conflict("invalid proposal metadata"));
         }
         match (input.decision.as_str(), &input.command) {
-            ("ready", Some(command)) => validate_warehouse_command(command)?,
+            ("ready", Some(command)) => {
+                let route_recovery = if let Some(id) = &recovery_of {
+                    let original = self
+                        .missions
+                        .get(id)
+                        .await?
+                        .ok_or(ApplicationError::NotFound { entity: "mission" })?;
+                    self.validate_route_recovery(&original, command).await?
+                } else {
+                    false
+                };
+                if !route_recovery {
+                    validate_warehouse_command(command)?;
+                }
+            }
             ("clarify" | "rejected", None) => {}
             _ => return Err(conflict("proposal decision and command disagree")),
         }
@@ -241,7 +255,13 @@ impl LatticeService {
         self.proposals.save(p.clone()).await?;
         let input = p.input.clone();
         let command = input.command.ok_or_else(|| conflict("missing command"))?;
-        validate_warehouse_command(&command)?;
+        let route_recovery = match &original {
+            Some(original) => self.validate_route_recovery(original, &command).await?,
+            None => false,
+        };
+        if !route_recovery {
+            validate_warehouse_command(&command)?;
+        }
         self.audit
             .append(AuditRecord {
                 occurred_at: self.clock.now(),
