@@ -168,7 +168,7 @@ export function InspectionRound({ canOperate }: { readonly canOperate: boolean }
               <>
                 <p>
                   {r.route_plan_id
-                    ? 'Execution is held. Review the planned transfer or recovery below. If this route can no longer continue, retire the held round before planning a new objective.'
+                    ? 'Execution is held. Review the planned transfer, or use “Continue a held objective” to prepare another route while preserving completed work. Retire the round when this objective should end.'
                     : 'Execution is held. Review the recovery on the current mission below; approval resumes this round.'}
                 </p>
                 {canOperate && !abandonReview && (

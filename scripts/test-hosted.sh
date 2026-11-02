@@ -65,5 +65,6 @@ node tests/browser/handoff-ui.cjs
 node tests/browser/route-planner.cjs
 node tests/browser/adaptive-route-ui.cjs
 node tests/browser/handoff-visitor.cjs
-LATTICE_VISITOR_URL=http://localhost:5173/ node tests/browser/handoff-recording.cjs
+LATTICE_VISITOR_URL=http://localhost:5173/ LATTICE_EXPECT_OPERATOR_LINK=1 node tests/browser/handoff-recording.cjs
 LATTICE_VISITOR_URL=http://localhost:5173/ node tests/browser/capability-recording.cjs
+LATTICE_VISITOR_URL=http://localhost:5173/ LATTICE_REQUIRE_ADAPTIVE_VIDEO=1 node tests/browser/adaptive-recording.cjs

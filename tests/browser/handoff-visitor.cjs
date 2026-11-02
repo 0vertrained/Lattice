@@ -56,7 +56,7 @@ const fixture = {
     page.on('pageerror', (error) => errors.push(error.message));
     page.on('request', (request) => { if (/\/(?:api\/)?v1\//.test(new URL(request.url()).pathname)) calls.push(request.url()); });
     await page.route('**/demo/handoff.json', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(fixture) }));
-    await page.goto(base);
+    await page.goto(new URL('#single', base).href);
     await page.getByRole('heading', { name: 'Briefing', exact: true }).waitFor();
     await page.getByRole('button', { name: 'Shared memory · two-rover handoff', exact: true }).click();
     await page.getByRole('heading', { name: 'Shared objective', exact: true }).waitFor();
@@ -102,7 +102,7 @@ const fixture = {
     assert.deepEqual(calls, []);
     const fallback = await browser.newPage();
     await fallback.route('**/demo/handoff.json', (route) => route.fulfill({ status: 404, body: 'not recorded yet' }));
-    await fallback.goto(base);
+    await fallback.goto(new URL('#single', base).href);
     await fallback.getByRole('heading', { name: 'Briefing', exact: true }).waitFor();
     assert.equal(await fallback.getByRole('button', { name: 'Shared memory · two-rover handoff', exact: true }).count(), 0);
     console.log('PASS: fixture-backed two-rover map/3D replay, memory query and negative evidence, context provenance, chapter focus, four viewport widths, original walkthrough and optional-recording fallback; no robot API requests');

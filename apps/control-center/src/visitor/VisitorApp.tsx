@@ -1,4 +1,5 @@
 import { Component, lazy, type ReactNode, Suspense, useEffect, useRef, useState } from 'react';
+import type { AdaptiveRecording } from './adaptiveTypes';
 import type { CapabilityRecording } from './capabilityTypes';
 import type { HandoffRecording } from './handoffTypes';
 import type { Walkthrough } from './types';
@@ -6,6 +7,7 @@ import type { Walkthrough } from './types';
 const RecordedTwin = lazy(() => import('./RecordedTwin'));
 const HandoffStory = lazy(() => import('./HandoffStory'));
 const CapabilityStory = lazy(() => import('./CapabilityStory'));
+const AdaptiveStory = lazy(() => import('./AdaptiveStory'));
 class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   override state = { failed: false };
   static getDerivedStateFromError() {
@@ -67,12 +69,15 @@ export function VisitorApp() {
   const [run, setRun] = useState<Walkthrough | null>(null);
   const [handoffRun, setHandoffRun] = useState<HandoffRecording | null>(null);
   const [capabilityRun, setCapabilityRun] = useState<CapabilityRecording | null>(null);
-  const [story, setStory] = useState<'single' | 'handoff' | 'capability'>(() =>
-    window.location.hash === '#capability'
-      ? 'capability'
-      : window.location.hash === '#handoff'
-        ? 'handoff'
-        : 'single',
+  const [adaptiveRun, setAdaptiveRun] = useState<AdaptiveRecording | null>(null);
+  const [story, setStory] = useState<'single' | 'handoff' | 'capability' | 'adaptive'>(() =>
+    !window.location.hash || window.location.hash === '#adaptive'
+      ? 'adaptive'
+      : window.location.hash === '#capability'
+        ? 'capability'
+        : window.location.hash === '#handoff'
+          ? 'handoff'
+          : 'single',
   );
   const [error, setError] = useState('');
   const [chapter, setChapter] = useState(0);
@@ -137,6 +142,24 @@ export function VisitorApp() {
     return () => abort.abort();
   }, []);
   useEffect(() => {
+    const abort = new AbortController();
+    fetch(`${import.meta.env.BASE_URL}demo/adaptive-route.json`, { signal: abort.signal })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        const value: unknown = await response.json();
+        const { adaptiveRecordingSchema } = await import('./adaptiveTypes');
+        const parsed = adaptiveRecordingSchema.safeParse(value);
+        return parsed.success ? parsed.data : null;
+      })
+      .then((recording) => {
+        if (!abort.signal.aborted) setAdaptiveRun(recording);
+      })
+      .catch(() => {
+        /* Only a complete, consistent adaptive recording is offered as a scenario. */
+      });
+    return () => abort.abort();
+  }, []);
+  useEffect(() => {
     if (!playing || !run) return;
     let frame = 0;
     let previous = performance.now();
@@ -159,6 +182,7 @@ export function VisitorApp() {
   const pose = run?.poses.findLast((p) => p.t <= time) ?? run?.poses[0];
   const event = run?.events.findLast((e) => e.t <= time);
   const capabilitySelected = story === 'capability' && capabilityRun !== null;
+  const adaptiveSelected = story === 'adaptive' && adaptiveRun !== null;
   const handoffSelected = story === 'handoff' && handoffRun !== null;
   return (
     <div className="visitor-app">
@@ -188,36 +212,44 @@ export function VisitorApp() {
         <section className="visitor-hero">
           <div>
             <p className="eyebrow">
-              {capabilitySelected
-                ? 'Capability-aware planning, measured continuation'
-                : handoffSelected
-                  ? 'Shared memory, measured continuation'
-                  : 'A warehouse objective, end to end'}
+              {adaptiveSelected
+                ? 'A changed route, a preserved objective'
+                : capabilitySelected
+                  ? 'Capability-aware planning, measured continuation'
+                  : handoffSelected
+                    ? 'Shared memory, measured continuation'
+                    : 'A warehouse objective, end to end'}
             </p>
             <h1>
-              {capabilitySelected
-                ? 'The objective needs stairs.'
-                : handoffSelected
-                  ? 'Two bodies. One objective.'
-                  : 'Inspect. Find the exception.'}
+              {adaptiveSelected
+                ? 'The aisle is blocked.'
+                : capabilitySelected
+                  ? 'The objective needs stairs.'
+                  : handoffSelected
+                    ? 'Two bodies. One objective.'
+                    : 'Inspect. Find the exception.'}
               <br />
               <em>
-                {capabilitySelected
-                  ? 'The body can change.'
-                  : handoffSelected
-                    ? 'The evidence stays.'
-                    : 'Recover and finish.'}
+                {adaptiveSelected
+                  ? 'The objective continues.'
+                  : capabilitySelected
+                    ? 'The body can change.'
+                    : handoffSelected
+                      ? 'The evidence stays.'
+                      : 'Recover and finish.'}
               </em>
             </h1>
             <p className="hero-description">
-              {capabilitySelected
-                ? 'A rover inspects the bay. A capability-aware plan selects a Go1 for the stairs. Follow the reviewed transfer, measured simulator motion and original camera evidence through one continuous objective.'
-                : handoffSelected
-                  ? 'Rover A records an inspection. Rover B acknowledges its shared context and finishes the reviewed round. Follow both bodies through measured Gazebo poses and original camera evidence.'
-                  : 'Follow a rover through two safety inspections, a missing marker and a core restart. Every pose and camera image comes from the working Gazebo simulator.'}
+              {adaptiveSelected
+                ? 'A real Gazebo lidar condition holds the route. An operator reviews a west-aisle detour without repeating the completed inspection. Follow the same objective through retained evidence, measured motion and a separate Go1 handoff.'
+                : capabilitySelected
+                  ? 'A rover inspects the bay. A capability-aware plan selects a Go1 for the stairs. Follow the reviewed transfer, measured simulator motion and original camera evidence through one continuous objective.'
+                  : handoffSelected
+                    ? 'Rover A records an inspection. Rover B acknowledges its shared context and finishes the reviewed round. Follow both bodies through measured Gazebo poses and original camera evidence.'
+                    : 'Follow a rover through two safety inspections, a missing marker and a core restart. Every pose and camera image comes from the working Gazebo simulator.'}
             </p>
             <div className="visitor-actions">
-              {capabilitySelected || handoffSelected ? (
+              {adaptiveSelected || capabilitySelected || handoffSelected ? (
                 <a className="visitor-button primary" href="#chapter">
                   Explore this recording <span aria-hidden="true">→</span>
                 </a>
@@ -233,7 +265,10 @@ export function VisitorApp() {
                   Explore the mission <span aria-hidden="true">→</span>
                 </button>
               )}
-              <a className="visitor-button" href={`${source}/blob/main/docs/SHOWCASE.md`}>
+              <a
+                className="visitor-button"
+                href={`${source}/blob/main/docs/${adaptiveSelected ? 'ADAPTIVE_DEMO.md' : capabilitySelected ? 'CAPABILITY_ROUTES.md' : 'SHOWCASE.md'}`}
+              >
                 Run it yourself
               </a>
               {handoffRun && story !== 'handoff' && (
@@ -260,6 +295,18 @@ export function VisitorApp() {
                   Explore rover-to-quadruped route →
                 </button>
               )}
+              {adaptiveRun && story !== 'adaptive' && (
+                <button
+                  type="button"
+                  className="visitor-button"
+                  onClick={() => {
+                    setStory('adaptive');
+                    setPlaying(false);
+                  }}
+                >
+                  Explore the blocked-route continuation →
+                </button>
+              )}
             </div>
           </div>
           <div className="hero-notes">
@@ -269,18 +316,22 @@ export function VisitorApp() {
             <strong>
               One round.
               <br />
-              {capabilitySelected
-                ? 'Two different body types.'
-                : handoffSelected
-                  ? 'Two executing rovers.'
-                  : 'Three bounded steps.'}
+              {adaptiveSelected
+                ? 'A reviewed route change.'
+                : capabilitySelected
+                  ? 'Two different body types.'
+                  : handoffSelected
+                    ? 'Two executing rovers.'
+                    : 'Three bounded steps.'}
             </strong>
             <p>
-              {capabilitySelected
-                ? `${capabilityRun.steps.length} reviewed steps. Separate Gazebo and MuJoCo simulations. A retained inspection and explicit approval before Go1 continues.`
-                : handoffSelected
-                  ? `${handoffRun.steps.length} reviewed steps. A retained inspection and explicit approval before a second rover continues.`
-                  : 'Two inspected locations. Camera evidence for both outcomes. A fresh approval before recovery.'}
+              {adaptiveSelected
+                ? `${adaptiveRun.adaptation.completed_steps_preserved} completed inspection preserved. ${adaptiveRun.adaptation.repeated_inspections} repeated source inspections. The remaining route and later body transfer each require explicit approval.`
+                : capabilitySelected
+                  ? `${capabilityRun.steps.length} reviewed steps. Separate Gazebo and MuJoCo simulations. A retained inspection and explicit approval before Go1 continues.`
+                  : handoffSelected
+                    ? `${handoffRun.steps.length} reviewed steps. A retained inspection and explicit approval before a second rover continues.`
+                    : 'Two inspected locations. Camera evidence for both outcomes. A fresh approval before recovery.'}
             </p>
             <span className="scope-note">
               Interactive replay · no robot connection · no sign-in required
@@ -296,7 +347,7 @@ export function VisitorApp() {
         {!run && !error && <p role="status">Loading the recorded inspection round…</p>}
         {run && (
           <>
-            {(handoffRun || capabilityRun) && (
+            {(handoffRun || capabilityRun || adaptiveRun) && (
               <fieldset className="story-switch">
                 <legend>Choose a recorded scenario</legend>
                 <button
@@ -336,9 +387,26 @@ export function VisitorApp() {
                     Capability route · rover to quadruped
                   </button>
                 )}
+                {adaptiveRun && (
+                  <button
+                    type="button"
+                    className="visitor-button"
+                    aria-pressed={story === 'adaptive'}
+                    onClick={() => {
+                      setStory('adaptive');
+                      setPlaying(false);
+                    }}
+                  >
+                    Adaptive route · blocked aisle
+                  </button>
+                )}
               </fieldset>
             )}
-            {capabilitySelected ? (
+            {adaptiveSelected ? (
+              <Suspense fallback={<p role="status">Loading the recorded adaptive route…</p>}>
+                <AdaptiveStory run={adaptiveRun} />
+              </Suspense>
+            ) : capabilitySelected ? (
               <Suspense fallback={<p role="status">Loading the recorded capability route…</p>}>
                 <CapabilityStory run={capabilityRun} />
               </Suspense>

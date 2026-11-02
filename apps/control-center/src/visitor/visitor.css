@@ -472,6 +472,72 @@ details code {
   color: var(--muted);
   font: inherit;
 }
+.adaptive-map {
+  margin: 20px 0;
+}
+.adaptive-map-label {
+  paint-order: stroke;
+  stroke: #112128;
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+.adaptive-place-number,
+.adaptive-place-legend {
+  display: none;
+}
+.adaptive-map figcaption,
+.adaptive-retained figcaption {
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.6;
+  margin-top: 12px;
+}
+.adaptive-work-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+.adaptive-work-columns h3 {
+  font-size: 1rem;
+}
+.adaptive-retained {
+  margin: 16px 0;
+}
+.adaptive-retained img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+@media (max-width: 680px) {
+  .adaptive-map-label {
+    display: none;
+  }
+  .adaptive-map-station {
+    r: 23px;
+  }
+  .adaptive-place-number {
+    display: block;
+    fill: #e4eee9;
+    font-size: 30px;
+  }
+  .adaptive-place-legend {
+    display: grid;
+    gap: 8px;
+    padding-left: 24px;
+    color: #e4eee9;
+    font-size: 0.85rem;
+    line-height: 1.6;
+  }
+  .adaptive-place-legend span {
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .adaptive-work-columns {
+    grid-template-columns: 1fr;
+  }
+}
 .capability-elevation figcaption {
   padding: 14px 18px 0;
   color: var(--muted);

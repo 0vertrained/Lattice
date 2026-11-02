@@ -9,7 +9,7 @@ const assert = require('node:assert/strict');
     page.on('pageerror', e => errors.push(e.message));
     page.on('console', m => {if(m.type()==='error' && /Encountered|Error:/.test(m.text()))errors.push(m.text());});
     page.on('request', r => {if(/\/(?:api\/)?v1\//.test(new URL(r.url()).pathname)) calls.push(r.url());});
-    await page.goto(base);
+    await page.goto(new URL('#single', base).href);
     await page.getByRole('heading',{name:'Briefing',exact:true}).waitFor();
     const run = await (await page.request.get(new URL('demo/walkthrough.json',base).href)).json();
     assert.equal(run.outcome,'completed'); assert.equal(run.evidence.length,2); assert.equal(run.anomaly_count,1);

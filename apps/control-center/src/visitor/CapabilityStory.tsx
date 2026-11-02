@@ -15,7 +15,7 @@ const fmt = (time: number) =>
   `${Math.floor(time / 60)}:${Math.floor(time % 60)
     .toString()
     .padStart(2, '0')}`;
-const bodyName = (id: string, run: CapabilityRecording) =>
+const bodyName = (id: string, run: Pick<CapabilityRecording, 'handoff'>) =>
   id === run.handoff.source_body_id
     ? 'Gazebo rover'
     : id === run.handoff.target_body_id
@@ -603,11 +603,11 @@ export default function CapabilityStory({ run }: { readonly run: CapabilityRecor
   );
 }
 
-function CapabilityMap({
+export function CapabilityMap({
   run,
   time,
 }: {
-  readonly run: CapabilityRecording;
+  readonly run: Pick<CapabilityRecording, 'map' | 'poses' | 'handoff' | 'duration_s'>;
   readonly time: number;
 }) {
   const all = [...run.map.places.map((place) => place.pose), ...run.poses];
@@ -712,11 +712,11 @@ function CapabilityMap({
   );
 }
 
-function ElevationProfile({
+export function ElevationProfile({
   run,
   time,
 }: {
-  readonly run: CapabilityRecording;
+  readonly run: Pick<CapabilityRecording, 'poses' | 'handoff' | 'duration_s'>;
   readonly time: number;
 }) {
   const poses = run.poses.filter(
