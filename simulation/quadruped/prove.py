@@ -51,7 +51,7 @@ def run(assets, semantic_map, yaw=0., friction=.8, interrupt=None):
         def step(lease=True):
             clock.value += .02
             if lease:
-                gateway.request({"op": "lease"})
+                gateway.request({"op": "lease", "command_id": "physical-proof"})
             gateway.tick()
 
         for _ in range(100):

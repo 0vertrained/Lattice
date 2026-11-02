@@ -100,7 +100,11 @@ before contacting this local process. The local process also checks the frozen
 map and geometric source position; possession of a map alone is not remote
 authorization.
 
-A separate wall-clock watchdog enforces a **1.5 second** core/body lease. Signed
+A separate wall-clock watchdog enforces a **1.5 second** core/body lease. While a
+goal runs, a lease renews it only if it names that goal's command, so a goal the
+body agent never authorized, such as one another local client started, stops when
+the watchdog fires. This narrows what a same-user process can do through the
+socket; it does not authenticate the client. Signed
 UTC expiry and a monotonic lifetime bound both apply. Lease loss, expiry,
 emergency stop, physical instability, torso collision, stale localization,
 leaving the reviewed corridor or six seconds without progress fail the goal

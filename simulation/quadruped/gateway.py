@@ -157,7 +157,10 @@ class Gateway:
         if op == "status":
             return self.status()
         if op == "lease":
-            self.lease_at = now
+            # A lease renews only the goal its body adapter vouches for. A goal it doesn't name,
+            # such as one another local client started, is left to the watchdog, which stops it.
+            if self.state != "running" or value.get("command_id") == self.command_id:
+                self.lease_at = now
             return self.status()
         if op == "stop":
             self.stop("body agent stopped")

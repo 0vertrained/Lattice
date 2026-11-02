@@ -154,11 +154,34 @@ pub fn verify_navigation_with_capabilities<'a>(
     })
 }
 
+/// The local lease vouches for one goal: the active signed command, or none while idle. The
+/// gateways renew a running goal only for the command it names, so a goal this adapter never
+/// authorized, or no longer tracks after a restart, is left to their watchdog.
+pub fn lease_request(active: Option<&SignedCommand>) -> serde_json::Value {
+    match active {
+        Some(command) => serde_json::json!({
+            "op": "lease",
+            "command_id": command.envelope.command_id.to_string(),
+        }),
+        None => serde_json::json!({"op": "lease"}),
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use chrono::Duration;
+
+    #[test]
+    fn lease_names_the_active_command_and_nothing_while_idle() {
+        let (command, ..) = fixture();
+        assert_eq!(
+            lease_request(Some(&command)),
+            serde_json::json!({"op": "lease", "command_id": "command-test"})
+        );
+        assert_eq!(lease_request(None), serde_json::json!({"op": "lease"}));
+    }
     use ed25519_dalek::{Signer, SigningKey};
     use lattice_domain::{CommandEnvelope, CommandId, MissionId};
 

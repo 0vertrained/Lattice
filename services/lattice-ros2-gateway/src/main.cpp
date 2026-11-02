@@ -196,7 +196,11 @@ private:
     if (op == "status")
       return status();
     if (op == "lease") {
-      gate_.lease(now);
+      // A lease renews only the goal its body adapter names. A goal it doesn't name,
+      // such as one another local client started, is left to the lease watchdog.
+      if (!gate_.active() ||
+          data.value("command_id", std::string()) == command_id_)
+        gate_.lease(now);
       return status();
     }
     if (op == "stop") {

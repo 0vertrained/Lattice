@@ -73,8 +73,19 @@ class GatewaySafetyTests(unittest.TestCase):
         for _ in range(round(seconds / .02)):
             self.clock.value += .02
             if lease:
-                self.g.request({"op": "lease"})
+                self.g.request({"op": "lease", "command_id": "command-one"})
             self.g.tick()
+
+    def test_leases_keep_alive_only_the_goal_the_body_names(self):
+        self.assertTrue(self.g.request(self.command())["ok"])
+        for step in range(80):
+            self.clock.value += .02
+            # The body adapter is leasing, but for no goal or another one: this goal isn't its own.
+            self.g.request({"op": "lease"} if step % 2 else {"op": "lease", "command_id": "command-other"})
+            self.g.tick()
+        self.assertEqual(self.g.state, "failed")
+        self.assertIn("watchdog", self.g.detail)
+        self.assertFalse(self.body.moving)
 
     def test_motion_requires_live_lease_and_current_source(self):
         self.g.lease_at = -100

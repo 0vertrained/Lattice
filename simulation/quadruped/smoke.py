@@ -70,7 +70,7 @@ def main():
             while state["state"] == "running" and time.monotonic() < deadline:
                 if args.mode == "lease" and state["pose"]["x"] >= 2.3:
                     drop = True
-                state = request({"op": "status" if drop else "lease"})
+                state = request({"op": "status"} if drop else {"op": "lease", "command_id": command["command_id"]})
                 trace.append(state)
                 time.sleep(.1)
             if args.mode == "lease":
@@ -92,7 +92,7 @@ def main():
                 assert state["ok"], state
                 deadline = time.monotonic() + 8
                 while state["state"] == "running" and time.monotonic() < deadline:
-                    state = request({"op": "lease"})
+                    state = request({"op": "lease", "command_id": inspection["command_id"]})
                     time.sleep(.1)
                 assert state["state"] == "succeeded", state
                 assert not request({"op": "capture", "command_id": "wrong-id"})["ok"]

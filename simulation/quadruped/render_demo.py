@@ -74,7 +74,7 @@ def record_probe(assets, semantic_map):
 
         def tick():
             clock.value += .02
-            gateway.request({"op": "lease"})
+            gateway.request({"op": "lease", "command_id": "independent-video-probe"})
             gateway.tick()
             samples.append(controller.metrics | {"gateway_state": gateway.state})
 

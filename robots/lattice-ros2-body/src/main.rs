@@ -8,7 +8,7 @@ use lattice_domain::{
     InspectionEvidence, SignedCommand, SkillCommand, VerificationKey,
 };
 use lattice_ros2_body::{
-    GatewayState,
+    GatewayState, lease_request,
     route_observation::{ConditionReply, condition_reply},
     verify_navigation_with_capabilities,
 };
@@ -400,7 +400,7 @@ async fn main() -> Result<(), Error> {
             core_epoch = observed_epoch.to_owned();
             tracing::warn!("core restarted; previous motion stopped and execution cleared");
         }
-        local(&socket, &json!({"op":"lease"})).await?;
+        local(&socket, &lease_request(active.as_ref())).await?;
         if let (Some(command), Some(observation), None) =
             (&active, &state.route_observation, &pending_report)
         {
@@ -605,7 +605,7 @@ async fn main() -> Result<(), Error> {
                     if response_epoch(&response)? != core_epoch {
                         return Err("core changed before continuation motion".into());
                     }
-                    local(&socket, &json!({"op":"lease"})).await?;
+                    local(&socket, &lease_request(active.as_ref())).await?;
                 }
                 let state = local(&socket, &goal).await?;
                 if state.ok {
