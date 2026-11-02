@@ -1,0 +1,191 @@
+{
+  "schema": "lattice.adaptive-mission-evaluation.v1",
+  "recorded_at": "2026-11-02T07:23:52.941857+00:00",
+  "scope": "Actual Gazebo lidar and navigation plus MuJoCo Go1, in separate aligned physics worlds. Review approval is exercised by the recorder; no obstacle observation or completion is mocked.",
+  "development_findings": [
+    {
+      "source_proof_sha256": "efec50bf8c0e8a74614363e4832df42fe193fecfc32345069cb7180f5a5d67b9",
+      "source_proof_file": "target/heterogeneous-run.3LEY5d/adaptive-route-failed.json",
+      "round_id": "round-3d6a3aec4ec347968aa3f7c2f5c69141",
+      "retained_failures": [
+        {
+          "mission_id": "mission-e6a223ade9264ef2992596f1f9a93849",
+          "reason": "route laser transform unavailable"
+        }
+      ],
+      "condition_observed": true,
+      "scope": "Development acceptance failure retained separately; not counted as a completed final scenario."
+    }
+  ],
+  "cases": [
+    {
+      "case_name": "nominal",
+      "observed": "completed",
+      "expected_replan": false,
+      "observed_replan": false,
+      "round_id": "round-5d306a11fc1e46f989f93e5afa679321",
+      "map_digest": "8fb9756c65531c1c94e99013f16de18c5e37d4cac7d7074952ae643a584e5248",
+      "mission_duration_s": 49.441,
+      "recording_duration_s": 53.533,
+      "pose_samples": 400,
+      "physics_samples": 1067,
+      "distance_by_body_m": {
+        "gazebo-rover": 4.3,
+        "mujoco-go1": 3.56
+      },
+      "adaptation": {
+        "case_name": "nominal",
+        "blocked_segment_id": null,
+        "completed_steps_preserved": 0,
+        "repeated_inspections": 0,
+        "block_observed_s": null,
+        "replan_proposal_ms": null,
+        "replan_approved_s": null,
+        "hold_to_approval_s": null,
+        "source_drift_while_held_m": 0.0,
+        "post_transfer_source_drift_m": 0.0
+      },
+      "obstacle": null,
+      "observation_hashes": [
+        "0b8ab2d2f9c76a20d50ed850b8e9e801c33b4b7f101ac508ea6e1b4dcf9b44b4",
+        "9b2c10fa85d5f58f9a3f8c89f7de8f7007fcdfa5b680cb913066d14886601f8f"
+      ],
+      "lidar_evidence": null,
+      "source_proof_sha256": "7cc4e4356eeab3df4e8b63c926a571f0f5332a43206b96ee3886c385a1701284",
+      "source_proof_file": "target/heterogeneous-run.j3y7Il/adaptive-route-result.json"
+    },
+    {
+      "case_name": "blocked_center",
+      "observed": "completed",
+      "expected_replan": true,
+      "observed_replan": true,
+      "round_id": "round-15faaa9871dd4177b157ff5652da0796",
+      "map_digest": "8fb9756c65531c1c94e99013f16de18c5e37d4cac7d7074952ae643a584e5248",
+      "mission_duration_s": 113.166,
+      "recording_duration_s": 117.307,
+      "pose_samples": 814,
+      "physics_samples": 2341,
+      "distance_by_body_m": {
+        "gazebo-rover": 6.86,
+        "mujoco-go1": 3.57
+      },
+      "adaptation": {
+        "case_name": "blocked_center",
+        "blocked_segment_id": "bay_to_transfer",
+        "completed_steps_preserved": 1,
+        "repeated_inspections": 0,
+        "block_observed_s": 1.923,
+        "replan_proposal_ms": 35.02,
+        "replan_approved_s": 48.681,
+        "hold_to_approval_s": 46.758,
+        "source_drift_while_held_m": 0.0,
+        "post_transfer_source_drift_m": 0.0
+      },
+      "obstacle": {
+        "model_name": "adaptive_barrier_blocked_center",
+        "pose": {
+          "x": 0.2,
+          "y": 1.55,
+          "z": 0.4
+        },
+        "size": {
+          "x": 1.4,
+          "y": 0.18,
+          "z": 0.8
+        },
+        "created_at": "2026-11-02T07:28:57.945905+00:00",
+        "sdf_sha256": "d12430f08c963ad3d424a5df72faf2e4e83196cddd2c3cdb0b748f696f6130a7",
+        "creation_response": "data: true",
+        "scope": "Physical collision and lidar geometry inserted after rover staging; absent from the static occupancy map."
+      },
+      "observation_hashes": [
+        "130d6a375237c3251077260cdd5206f766deba6ad5680773736917571605f4b3",
+        "2c4866b5ac5f418a19dfc1da3886fd176f81858aadfbc4003f5e3c39dd6930f7"
+      ],
+      "lidar_evidence": {
+        "sensor": "laser_scan",
+        "frame_id": "map",
+        "distance_m": 0.6767076849937438,
+        "blocked_samples": 45,
+        "scan_sha256": "72e0a374ddf1535b27949acf154f1e00dd94239dbcf9cf9fcd64c37bfee083ad",
+        "observer_pose": {
+          "x": 0.0072563453341874945,
+          "y": 2.253219904291124,
+          "yaw": 1.6148795739873787
+        }
+      },
+      "source_proof_sha256": "c84b67b159fce90ae58275f05ecaaa4a4f0bc4c4927851d04baa0708e2220865",
+      "source_proof_file": "target/heterogeneous-run.zifUwi/adaptive-route-result.json"
+    },
+    {
+      "case_name": "blocked_offset",
+      "observed": "completed",
+      "expected_replan": true,
+      "observed_replan": true,
+      "round_id": "round-79368fbe952949b1b16634628b8e3689",
+      "map_digest": "8fb9756c65531c1c94e99013f16de18c5e37d4cac7d7074952ae643a584e5248",
+      "mission_duration_s": 112.077,
+      "recording_duration_s": 116.23,
+      "pose_samples": 770,
+      "physics_samples": 2321,
+      "distance_by_body_m": {
+        "gazebo-rover": 6.7,
+        "mujoco-go1": 3.58
+      },
+      "adaptation": {
+        "case_name": "blocked_offset",
+        "blocked_segment_id": "bay_to_transfer",
+        "completed_steps_preserved": 1,
+        "repeated_inspections": 0,
+        "block_observed_s": 1.74,
+        "replan_proposal_ms": 42.091,
+        "replan_approved_s": 48.671,
+        "hold_to_approval_s": 46.931,
+        "source_drift_while_held_m": 0.0,
+        "post_transfer_source_drift_m": 0.0
+      },
+      "obstacle": {
+        "model_name": "adaptive_barrier_blocked_offset",
+        "pose": {
+          "x": 0.3,
+          "y": 1.5,
+          "z": 0.4
+        },
+        "size": {
+          "x": 1.4,
+          "y": 0.18,
+          "z": 0.8
+        },
+        "created_at": "2026-11-02T07:33:14.088327+00:00",
+        "sdf_sha256": "4310087a58b7e307212332d0f7f6d1a50612f7befff55f21ff6db2cfa90a8110",
+        "creation_response": "data: true",
+        "scope": "Physical collision and lidar geometry inserted after rover staging; absent from the static occupancy map."
+      },
+      "observation_hashes": [
+        "cbd8121da6003e111e79c4e06097b9c4b90445159d80743eb4623d1f3389d8ed",
+        "a6f6ff3912dec8a19a43912f591f1ea45c82364680de4642a231c3a45ec5c9e4"
+      ],
+      "lidar_evidence": {
+        "sensor": "laser_scan",
+        "frame_id": "map",
+        "distance_m": 0.7057129144668585,
+        "blocked_samples": 43,
+        "scan_sha256": "f7709191d57bb7a15d01e22a34aaecbda6fc9fc646534bd6187d502b640b496f",
+        "observer_pose": {
+          "x": -0.0031385071168125375,
+          "y": 2.2565391527592555,
+          "yaw": 1.6001589499617537
+        }
+      },
+      "source_proof_sha256": "9c4c2c99988366bb0c232e92370a5c855b5573155ce3fb5cad5e401326ea8f8d",
+      "source_proof_file": "target/heterogeneous-run.6MJDME/adaptive-route-result.json"
+    }
+  ],
+  "summary": {
+    "cases": 3,
+    "completed": 3,
+    "expected_replans": 2,
+    "observed_replans": 2,
+    "repeated_completed_inspections": 0
+  }
+}
