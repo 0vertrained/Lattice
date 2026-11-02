@@ -2,7 +2,11 @@ import { Canvas, useThree } from '@react-three/fiber';
 import { useEffect, useMemo } from 'react';
 import { BufferGeometry, Line, LineBasicMaterial, Vector3 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import type { Walkthrough } from './types';
+
+interface RecordedPath {
+  poses: { t: number; x: number; y: number; yaw: number; body_id?: string }[];
+  handoff?: { source_body_id: string; target_body_id: string };
+}
 
 function CameraControls() {
   const { camera, gl, invalidate } = useThree();
@@ -19,14 +23,19 @@ function CameraControls() {
   }, [camera, gl, invalidate]);
   return null;
 }
-function Trail({ run, time }: { run: Walkthrough; time: number }) {
+function Trail({
+  poses,
+  time,
+  color,
+}: {
+  poses: RecordedPath['poses'];
+  time: number;
+  color: string;
+}) {
   const line = useMemo(() => {
-    const points = run.poses.filter((p) => p.t <= time).map((p) => new Vector3(p.x, 0.05, -p.y));
-    return new Line(
-      new BufferGeometry().setFromPoints(points),
-      new LineBasicMaterial({ color: '#83dfb8' }),
-    );
-  }, [run, time]);
+    const points = poses.filter((p) => p.t <= time).map((p) => new Vector3(p.x, 0.05, -p.y));
+    return new Line(new BufferGeometry().setFromPoints(points), new LineBasicMaterial({ color }));
+  }, [poses, time, color]);
   useEffect(
     () => () => {
       line.geometry.dispose();
@@ -36,8 +45,18 @@ function Trail({ run, time }: { run: Walkthrough; time: number }) {
   );
   return <primitive object={line} />;
 }
-export default function RecordedTwin({ run, time }: { run: Walkthrough; time: number }) {
-  const pose = run.poses.findLast((p) => p.t <= time) ?? run.poses[0];
+export default function RecordedTwin({ run, time }: { run: RecordedPath; time: number }) {
+  const bodies = useMemo(
+    () =>
+      (run.handoff
+        ? [run.handoff.source_body_id, run.handoff.target_body_id]
+        : [...new Set(run.poses.map((pose) => pose.body_id ?? 'rover'))]
+      ).map((id) => ({
+        id,
+        poses: run.poses.filter((pose) => (pose.body_id ?? 'rover') === id),
+      })),
+    [run],
+  );
   return (
     <div className="recorded-twin">
       <div
@@ -81,27 +100,39 @@ export default function RecordedTwin({ run, time }: { run: Walkthrough; time: nu
               <meshBasicMaterial color={String(color)} />
             </mesh>
           ))}
-          <Trail run={run} time={time} />
-          {pose && (
-            <group position={[pose.x, 0.24, -pose.y]} rotation={[0, pose.yaw, 0]}>
-              <mesh>
-                <boxGeometry args={[0.58, 0.2, 0.38]} />
-                <meshStandardMaterial color="#a0e7c7" metalness={0.2} roughness={0.4} />
-              </mesh>
-              <mesh position={[0.28, 0.12, 0]}>
-                <boxGeometry args={[0.14, 0.12, 0.22]} />
-                <meshStandardMaterial color="#e6f6f1" />
-              </mesh>
-              {[-0.2, 0.2].flatMap((x) =>
-                [-0.25, 0.25].map((z) => (
-                  <mesh key={`${x}:${z}`} position={[x, -0.08, z]} rotation={[Math.PI / 2, 0, 0]}>
-                    <cylinderGeometry args={[0.12, 0.12, 0.1, 20]} />
-                    <meshStandardMaterial color="#070b10" />
-                  </mesh>
-                )),
-              )}
-            </group>
-          )}
+          {bodies.map((body, index) => {
+            const pose = body.poses.findLast((item) => item.t <= time) ?? body.poses[0];
+            const color = index === 0 ? '#83dfb8' : '#87b8e6';
+            return (
+              <group key={body.id}>
+                <Trail poses={body.poses} time={time} color={color} />
+                {pose && (
+                  <group position={[pose.x, 0.24, -pose.y]} rotation={[0, pose.yaw, 0]}>
+                    <mesh>
+                      <boxGeometry args={[0.58, 0.2, 0.38]} />
+                      <meshStandardMaterial color={color} metalness={0.2} roughness={0.4} />
+                    </mesh>
+                    <mesh position={[0.28, 0.12, 0]}>
+                      <boxGeometry args={[0.14, 0.12, 0.22]} />
+                      <meshStandardMaterial color="#e6f6f1" />
+                    </mesh>
+                    {[-0.2, 0.2].flatMap((x) =>
+                      [-0.25, 0.25].map((z) => (
+                        <mesh
+                          key={`${x}:${z}`}
+                          position={[x, -0.08, z]}
+                          rotation={[Math.PI / 2, 0, 0]}
+                        >
+                          <cylinderGeometry args={[0.12, 0.12, 0.1, 20]} />
+                          <meshStandardMaterial color="#070b10" />
+                        </mesh>
+                      )),
+                    )}
+                  </group>
+                )}
+              </group>
+            );
+          })}
         </Canvas>
       </div>
       <p className="scope-note">

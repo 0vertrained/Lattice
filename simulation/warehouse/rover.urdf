@@ -3,4 +3,6 @@
 <link name="base_link"><visual><origin xyz="0 0 0.08"/><geometry><box size="0.4 0.25 0.12"/></geometry></visual></link>
 <link name="laser"/>
 <joint name="laser_joint" type="fixed"><parent link="base_link"/><child link="laser"/><origin xyz="0 0 0.22"/></joint>
+<link name="camera"/>
+<joint name="camera_joint" type="fixed"><parent link="base_link"/><child link="camera"/><origin xyz="0.18 0 0.26"/></joint>
 </robot>

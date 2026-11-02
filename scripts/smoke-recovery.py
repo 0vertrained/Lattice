@@ -82,8 +82,13 @@ with tempfile.TemporaryDirectory(prefix='lattice-recovery-') as directory:
         old_command = request('/v1/bodies/recovery-rover/commands/next')[0]
         request('/v1/bodies/recovery-rover/commands/next',expected=204)
         result(m,'running')
+        # Evidence must come from a different idle body while the first executes.
+        # A second assignment on recovery-rover would bypass the busy-body gate.
+        request('/v1/bodies/register', {'id':'evidence-rover','display_name':'Evidence rover','kind':'rover','capabilities':['inspect'],'adapter_version':'test-1'},201)
         inspection = approve(proposal('Retain committed inspection evidence', {'type':'inspect','location':'inspection_bay'}))
-        request('/v1/bodies/recovery-rover/commands/next')
+        assert inspection['assigned_body_id'] == 'evidence-rover'
+        request('/v1/bodies/recovery-rover/commands/next',expected=204)
+        request('/v1/bodies/evidence-rover/commands/next')
         # A transport fixture, not a perception-accuracy test. Failure permits no detections.
         jpeg = bytes.fromhex('ffd8ffe000104a46494600010100000100010000ffd9')
         evidence = {'model_id':'transport-fixture','captured_at_ms':int(time.time()*1000),'frame_sha256':'a'*64,'image_sha256':hashlib.sha256(jpeg).hexdigest(),'image_base64':base64.b64encode(jpeg).decode(),'confidence_domain':'Persistence test fixture only','detections':[]}
@@ -120,7 +125,7 @@ with tempfile.TemporaryDirectory(prefix='lattice-recovery-') as directory:
         keyfile.write_bytes(original_seed);keyfile.chmod(0o644);start(expect_failure=True)
         keyfile.chmod(0o600);start()
         assert request('/v1/security/verification-key')[0] == key1
-        print('PASS: HTTP concurrent approval, abrupt restart, stable identity, evidence/audit retention, no replay, explicit recovery, stale-result isolation, key failure checks')
+        print('PASS: HTTP concurrent approval, busy-body exclusion, abrupt restart, stable identity, evidence/audit retention, no replay, explicit recovery, stale-result isolation, key failure checks')
     finally:
         if process and process.poll() is None: process.terminate();process.wait(timeout=10)
         log.close()

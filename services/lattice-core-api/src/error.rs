@@ -9,13 +9,13 @@ use tracing::error;
 pub struct ApiError {
     status: StatusCode,
     code: &'static str,
-    message: &'static str,
+    message: String,
 }
 
 #[derive(Serialize)]
 struct ErrorBody {
     code: &'static str,
-    message: &'static str,
+    message: String,
 }
 
 impl From<ApplicationError> for ApiError {
@@ -24,24 +24,29 @@ impl From<ApplicationError> for ApiError {
             ApplicationError::NotFound { .. } => Self {
                 status: StatusCode::NOT_FOUND,
                 code: "not_found",
-                message: "The requested resource was not found.",
+                message: "The requested resource was not found.".into(),
             },
-            ApplicationError::Conflict(_) | ApplicationError::Domain(_) => Self {
+            ApplicationError::Conflict(message) => Self {
                 status: StatusCode::UNPROCESSABLE_ENTITY,
                 code: "invalid_request",
-                message: "The request conflicts with current state or safety constraints.",
+                message: message.chars().take(500).collect(),
+            },
+            ApplicationError::Domain(_) => Self {
+                status: StatusCode::UNPROCESSABLE_ENTITY,
+                code: "invalid_request",
+                message: "The request conflicts with current state or safety constraints.".into(),
             },
             ApplicationError::Security => Self {
                 status: StatusCode::FORBIDDEN,
                 code: "security_failure",
-                message: "The security operation was rejected.",
+                message: "The security operation was rejected.".into(),
             },
             ApplicationError::Infrastructure => {
                 error!("infrastructure error returned to API boundary");
                 Self {
                     status: StatusCode::SERVICE_UNAVAILABLE,
                     code: "service_unavailable",
-                    message: "A required service is temporarily unavailable.",
+                    message: "A required service is temporarily unavailable.".into(),
                 }
             }
         }

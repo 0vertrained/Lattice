@@ -1,4 +1,82 @@
-# Current showcase and hosted identity validation (November 2, 2026)
+# Shared observation memory and reviewed handoff — November 2, 2026
+
+The current increment implements immutable PostgreSQL observation memory, source
+image retrieval, a frozen handoff review, and a signed continuation context that
+the target ROS body verifies and acknowledges before motion. The two-rover
+launcher creates separate Gazebo models, sensor namespaces, localization stacks,
+motion gates and body agents.
+
+The [recorded live handoff](../apps/control-center/public/demo/handoff.json)
+completed a four-step warehouse objective in 141.039 s. Its 996 measured pose
+samples report 2.34 m traveled by Rover A and 12.93 m by Rover B. A completed the
+bay inspection and retained its positive camera frame. The source was then held;
+motion was observed stopped after 1.453 s, with 0.0204 m of reported drift after
+stopping. Approval waited for the old signed command's expiry window and occurred
+75.261 s into the run.
+
+Rover B fetched A's retained JPEG, verified the signed evidence references and
+acknowledged the continuation context before ROS dispatch, recorded at 75.596 s.
+B completed the three remaining steps without repeating A's finished inspection:
+navigate to the dock, inspect it, and return to charge. The dock inspection
+retained a no-marker frame as one anomaly under the reviewed continuation policy.
+Both original images remain attributed to their observing bodies. These are
+measurements from one Gazebo run, not physical-hardware guarantees.
+
+This handoff run did not restart the core. Observation retention through restart
+was verified separately in isolated PostgreSQL and HTTP checks; the earlier
+single-rover recording below exercised a live simulator restart.
+
+Confirmed checks for this increment:
+
+- Rust workspace check, build and tests passed. Command serialization remains
+  backward compatible; continuation tests reject changed signed targets, and the
+  ROS body evidence test rejects image, model and reference mismatches.
+- Workspace Clippy with all targets/features and warnings denied passed,
+  including the final rerun after the body evidence test was added.
+- Five observation unit tests passed.
+- The observation integration test passed against an isolated PostgreSQL
+  database, covering provenance rejection, duplicate acknowledgements, immutable
+  records, rollback, station filtering, later negative counter-evidence and
+  retention through recovery.
+- The handoff PostgreSQL integration test and the existing PostgreSQL recovery
+  integration test passed against isolated databases.
+- The handoff HTTP suite passed with scoped JWTs and three distinct device
+  identities; the existing recovery HTTP suite also passed. These exercise real
+  core processes and isolated databases, but do not drive Gazebo bodies.
+- The operator Playwright fixture check passed, including read-only memory access,
+  explicit handoff review and approval, expiry/readiness feedback, context-receipt
+  display and no horizontal overflow at 390 px. Its API responses are fixtures;
+  this is interface validation, not evidence of two moving robots.
+- Frontend strict TypeScript, Biome, six Vitest tests, the production build and
+  bundle budgets passed. The existing public five-chapter tour passed browser
+  checks for map/3D replay, camera image hashes and widths from 320 to 1440 px.
+- The new public handoff-story fixture passed browser checks for four chapters,
+  map/3D replay, observation queries, no robot API requests and widths of 320,
+  390, 768 and 1440 px. Fixture checks are separate from the actual simulator
+  recording described above.
+
+- The final production story passed browser checks against the actual recorded
+  assets: both body paths, exact completion event, map/3D replay, station queries,
+  original JPEG hashes, approval/receipt ordering, four viewport widths and no
+  robot API calls. The portfolio retains its existing layout, with working media
+  and download links, mobile/dark-mode layouts and JavaScript-disabled content.
+  The exported `/lattice/` production build passed the same recorded-asset checks.
+
+Authenticated Cloud Run/Netlify deployment remains unverified.
+
+Observations identify a safety-marker class at a station, not a uniquely tracked
+object. Observer poses are timestamped rover poses, not triangulated marker
+locations; a later negative frame does not establish absence. Both bodies use
+the same rover adapter, so this run establishes same-embodiment continuity rather
+than heterogeneous robot handoff. See
+[observation semantics](OBSERVATION_MEMORY.md) and the
+[two-rover setup](MULTI_ROBOT_SIM.md).
+
+The sections below record earlier releases and their separate validation scopes.
+
+---
+
+# Previous single-rover showcase and hosted identity validation (November 2, 2026)
 
 The checked-in round is a fresh Gazebo/ROS 2/Nav2 run, recorded by
 `scripts/record-inspection-round.py`. It completed three reviewed steps in 74.471 s,

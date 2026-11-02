@@ -100,6 +100,12 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Verify atomic transactions and restart recovery
         run: cargo test --locked -p lattice-infrastructure --test postgres_recovery -- --ignored
+      - name: Verify immutable observations and reviewed handoff persistence
+        run: |
+          docker exec ${{ job.services.postgres.id }} createdb -U postgres lattice_observations
+          docker exec ${{ job.services.postgres.id }} createdb -U postgres lattice_handoffs
+          LATTICE_TEST_DATABASE_URL=postgres://postgres:integration-only@127.0.0.1:5432/lattice_observations cargo test --locked -p lattice-infrastructure --test observations -- --ignored
+          LATTICE_TEST_DATABASE_URL=postgres://postgres:integration-only@127.0.0.1:5432/lattice_handoffs cargo test --locked -p lattice-infrastructure --test handoffs -- --ignored
       - name: Build core and create separate process-test database
         run: |
           cargo build --locked -p lattice-core-api
@@ -131,6 +137,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
         working-directory: apps/control-center
       - run: scripts/test-hosted.sh
+      - run: scripts/test-handoff.sh
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

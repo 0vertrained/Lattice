@@ -2,9 +2,9 @@
 
 **One intelligence. Many bodies.**
 
-Lattice is a simulation-first, security-first embodiment control plane. A persistent intelligence can assign typed missions to interchangeable simulated or physical bodies while preserving identity, world state, audit history, and mission continuity.
+Lattice is a simulation-first, security-first embodiment control plane. Its goal is to keep identity, memory, planning and mission continuity centralized while interchangeable simulated or physical bodies execute bounded capabilities.
 
-The current demo completes an approved three-step warehouse round: inspect two stations, retain a missing-marker anomaly, and return to charge. Killing the core during motion stops the rover; a fresh approval recovers the round with its camera evidence intact. A public guided tour replays the measured run, while a separate operator interface controls the simulator.
+The current demo completes one approved warehouse objective across two Gazebo rovers. Rover A inspects the bay, then stops for a reviewed handoff. Rover B verifies A's retained camera evidence, completes the three remaining steps, records a missing-marker anomaly and returns to charge. The measured run finished in 141.039 seconds without repeating the completed inspection. A separate single-rover recording demonstrates recovery after a core restart. See [validation](docs/VALIDATION.md) for the evidence behind each release.
 
 - **Rust modular monolith** for the trusted control plane
 - **React + TypeScript + Vite** for the operator product
@@ -57,7 +57,8 @@ crates/lattice-infrastructure/ Development adapters and signing
 services/lattice-core-api/     Trusted Rust HTTP API
 services/lattice-ai-gateway/   Untrusted typed-proposal service
 services/lattice-ros2-gateway/ C++ Nav2, camera and local motion gateway
-robots/lattice-mock-body/      Signature-verifying simulated rover
+robots/lattice-mock-body/      Signature-verifying mock bodies
+robots/lattice-ros2-body/      Signed mission execution through the ROS gateway
 proto/                         Versioned cross-language contracts
 docs/                          Architecture, security, ADRs, roadmap
 infrastructure/                PostgreSQL, NATS, and telemetry config
@@ -120,7 +121,17 @@ and the local watchdog/stop behavior. Follow the [language and inspection walkth
 
 ## Guided showcase
 
-Run `LATTICE_SHOWCASE=1 ./scripts/run-durable-warehouse.sh` to record the full round, real camera frames and restart recovery. The recorder deliberately interrupts its own local core and explicitly approves recovery. Open `http://localhost:5173/` for the checked-in public walkthrough or `/operator.html` for the live operator UI. See [SHOWCASE.md](docs/SHOWCASE.md).
+Open `http://localhost:5173/` for the public walkthroughs or `/operator.html` for the live operator UI. The two-rover story replays the [recorded handoff](apps/control-center/public/demo/handoff.json), with measured paths and original camera evidence. Record a fresh run with `LATTICE_HANDOFF_SHOWCASE=1 ./scripts/run-durable-multi-warehouse.sh`; see the [multi-rover guide](docs/MULTI_ROBOT_SIM.md).
+
+The separate single-rover restart story is recorded with `LATTICE_SHOWCASE=1 ./scripts/run-durable-warehouse.sh`. That recorder deliberately interrupts its own local core and explicitly approves recovery; see [SHOWCASE.md](docs/SHOWCASE.md).
+
+## Shared memory and reviewed handoff
+
+The PostgreSQL core now retains inspection observations across missions and body changes. Operators can retrieve the last positive safety-marker observation at a named station, its source body and timestamps, and its original JPEG with verified hashes. A later no-marker frame remains separate counter-evidence. These are class-at-station observations: the station and observer pose do not identify a unique physical marker or triangulate its position. See [observation memory](docs/OBSERVATION_MEMORY.md).
+
+The handoff workflow pauses and fences the source, then freezes the source and target bodies, completed steps, remaining steps and retained evidence into a review. Approval waits for the source command's expiry window and rechecks the target's readiness. Before submitting a ROS goal, the target retrieves the referenced images, verifies their provenance and hashes, and acknowledges the signed continuation context. This receipt proves receipt and validation of context; it does not imply autonomous reasoning about it.
+
+Run `./scripts/run-durable-multi-warehouse.sh` for two separately namespaced Gazebo rovers with independent localization, motion gates and body agents. Live acceptance recorded 996 poses: Rover A traveled 2.34 m and Rover B 12.93 m. Source motion was observed stopped after 1.453 seconds, with 0.0204 m of reported drift after stopping; approval still waited for the old command's expiry window. These are measurements from one simulator run. The [multi-rover guide](docs/MULTI_ROBOT_SIM.md) describes the launcher. This increment demonstrates continuity between two instances of the same rover type; heterogeneous robot handoff, shared geometric mapping and autonomous planning remain future work.
 
 ## Current milestone
 
@@ -142,8 +153,10 @@ The executable foundation provides:
 - live 3D digital-twin viewport
 - transactional PostgreSQL approvals, command queues and audit/outbox records
 - persistent signing identity and explicit recovery after core restarts
+- immutable station observation memory with authenticated source-image retrieval
+- frozen handoff reviews and signed, acknowledged continuation context
 
-The implemented demo is described in `docs/INTELLIGENCE_DEMO.md`. Run `./scripts/run-durable-warehouse.sh` for persistent history and operator-reviewed restart recovery; see the [recovery guide](docs/RECOVERY_DEMO.md). OIDC viewer/operator/admin roles, body-scoped revocable credentials, immutable multi-step rounds and revision fencing are implemented. Netlify and Cloud Run deployment configuration is in [HOSTED_DEMO.md](docs/HOSTED_DEMO.md); an authenticated cloud deployment still needs provisioning. General LLM/VLM planning, SLAM and physical hardware validation remain future milestones.
+The implemented demo is described in `docs/INTELLIGENCE_DEMO.md`. Run `./scripts/run-durable-warehouse.sh` for persistent history and operator-reviewed restart recovery; see the [recovery guide](docs/RECOVERY_DEMO.md). OIDC viewer/operator/admin roles, body-scoped revocable credentials, immutable multi-step rounds and revision fencing are implemented. Netlify and Cloud Run deployment configuration is in [HOSTED_DEMO.md](docs/HOSTED_DEMO.md); an authenticated cloud deployment still needs provisioning. The [implementation plan](docs/IMPLEMENTATION_PLAN.md) tracks the remaining world-model, heterogeneous-body, general LLM/VLM planning, SLAM and physical hardware milestones.
 
 ## Safety status
 

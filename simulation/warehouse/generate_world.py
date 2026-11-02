@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parent
 # x, y, width, depth; same geometry supplies the simulator and static map.
 BOXES = [(0, -4, 10.2, .2), (0, 4, 10.2, .2), (-5, 0, .2, 8), (5, 0, .2, 8), (2, 0, .7, 1.8)]
 
-def generate():
+def generate(robot_models=None, world_path=None, write_assets=True):
     obstacles = []
     for i, (x, y, width, depth) in enumerate(BOXES):
         obstacles.append(f'''<model name="obstacle_{i}"><static>true</static><pose>{x} {y} 0.5 0 0 0</pose>
@@ -38,12 +38,14 @@ def generate():
 </mesh></geometry></library_geometries>
 <library_visual_scenes><visual_scene id="scene"><node id="marker-node"><instance_geometry url="#marker"><bind_material><technique_common><instance_material symbol="red" target="#red-material"/></technique_common></bind_material></instance_geometry></node></visual_scene></library_visual_scenes>
 <scene><instance_visual_scene url="#scene"/></scene></COLLADA>'''
-    (ROOT/'marker.dae').write_text(dae)
+    if write_assets:
+        (ROOT/'marker.dae').write_text(dae)
     obstacles.append(f'''<model name="inspection_marker"><static>true</static><pose>0 3.85 0.45 0 0 0</pose>
 <link name="marker"><visual name="marker"><geometry><mesh><uri>file://{ROOT/'marker.dae'}</uri></mesh></geometry>
 <material><ambient>0.8 0.01 0.01 1</ambient><diffuse>0.9 0.01 0.01 1</diffuse></material></visual></link></model>''')
-    robot = (ROOT / 'rover.sdf').read_text()
-    robot_model = ET.tostring(ET.fromstring(robot).find('model'), encoding='unicode')
+    if robot_models is None:
+        robot_models = [ET.parse(ROOT / 'rover.sdf').getroot().find('model')]
+    robot_model = ''.join(ET.tostring(model, encoding='unicode') for model in robot_models)
     world = f'''<?xml version="1.0"?><sdf version="1.9"><world name="warehouse">
 <physics name="physics" type="ignored"><max_step_size>0.001</max_step_size><real_time_factor>1</real_time_factor></physics>
 <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
@@ -54,7 +56,9 @@ def generate():
 <light type="directional" name="sun"><pose>0 0 10 0 0 0</pose><diffuse>1 1 1 1</diffuse><direction>-0.5 0.1 -0.9</direction></light>
 <model name="ground"><static>true</static><link name="ground"><collision name="ground"><geometry><plane><normal>0 0 1</normal><size>20 20</size></plane></geometry></collision><visual name="ground_visual"><geometry><plane><normal>0 0 1</normal><size>20 20</size></plane></geometry></visual></link></model>
 {''.join(obstacles)}{robot_model}</world></sdf>'''
-    (ROOT / 'world.sdf').write_text(world)
+    Path(world_path or ROOT / 'world.sdf').write_text(world)
+    if not write_assets:
+        return
     resolution, width, height = .05, 204, 164
     pixels = []
     for row in range(height):

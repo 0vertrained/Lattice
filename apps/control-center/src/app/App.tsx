@@ -12,6 +12,8 @@ import type { AuthConfig } from '../core/auth/oidc';
 import { AuditPanel } from '../features/audit/AuditPanel';
 import { DevicePanel } from '../features/devices/DevicePanel';
 import { FleetPanel } from '../features/fleet/FleetPanel';
+import { HandoffPanel } from '../features/handoff/HandoffPanel';
+import { ObservationMemory } from '../features/memory/ObservationMemory';
 import { InspectionRound } from '../features/missions/InspectionRound';
 import { MissionComposer } from '../features/missions/MissionComposer';
 import { MissionList } from '../features/missions/MissionList';
@@ -118,6 +120,10 @@ export function App() {
     queryClient.removeQueries({ queryKey: queryKeys.audit });
     queryClient.removeQueries({ queryKey: ['devices'] });
     queryClient.removeQueries({ queryKey: ['rounds'] });
+    queryClient.removeQueries({ queryKey: ['observations'] });
+    queryClient.removeQueries({ queryKey: ['last-seen'] });
+    queryClient.removeQueries({ queryKey: ['observation-evidence'] });
+    queryClient.removeQueries({ queryKey: ['handoffs'] });
   }
 
   if (!connected) {
@@ -248,6 +254,12 @@ export function App() {
       </section>
 
       {auth?.durable && <InspectionRound canOperate={canOperate} />}
+      {auth?.durable && (
+        <div className="continuity-grid">
+          <ObservationMemory bodies={bodies} />
+          <HandoffPanel bodies={bodies} missions={missions} canOperate={canOperate} />
+        </div>
+      )}
       <div className="dashboard-grid">
         <Suspense
           fallback={

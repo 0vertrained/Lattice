@@ -20,6 +20,9 @@ pub struct CommandEnvelope {
     pub issued_at: DateTime<Utc>,
     /// Hard expiration timestamp.
     pub expires_at: DateTime<Utc>,
+    /// Reviewed shared memory required before this body may continue the mission.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub continuation: Option<crate::ContinuationContext>,
 }
 
 impl CommandEnvelope {
@@ -91,4 +94,7 @@ pub struct CommandResult {
     /// Camera evidence for completed inspections only.
     #[serde(default)]
     pub evidence: Option<crate::InspectionEvidence>,
+    /// Digest acknowledged only after verifying the retained images and their provenance.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_digest: Option<String>,
 }

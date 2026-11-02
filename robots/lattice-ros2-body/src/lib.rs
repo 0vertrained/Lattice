@@ -74,6 +74,12 @@ pub fn verify_navigation<'a>(
         .map_err(|_| "invalid public key length")?;
     let signature = Signature::from_slice(&STANDARD.decode(&command.signature_base64)?)?;
     VerifyingKey::from_bytes(&key_bytes)?.verify_strict(&envelope.signing_bytes()?, &signature)?;
+    if let Some(context) = &envelope.continuation {
+        context.validate()?;
+        if context.target_body_id != *body_id {
+            return Err("continuation belongs to a different body".into());
+        }
+    }
     let (destination, speed, inspection) = match &envelope.command {
         SkillCommand::Navigate {
             destination,
@@ -116,6 +122,7 @@ mod tests {
             },
             issued_at: now - Duration::seconds(1),
             expires_at: now + Duration::seconds(30),
+            continuation: None,
         };
         let command = SignedCommand {
             signature_base64: STANDARD
@@ -173,6 +180,47 @@ mod tests {
             destination: "tampered".into(),
             max_speed_mps: 0.3,
         };
+        assert!(verify_navigation(&command, &key, &body, 0, now).is_err());
+    }
+
+    #[test]
+    fn continuation_is_signed_target_bound_and_backward_compatible() {
+        let (mut command, key, body, now) = fixture();
+        let legacy = command.envelope.signing_bytes().unwrap();
+        assert!(
+            !String::from_utf8(legacy.clone())
+                .unwrap()
+                .contains("continuation")
+        );
+        let decoded: lattice_domain::CommandEnvelope = serde_json::from_slice(&legacy).unwrap();
+        assert_eq!(decoded.signing_bytes().unwrap(), legacy);
+        let mut context = lattice_domain::ContinuationContext {
+            handoff_id: "handoff-test".into(),
+            round_id: "round-test".into(),
+            source_body_id: BodyId::new("source-rover").unwrap(),
+            target_body_id: body.clone(),
+            completed_steps: 1,
+            observations: vec![],
+            digest: String::new(),
+        };
+        context.digest = context.compute_digest().unwrap();
+        command.envelope.continuation = Some(context);
+        assert!(verify_navigation(&command, &key, &body, 0, now).is_err());
+        let signer = SigningKey::from_bytes(&[7; 32]);
+        command.signature_base64 = STANDARD.encode(
+            signer
+                .sign(&command.envelope.signing_bytes().unwrap())
+                .to_bytes(),
+        );
+        verify_navigation(&command, &key, &body, 0, now).unwrap();
+        let context = command.envelope.continuation.as_mut().unwrap();
+        context.target_body_id = BodyId::new("third-rover").unwrap();
+        context.digest = context.compute_digest().unwrap();
+        command.signature_base64 = STANDARD.encode(
+            signer
+                .sign(&command.envelope.signing_bytes().unwrap())
+                .to_bytes(),
+        );
         assert!(verify_navigation(&command, &key, &body, 0, now).is_err());
     }
 }

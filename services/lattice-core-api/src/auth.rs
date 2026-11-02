@@ -75,6 +75,11 @@ impl Principal {
             return method == Method::GET;
         }
         let device_route = path == "/bodies/register"
+            || (method == Method::GET
+                && path.starts_with("/bodies/")
+                && path.contains("/missions/")
+                && path.contains("/observations/")
+                && path.ends_with("/evidence"))
             || path.ends_with("/heartbeat")
             || path.ends_with("/commands/next")
             || path.ends_with("/result");

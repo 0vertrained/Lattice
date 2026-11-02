@@ -276,6 +276,9 @@ fn validate_command(
     let signature_bytes = STANDARD.decode(&command.signature_base64)?;
     let signature = Signature::from_slice(&signature_bytes)?;
     public_key.verify(&command.envelope.signing_bytes()?, &signature)?;
+    if command.envelope.continuation.is_some() {
+        return Err("mock body cannot verify retained images; use the ROS adapter for reviewed continuation".into());
+    }
     Ok(())
 }
 
@@ -289,6 +292,7 @@ async fn report(
 ) -> Result<(), reqwest::Error> {
     let result = CommandResult {
         evidence: None,
+        context_digest: None,
         command_id: command.envelope.command_id.clone(),
         body_id: config.body_id.clone(),
         status,

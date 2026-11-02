@@ -251,21 +251,47 @@ impl LatticeService {
                 metadata: json!({"digest":digest,"recovery_of":p.recovery_of}),
             })
             .await?;
-        let result = self
-            .create_mission(
-                CreateMissionRequest {
-                    title: {
-                        let mut title = input.user_intent;
-                        while title.len() > 120 {
-                            title.pop();
-                        }
-                        title
-                    },
-                    command,
-                },
+        let request = CreateMissionRequest {
+            title: {
+                let mut title = input.user_intent;
+                while title.len() > 120 {
+                    title.pop();
+                }
+                title
+            },
+            command,
+        };
+        // Existing same-body recovery remains available; changing a round's body requires
+        // a dedicated review that freezes its target, cursor and retained observations.
+        let recovery_body = if let Some(old) = &original {
+            let belongs_to_round = if let Some(rounds) = &self.rounds {
+                rounds
+                    .list()
+                    .await?
+                    .iter()
+                    .any(|r| r.current_mission_id.as_ref() == Some(&old.id))
+            } else {
+                false
+            };
+            if belongs_to_round {
+                old.assigned_body_id.clone()
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        let result = if let Some(body_id) = recovery_body {
+            self.create_mission_for_body(
+                request,
+                body_id,
+                original.as_ref().and_then(|old| old.continuation.clone()),
                 actor,
             )
-            .await;
+            .await
+        } else {
+            self.create_mission(request, actor).await
+        };
         match &result {
             Ok(m) => {
                 p.status = "approved".into();

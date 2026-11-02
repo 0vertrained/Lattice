@@ -186,6 +186,7 @@ async fn inspection_cannot_succeed_without_camera_evidence() {
         detail: None,
         reported_at: clock.now(),
         evidence: None,
+        context_digest: None,
     };
     assert!(
         service

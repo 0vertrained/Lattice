@@ -1,7 +1,10 @@
 //! Immutable operator-reviewed inspection rounds, advanced only by committed body results.
 use crate::{ApplicationError, CreateMissionRequest, LatticeService, validate_warehouse_command};
 use chrono::{DateTime, Duration, Utc};
-use lattice_domain::{AuditActor, AuditRecord, Mission, MissionId, MissionStatus, SkillCommand};
+use lattice_domain::{
+    AuditActor, AuditRecord, BodyId, ContinuationContext, Mission, MissionId, MissionStatus,
+    SkillCommand,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
@@ -44,6 +47,12 @@ pub struct InspectionRound {
     pub mission_ids: Vec<MissionId>,
     /// Failed steps explicitly permitted to continue.
     pub anomaly_count: usize,
+    /// Body instance pinned for the remaining approved steps.
+    #[serde(default)]
+    pub assigned_body_id: Option<BodyId>,
+    /// Reviewed evidence context retained after a body transfer.
+    #[serde(default)]
+    pub continuation: Option<ContinuationContext>,
 }
 impl LatticeService {
     /// Freezes an operator-authored round. No command is dispatched.
@@ -87,6 +96,8 @@ impl LatticeService {
             current_mission_id: None,
             mission_ids: vec![],
             anomaly_count: 0,
+            assigned_body_id: None,
+            continuation: None,
         };
         self.round_store()?.save(round.clone()).await?;
         self.round_audit(
@@ -147,18 +158,49 @@ impl LatticeService {
             .steps
             .get(round.current_step)
             .ok_or(ApplicationError::Infrastructure)?;
-        let mission = self
-            .create_mission(
-                CreateMissionRequest {
-                    title: step.title.clone(),
-                    command: step.command.clone(),
-                },
-                round
-                    .approved_by
-                    .clone()
-                    .ok_or(ApplicationError::Security)?,
-            )
-            .await?;
+        let request = CreateMissionRequest {
+            title: step.title.clone(),
+            command: step.command.clone(),
+        };
+        let actor = round
+            .approved_by
+            .clone()
+            .ok_or(ApplicationError::Security)?;
+        let mission = match &round.assigned_body_id {
+            Some(body_id) if self.body_available(body_id, &request.command).await? => {
+                self.create_mission_for_body(
+                    request,
+                    body_id.clone(),
+                    round.continuation.clone(),
+                    actor,
+                )
+                .await?
+            }
+            Some(body_id) => {
+                // Commit the previous step and its evidence even when its pinned body goes away.
+                // No substitute is dispatched until a new operator review.
+                let mut mission = Mission::new(
+                    MissionId::new(format!("mission-{}", uuid::Uuid::new_v4().simple()))?,
+                    request.title,
+                    request.command,
+                    self.clock.now(),
+                )?;
+                mission.assigned_body_id = Some(body_id.clone());
+                mission.continuation = round.continuation.clone();
+                mission.require_recovery(self.clock.now());
+                mission.status_detail = Some(
+                    "Pinned round body is unavailable. Review recovery or a body handoff.".into(),
+                );
+                round.status = "recovery_required".into();
+                self.missions.save(mission.clone()).await?;
+                mission
+            }
+            None => {
+                let mission = self.create_mission(request, actor).await?;
+                round.assigned_body_id = mission.assigned_body_id.clone();
+                mission
+            }
+        };
         round.current_mission_id = Some(mission.id.clone());
         round.mission_ids.push(mission.id);
         self.round_store()?.save(round.clone()).await
@@ -237,10 +279,25 @@ impl LatticeService {
         for mut round in store.list().await? {
             if round.status == "recovery_required" && round.current_mission_id.as_ref() == Some(old)
             {
+                let mission = self
+                    .missions
+                    .get(new)
+                    .await?
+                    .ok_or(ApplicationError::Infrastructure)?;
+                round.assigned_body_id = mission.assigned_body_id.clone();
+                round.continuation = mission.continuation.clone();
                 round.current_mission_id = Some(new.clone());
                 round.mission_ids.push(new.clone());
                 round.status = "active".into();
                 store.save(round.clone()).await?;
+                if let Some(handoffs) = &self.handoffs {
+                    for mut proposal in handoffs.list_handoffs().await? {
+                        if proposal.round_id == round.id && proposal.status == "pending" {
+                            proposal.status = "invalidated".into();
+                            handoffs.save_handoff(proposal).await?;
+                        }
+                    }
+                }
                 self.round_audit(
                     &round,
                     "round.recovered",

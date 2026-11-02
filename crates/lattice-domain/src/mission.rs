@@ -51,6 +51,12 @@ pub struct Mission {
     /// Validated inspection result image and detections.
     #[serde(default)]
     pub evidence: Option<crate::InspectionEvidence>,
+    /// Persisted original signed deadline, used to fence a source before handoff.
+    #[serde(default)]
+    pub command_expires_at: Option<DateTime<Utc>>,
+    /// Frozen retained memory attached to this continuation.
+    #[serde(default)]
+    pub continuation: Option<crate::ContinuationContext>,
 }
 
 impl Mission {
@@ -82,6 +88,8 @@ impl Mission {
             updated_at: now,
             status_detail: None,
             evidence: None,
+            command_expires_at: None,
+            continuation: None,
         })
     }
 

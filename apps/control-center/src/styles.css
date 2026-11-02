@@ -601,3 +601,146 @@ textarea:focus-visible {
     grid-template-columns: 1fr;
   }
 }
+
+.continuity-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 14px;
+  margin: 20px 0;
+}
+.continuity-grid h3 {
+  font-size: 0.95rem;
+  margin: 0 0 10px;
+}
+.continuity-grid .section-heading {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.memory-search,
+.handoff-selectors {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+}
+.memory-results,
+.handoff-history {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+.observation-card,
+.handoff-review,
+.handoff-history article {
+  border: 1px solid #263b4d;
+  border-radius: 13px;
+  background: #0a141f;
+  padding: 14px;
+  min-width: 0;
+}
+.observation-card .card-title-row {
+  flex-wrap: wrap;
+}
+.observation-card dl,
+.handoff-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.observation-card dt,
+.handoff-facts dt {
+  color: #8197a9;
+  font-size: 0.75rem;
+  margin-bottom: 4px;
+}
+.observation-card dd,
+.handoff-facts dd {
+  margin: 0;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+.observation-card details,
+.handoff-review details,
+.handoff-history details {
+  border-top: 1px solid #263b4d;
+  padding-top: 12px;
+  margin-top: 12px;
+}
+.continuity-grid summary {
+  color: #a9cbe0;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.continuity-grid summary:focus-visible,
+.continuity-grid a:focus-visible {
+  outline: 2px solid #5dc4ff;
+  outline-offset: 4px;
+}
+.observation-provenance {
+  overflow-wrap: anywhere;
+}
+.observation-provenance dl {
+  grid-template-columns: minmax(0, 1fr);
+}
+.memory-negative {
+  border-left: 3px solid #c59c54;
+  padding-left: 12px;
+  color: #e7bd73;
+  font-size: 0.86rem;
+}
+.memory-note,
+.handoff-note {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #a5bbca;
+}
+.handoff-step-list {
+  padding-left: 22px;
+  margin: 8px 0 16px;
+  font-size: 0.86rem;
+  color: #bbcad7;
+}
+.handoff-step-list li {
+  padding: 5px 0;
+}
+.handoff-step-list small {
+  display: block;
+  margin-top: 3px;
+}
+.handoff-evidence-list {
+  padding-left: 20px;
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
+}
+.handoff-evidence-list li {
+  margin: 8px 0;
+}
+.handoff-evidence-list a {
+  color: #85d4ff;
+}
+.handoff-review .actions {
+  margin-top: 16px;
+}
+.handoff-history .card-title-row {
+  flex-wrap: wrap;
+}
+.handoff-history time {
+  font-size: 0.8rem;
+  color: #8297a8;
+}
+@media (max-width: 1000px) {
+  .continuity-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 420px) {
+  .observation-card dl,
+  .handoff-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .continuity-grid .actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

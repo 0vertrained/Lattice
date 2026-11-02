@@ -2,7 +2,7 @@
 
 use base64::{Engine, engine::general_purpose::STANDARD};
 use chrono::Utc;
-use lattice_application::{HeartbeatRequest, RegisterBodyRequest};
+use lattice_application::{HeartbeatRequest, Observation, RegisterBodyRequest};
 use lattice_domain::{
     BatteryPercent, BodyId, BodyKind, BodyStatus, Capability, CommandResult, CommandResultStatus,
     InspectionEvidence, SignedCommand, SkillCommand, VerificationKey,
@@ -10,6 +10,7 @@ use lattice_domain::{
 use lattice_ros2_body::{GatewayState, verify_navigation};
 use reqwest::{Client, StatusCode};
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 use std::{collections::BTreeSet, env, fs, path::Path, time::Duration};
 use tokio::{
     io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
@@ -61,6 +62,11 @@ async fn report(
         progress_pct: state.progress_pct.min(100),
         detail: Some(state.detail.clone()),
         reported_at: Utc::now(),
+        context_digest: command
+            .envelope
+            .continuation
+            .as_ref()
+            .map(|context| context.digest.clone()),
     };
     client
         .post(format!(
@@ -71,6 +77,108 @@ async fn report(
         .send()
         .await?
         .error_for_status()?;
+    Ok(())
+}
+
+#[derive(serde::Deserialize)]
+struct RetainedEvidence {
+    observation: Observation,
+    evidence: InspectionEvidence,
+}
+
+// Fetch through the body's mission-scoped endpoint, then verify the exact bytes covered
+// by the signed context. Historical imagery is never presented as a new observation.
+async fn accept_continuation(
+    client: &Client,
+    url: &str,
+    command: &SignedCommand,
+    core_epoch: &str,
+) -> Result<(), Error> {
+    let Some(context) = &command.envelope.continuation else {
+        return Ok(());
+    };
+    context.validate()?;
+    for reference in &context.observations {
+        let mut response = client
+            .get(format!(
+                "{url}/v1/bodies/{}/missions/{}/observations/{}/evidence",
+                command.envelope.body_id, command.envelope.mission_id, reference.observation_id
+            ))
+            .send()
+            .await?
+            .error_for_status()?;
+        if response_epoch(&response)? != core_epoch {
+            return Err("core changed while receiving continuation".into());
+        }
+        let mut bytes = Vec::new();
+        while let Some(chunk) = response.chunk().await? {
+            if bytes.len() + chunk.len() > 65_536 {
+                return Err("retained evidence exceeds bound".into());
+            }
+            bytes.extend_from_slice(&chunk);
+        }
+        let retained: RetainedEvidence = serde_json::from_slice(&bytes)?;
+        verify_retained(&retained, reference)?;
+    }
+    // The durable acknowledgement is committed before any ROS goal is submitted.
+    let result = CommandResult {
+        command_id: command.envelope.command_id.clone(),
+        body_id: command.envelope.body_id.clone(),
+        status: CommandResultStatus::Running,
+        progress_pct: 0,
+        detail: Some(format!(
+            "Verified {} retained observation images before continuation",
+            context.observations.len()
+        )),
+        reported_at: Utc::now(),
+        evidence: None,
+        context_digest: Some(context.digest.clone()),
+    };
+    let response = client
+        .post(format!(
+            "{url}/v1/missions/{}/commands/{}/result",
+            command.envelope.mission_id, command.envelope.command_id
+        ))
+        .json(&result)
+        .send()
+        .await?
+        .error_for_status()?;
+    if response_epoch(&response)? != core_epoch {
+        return Err("core changed during context acknowledgement".into());
+    }
+    let mission: lattice_domain::Mission = response.json().await?;
+    if mission.status != lattice_domain::MissionStatus::Running
+        || mission.active_command_id.as_ref() != Some(&command.envelope.command_id)
+        || mission.assigned_body_id.as_ref() != Some(&command.envelope.body_id)
+        || mission.continuation.as_ref() != Some(context)
+        || command.envelope.is_expired(Utc::now())
+    {
+        return Err("continuation acknowledgement is no longer authorized".into());
+    }
+    tracing::info!(handoff_id=%context.handoff_id, observations=context.observations.len(), "retained images verified and context acknowledged before ROS dispatch");
+    Ok(())
+}
+
+fn verify_retained(
+    retained: &RetainedEvidence,
+    reference: &lattice_domain::ObservationReference,
+) -> Result<(), Error> {
+    let observation = &retained.observation;
+    let evidence = &retained.evidence;
+    let image = STANDARD.decode(&evidence.image_base64)?;
+    if observation.id != reference.observation_id
+        || observation.image_sha256 != reference.image_sha256
+        || evidence.image_sha256 != reference.image_sha256
+        || image.len() > 40_000
+        || format!("{:x}", Sha256::digest(&image)) != reference.image_sha256
+        || evidence.frame_sha256 != observation.frame_sha256
+        || evidence.model_id != observation.model_id
+        || evidence.confidence_domain != observation.confidence_domain
+        || evidence.captured_at_ms != observation.captured_at.timestamp_millis()
+        || evidence.detections != observation.detections
+    {
+        return Err("retained observation provenance or image hash mismatch".into());
+    }
     Ok(())
 }
 
@@ -202,7 +310,7 @@ async fn main() -> Result<(), Error> {
         .post(format!("{url}/v1/bodies/register"))
         .json(&RegisterBodyRequest {
             id: body_id.clone(),
-            display_name: "Gazebo Rover".into(),
+            display_name: env::var("LATTICE_BODY_NAME").unwrap_or_else(|_| body_id.to_string()),
             kind: BodyKind::Rover,
             capabilities: BTreeSet::from([Capability::Navigate, Capability::Inspect]),
             adapter_version: env!("CARGO_PKG_VERSION").into(),
@@ -368,6 +476,21 @@ async fn main() -> Result<(), Error> {
                 file.sync_all()?;
                 fs::rename(&temporary, &state_path)?;
                 fs::File::open(parent)?.sync_all()?;
+                accept_continuation(&client, &url, &command, &core_epoch).await?;
+                // Evidence transfer may take longer than a local motion lease. Renew only
+                // after a fresh authenticated heartbeat from the same core epoch.
+                if command.envelope.continuation.is_some() {
+                    let response = client
+                        .post(format!("{url}/v1/bodies/{body_id}/heartbeat"))
+                        .json(&heartbeat)
+                        .send()
+                        .await?
+                        .error_for_status()?;
+                    if response_epoch(&response)? != core_epoch {
+                        return Err("core changed before continuation motion".into());
+                    }
+                    local(&socket, &json!({"op":"lease"})).await?;
+                }
                 let state = local(&socket, &goal).await?;
                 if state.ok {
                     active = Some(command);
@@ -385,5 +508,50 @@ async fn main() -> Result<(), Error> {
             }
         }
         tokio::time::sleep(Duration::from_millis(300)).await;
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn retained_image_bytes_and_provenance_must_match_signed_reference() {
+        // Transport integrity fixture; no detector or real JPEG claim is made here.
+        let bytes = b"retained image fixture";
+        let hash = format!("{:x}", Sha256::digest(bytes));
+        let evidence: InspectionEvidence = serde_json::from_value(json!({
+            "model_id":"fixture-model", "captured_at_ms":0, "frame_sha256":"ab".repeat(32),
+            "image_sha256":hash, "image_base64":STANDARD.encode(bytes), "detections":[],
+            "confidence_domain":"transport-test"
+        }))
+        .unwrap();
+        let observation: Observation = serde_json::from_value(json!({
+            "id":"observation-command-a", "subject_key":"safety-marker:inspection_bay",
+            "subject_class":"octagonal_safety_marker", "outcome":"not_detected", "location":"inspection_bay",
+            "map_frame":"map", "observer_pose":null, "observer_pose_at":null,
+            "mission_id":"mission-a", "command_id":"command-a", "body_id":"rover-a",
+            "captured_at":"1970-01-01T00:00:00Z", "received_at":"1970-01-01T00:00:01Z",
+            "model_id":"fixture-model", "confidence_domain":"transport-test", "confidence":null,
+            "image_sha256":hash, "frame_sha256":"ab".repeat(32), "detections":[]
+        })).unwrap();
+        let reference = lattice_domain::ObservationReference {
+            observation_id: observation.id.clone(),
+            image_sha256: hash,
+        };
+        let mut retained = RetainedEvidence {
+            observation,
+            evidence,
+        };
+        verify_retained(&retained, &reference).unwrap();
+        retained.evidence.image_base64 = STANDARD.encode(b"changed bytes");
+        assert!(verify_retained(&retained, &reference).is_err());
+        retained.evidence.image_base64 = STANDARD.encode(bytes);
+        retained.evidence.model_id = "different-model".into();
+        assert!(verify_retained(&retained, &reference).is_err());
+        retained.evidence.model_id = "fixture-model".into();
+        retained.observation.id = "observation-unassigned".into();
+        assert!(verify_retained(&retained, &reference).is_err());
     }
 }

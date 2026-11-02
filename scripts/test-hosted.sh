@@ -61,3 +61,6 @@ done
 node tests/browser/identity.cjs
 
 node tests/browser/visitor.cjs
+node tests/browser/handoff-ui.cjs
+node tests/browser/handoff-visitor.cjs
+LATTICE_VISITOR_URL=http://localhost:5173/ node tests/browser/handoff-recording.cjs

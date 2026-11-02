@@ -2,8 +2,8 @@
 use async_trait::async_trait;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use lattice_application::{
-    ApplicationError, AuditSink, BodyRepository, CommandQueue, InspectionRound, MissionRepository,
-    Proposal, ProposalRepository, RoundRepository,
+    ApplicationError, AuditSink, BodyRepository, CommandQueue, HandoffRepository, InspectionRound,
+    MissionRepository, Proposal, ProposalRepository, RoundRepository,
 };
 use lattice_domain::{
     AuditActor, AuditRecord, BodyId, BodySnapshot, Mission, MissionId, SignedCommand,
@@ -115,6 +115,16 @@ impl PostgresPlatform {
                     "../../../infrastructure/postgres/migrations/0005_inspection_rounds.sql"
                 ),
             ),
+            (
+                6_i32,
+                include_str!(
+                    "../../../infrastructure/postgres/migrations/0006_observation_memory.sql"
+                ),
+            ),
+            (
+                7_i32,
+                include_str!("../../../infrastructure/postgres/migrations/0007_handoffs.sql"),
+            ),
         ] {
             if tx
                 .client()
@@ -213,6 +223,13 @@ impl PostgresPlatform {
             }
             RoundRepository::save(tx.as_ref(), round).await?;
         }
+        for mut handoff in HandoffRepository::list_handoffs(tx.as_ref()).await? {
+            if handoff.status == "pending" {
+                handoff.status = "invalidated".into();
+                HandoffRepository::save_handoff(tx.as_ref(), handoff).await?;
+            }
+        }
+        // Body fences are retained across core restart until their signed-command deadline.
         for mut b in BodyRepository::list(tx.as_ref()).await? {
             b.status = lattice_domain::BodyStatus::Offline;
             BodyRepository::save(tx.as_ref(), b).await?;

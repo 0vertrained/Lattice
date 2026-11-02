@@ -85,6 +85,8 @@ pub struct LatticeService {
     pub(crate) config: ServiceConfig,
     pub(crate) proposals: Arc<dyn crate::ProposalRepository>,
     pub(crate) rounds: Option<Arc<dyn crate::RoundRepository>>,
+    pub(crate) observations: Option<Arc<dyn crate::ObservationRepository>>,
+    pub(crate) handoffs: Option<Arc<dyn crate::HandoffRepository>>,
     pub(crate) approval_lock: Arc<tokio::sync::Mutex<()>>,
 }
 
@@ -101,6 +103,8 @@ impl LatticeService {
     ) -> Self {
         Self {
             rounds: None,
+            observations: None,
+            handoffs: None,
             proposals: Arc::new(crate::proposal::Proposals::default()),
             approval_lock: Arc::default(),
             bodies,
@@ -128,6 +132,8 @@ impl LatticeService {
             + AuditSink
             + crate::ProposalRepository
             + crate::RoundRepository
+            + crate::ObservationRepository
+            + crate::HandoffRepository
             + 'static,
     {
         Self::new(
@@ -140,12 +146,29 @@ impl LatticeService {
             self.config.clone(),
         )
         .with_proposals(unit.clone())
-        .with_rounds(unit)
+        .with_rounds(unit.clone())
+        .with_observations(unit.clone())
+        .with_handoffs(unit)
     }
 
     /// Installs the transaction-scoped round store.
     pub fn with_rounds(mut self, rounds: Arc<dyn crate::RoundRepository>) -> Self {
         self.rounds = Some(rounds);
+        self
+    }
+
+    /// Installs shared observation storage on the same transaction as mission results.
+    pub fn with_observations(
+        mut self,
+        observations: Arc<dyn crate::ObservationRepository>,
+    ) -> Self {
+        self.observations = Some(observations);
+        self
+    }
+
+    /// Installs durable reviewed handoff and body-fence storage.
+    pub fn with_handoffs(mut self, handoffs: Arc<dyn crate::HandoffRepository>) -> Self {
+        self.handoffs = Some(handoffs);
         self
     }
 
@@ -155,6 +178,7 @@ impl LatticeService {
         request: RegisterBodyRequest,
         actor: AuditActor,
     ) -> Result<BodySnapshot, ApplicationError> {
+        self.ensure_not_fenced(&request.id).await?;
         validate_display_name(&request.display_name)?;
         validate_version(&request.adapter_version)?;
 
@@ -196,6 +220,7 @@ impl LatticeService {
         body_id: &BodyId,
         request: HeartbeatRequest,
     ) -> Result<BodySnapshot, ApplicationError> {
+        self.ensure_not_fenced(body_id).await?;
         let Some(mut body) = self.bodies.get(body_id).await? else {
             return Err(ApplicationError::NotFound { entity: "body" });
         };
@@ -265,6 +290,7 @@ impl LatticeService {
     ) -> Result<Option<SignedCommand>, ApplicationError> {
         let now = self.clock.now();
 
+        self.ensure_not_fenced(body_id).await?;
         while let Some(command) = self.commands.dequeue(body_id).await? {
             if command.envelope.body_id != *body_id {
                 self.audit_rejection(
@@ -342,6 +368,17 @@ impl LatticeService {
             )
             .await?;
             return Ok(mission);
+        }
+        if let Some(context) = &mission.continuation {
+            if result.context_digest.as_deref() != Some(context.digest.as_str()) {
+                return Err(ApplicationError::Conflict(
+                    "continuation context receipt is missing or different".into(),
+                ));
+            }
+        } else if result.context_digest.is_some() {
+            return Err(ApplicationError::Conflict(
+                "unexpected continuation context receipt".into(),
+            ));
         }
         // Retrying a terminal acknowledgement must not lose an already committed result.
         if matches!(
@@ -448,6 +485,8 @@ impl LatticeService {
             })
             .await?;
 
+        self.record_observation(&mission).await?;
+        self.acknowledge_handoff(&mission).await?;
         self.advance_round(&mission).await?;
         Ok(mission)
     }
@@ -487,6 +526,21 @@ impl LatticeService {
                 continue;
             }
 
+            if self.rounds.as_ref().is_some() {
+                let is_round = self.round_store()?.list().await?.iter().any(|r| {
+                    r.current_mission_id.as_ref() == Some(&mission.id)
+                        && matches!(r.status.as_str(), "active" | "recovery_required")
+                });
+                if is_round {
+                    mission.require_recovery(now);
+                    mission.status_detail = Some("Assigned rover became unavailable. Review same-body recovery or a body handoff.".into());
+                    self.hold_round(&mission).await?;
+                    self.missions.save(mission.clone()).await?;
+                    changed.push(mission);
+                    continue;
+                }
+            }
+
             if matches!(
                 mission.status,
                 MissionStatus::Assigned | MissionStatus::Running
@@ -519,7 +573,7 @@ impl LatticeService {
         self.audit.list().await
     }
 
-    async fn assign_and_enqueue(
+    pub(crate) async fn assign_and_enqueue(
         &self,
         mission: &mut Mission,
         body_id: BodyId,
@@ -531,7 +585,15 @@ impl LatticeService {
         let ttl = ChronoDuration::from_std(self.config.command_ttl)
             .map_err(|_| ApplicationError::Conflict("invalid command TTL".to_owned()))?;
 
+        self.ensure_not_fenced(&body_id).await?;
+        if let Some(context) = &mission.continuation {
+            context.validate()?;
+            if context.target_body_id != body_id {
+                return Err(ApplicationError::Security);
+            }
+        }
         mission.assign(body_id.clone(), command_id.clone(), now)?;
+        mission.command_expires_at = Some(now + ttl);
         let envelope = CommandEnvelope {
             command_id,
             mission_id: mission.id.clone(),
@@ -540,6 +602,7 @@ impl LatticeService {
             command: mission.command.clone(),
             issued_at: now,
             expires_at: now + ttl,
+            continuation: mission.continuation.clone(),
         };
         let signed = self.signer.sign(envelope.clone()).await?;
 
@@ -562,7 +625,7 @@ impl LatticeService {
         Ok(())
     }
 
-    async fn select_body(
+    pub(crate) async fn select_body(
         &self,
         mission: &Mission,
         exclude: Option<&BodyId>,
@@ -586,7 +649,12 @@ impl LatticeService {
                 .then_with(|| left.id.cmp(&right.id))
         });
 
-        Ok(candidates.into_iter().next())
+        for candidate in candidates {
+            if self.body_available(&candidate.id, &mission.command).await? {
+                return Ok(Some(candidate));
+            }
+        }
+        Ok(None)
     }
 
     async fn audit_rejection(

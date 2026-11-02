@@ -6,6 +6,9 @@ pub mod audit;
 pub mod body;
 /// Signed command and result contracts.
 pub mod command;
+/// Signed, bounded shared-memory references for reviewed body continuation.
+pub mod continuation;
+pub use continuation::{ContinuationContext, ObservationReference};
 /// Domain validation and state-transition errors.
 pub mod error;
 /// Inspection evidence contracts.

@@ -9,6 +9,14 @@ bounded capabilities through reviewed adapters.
 The product is not one robot. It is the durable software layer that allows one
 intelligence to select, inhabit, and hand work between many bodies.
 
+The validated baseline covers approved warehouse rounds, camera evidence and
+restart recovery on one Gazebo rover. The current increment adds durable station
+observation memory and a recorded live continuation between two rover instances:
+A completed the first inspection, and B verified A's evidence before completing
+the remaining three steps. This advances shared context and mission continuity,
+but does not complete autonomous planning, a general world model or heterogeneous
+embodiment. [Validation](VALIDATION.md) separates confirmed results from open gates.
+
 ## Technology decisions
 
 | Layer | Choice | Rationale |
@@ -88,9 +96,12 @@ signing identity, hash-chained audit, persisted sequences and explicit restart r
 The robot stops on a changed core epoch and the operator reviews a new mission before
 continuing. See [the recovery guide](RECOVERY_DEMO.md) and [validation](VALIDATION.md).
 
-This increment uses a serialized single writer. Optimistic multi-writer updates,
-NATS delivery/consumers, remote audit replication, OIDC/mTLS, managed key rotation
-and deployment telemetry below remain future work; this milestone is not complete.
+This increment uses a serialized single writer with durable revision fencing.
+OIDC viewer/operator/admin authorization and body-scoped revocable bearer
+credentials were implemented and tested in the prior release. Optimistic
+multi-writer updates, NATS delivery/consumers, remote audit replication, mTLS,
+managed key rotation and deployment telemetry remain future work; this milestone
+is not complete.
 
 Replace development in-memory adapters while preserving the same application ports.
 
@@ -104,7 +115,7 @@ Build:
 6. Hash-chained audit records and remote audit replication.
 7. OpenTelemetry traces, metrics, and structured logs.
 8. Integration tests using ephemeral PostgreSQL and NATS containers.
-9. OIDC for human users and mTLS for services/bodies.
+9. OIDC for human users (implemented); mTLS for services/bodies (future).
 10. Key rotation with overlapping verification windows.
 
 Exit test:
@@ -157,6 +168,24 @@ Exit test:
 
 ## Milestone 3 — World model and digital twin
 
+**Bounded observation-memory increment implemented:** validated terminal camera
+results create immutable PostgreSQL observations in the same transaction as the
+mission result and audit. Operators can query the last positive marker-class
+observation at a named station, inspect any later negative counter-evidence, and
+retrieve the retained source JPEG with verified provenance. Duplicate results
+cannot create duplicate observations. Unit, isolated PostgreSQL and HTTP checks
+passed, and the recorded two-rover run retained A's positive bay image and B's
+negative dock image. See [observation memory](OBSERVATION_MEMORY.md).
+
+The subject key represents a marker class at a station, not a tracked physical
+object. Location combines the commanded station with the observing rover's latest
+heartbeat pose and its separate timestamp; it is not a triangulated marker
+coordinate. JPEGs remain on durable source missions, while raw camera-frame hashes
+refer to files in simulator run directories. Object storage, object-instance
+tracking, semantic transfer points and a shared geometric world model remain
+future work. Known-map body poses and recorded mission replay already appear in
+the digital twin; these do not satisfy the mapping and general replay exit tests.
+
 Build three distinct representations:
 
 ### Geometric state
@@ -190,7 +219,8 @@ Implementation:
 1. Add PostGIS.
 2. Add semantic location and transfer-point models.
 3. Store evidence in S3-compatible object storage, metadata in PostgreSQL.
-4. Add object last-seen queries.
+4. Add object last-seen queries (station-scoped marker-class queries implemented;
+   object-instance tracking remains future work).
 5. Add mission and observation replay.
 6. Stream normalized body poses to the React digital twin.
 7. Move heavy geometry processing to Web Workers.
@@ -233,7 +263,12 @@ Exit test:
 
 ## Milestone 5 — Intelligence services
 
-**Local baseline implemented:** supervised intent classification, grounded proposals, immutable backend approval, specialized marker detection, camera evidence and held-out evaluation. General LLM/VLM, speech and retrieval remain future work. See `INTELLIGENCE_DEMO.md`.
+**Local baseline implemented:** supervised intent classification, grounded proposals,
+immutable backend approval, specialized marker detection, camera evidence and
+held-out evaluation. Shared observation queries and handoff evidence retrieval now
+provide a bounded memory interface. General LLM/VLM reasoning, speech,
+conversational memory and autonomous multi-step planning remain future work. See
+`INTELLIGENCE_DEMO.md` and [observation memory](OBSERVATION_MEMORY.md).
 
 Python remains outside the trusted command path.
 
@@ -311,6 +346,34 @@ Exit test:
 
 ## Milestone 7 — Multi-body handoff
 
+**Reviewed same-rover-type increment implemented and live-validated:** the
+new launcher runs two namespaced Gazebo rover models with separate sensors,
+localization, motion gates, watchdogs and body-agent processes. The core can hold a
+round, fence the source body and freeze a handoff review containing both body IDs,
+the completed-step cursor, remaining work and retained observation references.
+Approval waits for the source command's expiry window and rechecks target
+freshness, availability and capabilities. It dispatches only the remaining work.
+
+The target's signed continuation context binds the retained observation IDs and
+JPEG hashes. The real ROS body agent retrieves and verifies the original evidence
+and commits a context receipt before submitting a new ROS goal. Historical images
+remain attributed to the source body. This is an explicit, operator-reviewed
+transfer of bounded mission context, not an autonomous decision to switch bodies.
+See the [multi-rover guide](MULTI_ROBOT_SIM.md) and current [validation](VALIDATION.md).
+
+The [recorded live run](../apps/control-center/public/demo/handoff.json) completed
+four steps in 141.039 seconds. Rover A finished the bay inspection; after its
+stop/hold and command expiry window, Rover B verified A's original image and
+acknowledged the context before ROS dispatch. B completed the remaining three
+steps, retaining the dock's missing-marker anomaly and returning to charge.
+The completed inspection was not repeated. This run did not interrupt the core;
+restart retention was checked separately in PostgreSQL and HTTP tests.
+
+Two differential-drive rovers exercise continuity between instances of the same
+embodiment. A shared Gazebo process is also a common failure boundary. Different
+mobility types, transfer-point negotiation, conversation continuity, fleet traffic
+planning and the canonical stairs demo below remain future milestones.
+
 Add in this order:
 
 1. spider/hexapod or small quadruped
@@ -342,7 +405,12 @@ Exit test:
 
 ## Milestone 8 — Productization
 
-- multi-user OIDC and fine-grained authorization
+OIDC authorization-code/PKCE sign-in, viewer/operator/admin roles, server-enforced
+permissions and revocable body-scoped credentials are implemented and were tested
+against a local identity provider in the prior release. Hosted deployment and its
+external issuer remain unverified. The remaining productization scope includes:
+
+- finer-grained resource and organization authorization beyond the current roles
 - body/service mTLS and certificate revocation
 - policy-as-code with tested decision bundles
 - plugin SDK and compatibility matrix

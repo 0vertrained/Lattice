@@ -53,6 +53,8 @@ class GatewayNode final : public rclcpp_lifecycle::LifecycleNode {
 public:
   GatewayNode() : rclcpp_lifecycle::LifecycleNode("lattice_ros2_gateway") {
     declare_parameter("socket_path", "/run/lattice/gateway.sock");
+    declare_parameter("map_frame_id", "map");
+    declare_parameter("base_frame_id", "base_link");
     declare_parameter("locations_file",
                       "/opt/lattice/warehouse/locations.json");
   }
@@ -236,7 +238,7 @@ private:
     progress_ = 0;
     initial_distance_ = 0;
     Navigate::Goal message;
-    message.pose.header.frame_id = "map";
+    message.pose.header.frame_id = get_parameter("map_frame_id").as_string();
     message.pose.header.stamp = this->now();
     message.pose.pose.position.x = locations_.at(destination).at("x");
     message.pose.pose.position.y = locations_.at(destination).at("y");
@@ -316,7 +318,9 @@ private:
     pose_ = nullptr;
     try {
       const auto tf =
-          tf_->lookupTransform("map", "base_link", tf2::TimePointZero);
+          tf_->lookupTransform(get_parameter("map_frame_id").as_string(),
+                               get_parameter("base_frame_id").as_string(),
+                               tf2::TimePointZero);
       const double age = (now() - rclcpp::Time(tf.header.stamp)).seconds();
       if (age >= -0.1 && age < 0.5) {
         const auto &p = tf.transform.translation;

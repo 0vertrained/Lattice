@@ -3,7 +3,9 @@
 mod crypto;
 mod devices;
 pub use devices::DeviceCredential;
+mod handoffs;
 mod memory;
+mod observations;
 mod postgres;
 pub use postgres::{PostgresPlatform, PostgresUnit};
 mod time;

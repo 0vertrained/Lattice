@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::http::{HeaderName, HeaderValue, Method, StatusCode};
 use axum::middleware;
 use axum::response::{IntoResponse, Response};
@@ -79,6 +79,13 @@ pub fn router(
         .route("/missions", get(list_missions))
         .route("/rounds", get(list_rounds).post(propose_round))
         .route("/rounds/{id}/approve", post(approve_round))
+        .route("/rounds/{id}/handoff-proposal", post(propose_handoff))
+        .route("/handoffs", get(list_handoffs))
+        .route("/handoffs/{id}/approve", post(approve_handoff))
+        .route("/observations", get(list_observations))
+        .route("/observations/last-seen", get(last_seen))
+        .route("/observations/{id}/evidence", get(observation_evidence))
+        .route("/bodies/{body_id}/missions/{mission_id}/observations/{id}/evidence", get(handoff_evidence))
         .route("/proposals", get(list_proposals).post(create_proposal))
         .route("/proposals/{proposal_id}/approve", post(approve_proposal))
         .route("/missions/reassign", post(reassign))
@@ -225,6 +232,96 @@ async fn approve_round(
 
 async fn identity(Extension(principal): Extension<Principal>) -> Json<crate::auth::Identity> {
     Json(principal.identity())
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ObservationQuery {
+    limit: Option<u32>,
+    subject: Option<String>,
+}
+async fn list_observations(
+    Extension(state): Extension<ApiState>,
+    Query(query): Query<ObservationQuery>,
+) -> Result<impl IntoResponse, ApiError> {
+    Ok(Json(
+        state
+            .service
+            .observations(query.limit.unwrap_or(20), query.subject.as_deref())
+            .await?,
+    ))
+}
+async fn last_seen(
+    Extension(state): Extension<ApiState>,
+    Query(query): Query<ObservationQuery>,
+) -> Result<impl IntoResponse, ApiError> {
+    Ok(Json(
+        state.service.last_seen(query.subject.as_deref()).await?,
+    ))
+}
+async fn observation_evidence(
+    Extension(state): Extension<ApiState>,
+    Path(id): Path<String>,
+) -> Result<impl IntoResponse, ApiError> {
+    let observation = state.service.observation(&id).await?;
+    let evidence = state.service.source_evidence(&observation).await?;
+    Ok(Json(evidence))
+}
+async fn handoff_evidence(
+    Extension(state): Extension<ApiState>,
+    Extension(principal): Extension<Principal>,
+    Path((body_id, mission_id, id)): Path<(String, String, String)>,
+) -> Result<impl IntoResponse, ApiError> {
+    let body_id = BodyId::new(body_id).map_err(lattice_application::ApplicationError::from)?;
+    let mission_id =
+        MissionId::new(mission_id).map_err(lattice_application::ApplicationError::from)?;
+    principal.require_body(&body_id)?;
+    let (observation, evidence) = state
+        .service
+        .handoff_evidence(&body_id, &mission_id, &id)
+        .await?;
+    Ok(Json(
+        serde_json::json!({"observation":observation,"evidence":evidence}),
+    ))
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct HandoffRequest {
+    target_body_id: BodyId,
+}
+async fn list_handoffs(
+    Extension(state): Extension<ApiState>,
+) -> Result<impl IntoResponse, ApiError> {
+    Ok(Json(state.service.list_handoffs().await?))
+}
+async fn propose_handoff(
+    Extension(state): Extension<ApiState>,
+    Extension(principal): Extension<Principal>,
+    Path(id): Path<String>,
+    Json(input): Json<HandoffRequest>,
+) -> Result<impl IntoResponse, ApiError> {
+    Ok((
+        StatusCode::CREATED,
+        Json(
+            state
+                .service
+                .propose_handoff(&id, input.target_body_id, principal.actor())
+                .await?,
+        ),
+    ))
+}
+async fn approve_handoff(
+    Extension(state): Extension<ApiState>,
+    Extension(principal): Extension<Principal>,
+    Path(id): Path<String>,
+    Json(input): Json<ApprovalRequest>,
+) -> Result<impl IntoResponse, ApiError> {
+    Ok(Json(
+        state
+            .service
+            .approve_handoff(&id, &input.digest, principal.actor())
+            .await?,
+    ))
 }
 async fn auth_config(State(state): State<ApiState>) -> Json<serde_json::Value> {
     Json(match state.oidc_config {

@@ -5,6 +5,8 @@
 #include <gz/sim/System.hh>
 #include <gz/transport/Node.hh>
 #include <mutex>
+#include <sdf/Element.hh>
+#include <string>
 
 namespace lattice {
 class SimWatchdog final : public gz::sim::System,
@@ -12,11 +14,16 @@ class SimWatchdog final : public gz::sim::System,
                           public gz::sim::ISystemPreUpdate {
 public:
   void Configure(const gz::sim::Entity &,
-                 const std::shared_ptr<const sdf::Element> &,
+                 const std::shared_ptr<const sdf::Element> &sdf,
                  gz::sim::EntityComponentManager &,
                  gz::sim::EventManager &) override {
-    publisher_ = node_.Advertise<gz::msgs::Twist>("/motor_cmd_vel");
-    node_.Subscribe("/cmd_vel", &SimWatchdog::receive, this);
+    // Each model owns its command stream and wall-clock deadman. The defaults
+    // preserve the original single-rover world.
+    const auto input = sdf->Get<std::string>("input_topic", "/cmd_vel").first;
+    const auto output =
+        sdf->Get<std::string>("output_topic", "/motor_cmd_vel").first;
+    publisher_ = node_.Advertise<gz::msgs::Twist>(output);
+    node_.Subscribe(input, &SimWatchdog::receive, this);
   }
   void PreUpdate(const gz::sim::UpdateInfo &,
                  gz::sim::EntityComponentManager &) override {
