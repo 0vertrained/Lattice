@@ -8,7 +8,7 @@ if ! command -v uv >/dev/null 2>&1; then
   echo 'uv is required; install it before running this setup script.' >&2
   exit 1
 fi
-uv venv --python 3.12 "$quad_venv"
+uv venv --allow-existing --python 3.12 "$quad_venv"
 uv pip install --python "$quad_venv/bin/python" -r "$repo_root/simulation/quadruped/requirements.txt"
 "$quad_venv/bin/python" "$repo_root/simulation/quadruped/assets.py" --output "$quad_assets"
 "$quad_venv/bin/python" -m unittest discover -s "$repo_root/simulation/quadruped" -p 'test_gateway.py' -q

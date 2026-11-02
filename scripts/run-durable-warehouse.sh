@@ -52,7 +52,9 @@ export LATTICE_DATABASE_URL="postgres://lattice:$password@127.0.0.1:$port/lattic
 export LATTICE_SIGNING_KEY_FILE="$state_dir/signing.key"
 echo "Persistent database: $container (loopback port $port)."
 echo "Keep $state_dir and Docker volume $volume together when backing up."
-if [[ "${LATTICE_MULTI_ROVER:-0}" == 1 ]]; then
+if [[ "${LATTICE_HETEROGENEOUS:-0}" == 1 ]]; then
+  exec ./scripts/run-heterogeneous-warehouse.sh
+elif [[ "${LATTICE_MULTI_ROVER:-0}" == 1 ]]; then
   exec ./scripts/run-multi-warehouse.sh
 fi
 exec ./scripts/run-warehouse.sh
