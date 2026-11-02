@@ -11,6 +11,27 @@ command -v gcloud >/dev/null || { echo 'Run this script in authenticated Cloud S
 export CLOUDSDK_CORE_PROJECT="$PROJECT"
 exists() { "$@" > /dev/null 2>&1; }
 retry() { for _ in 1 2 3 4 5 6; do "$@" > /dev/null && return 0; sleep 5; done; "$@" > /dev/null; }
+# Creating Cloud SQL takes several minutes. Wait for it here rather than inside the create call, so a rerun after
+# a closed Cloud Shell tab resumes the wait instead of failing on an instance that is still being created.
+wait_for_database() {
+  local state started=$SECONDS shown=-1
+  while true; do
+    state=$(gcloud sql instances describe lattice-db --format='value(state)' 2>/dev/null) || state=''
+    case "$state" in
+      RUNNABLE) return 0 ;;
+      PENDING_CREATE|MAINTENANCE|REPAIRING|'') ;;
+      *) echo "Cloud SQL instance lattice-db is $state. Resolve it in the console, then run this script again." >&2; exit 1 ;;
+    esac
+    if (( SECONDS - started > ${LATTICE_DATABASE_WAIT_SECONDS:-2700} )); then
+      echo 'Cloud SQL is still not ready. It keeps building on its own; run this script again later to continue.' >&2; exit 1
+    fi
+    if (( (SECONDS - started) / 60 != shown )); then
+      shown=$(( (SECONDS - started) / 60 ))
+      echo "Waiting for Cloud SQL to finish creating lattice-db ($shown min so far; this usually takes 5-15 minutes)."
+    fi
+    sleep "${LATTICE_POLL_SECONDS:-15}"
+  done
+}
 NUMBER=$(gcloud projects describe "$PROJECT" --format='value(projectNumber)')
 RUNTIME="lattice-runtime@$PROJECT.iam.gserviceaccount.com"
 DEPLOYER="lattice-deployer@$PROJECT.iam.gserviceaccount.com"
@@ -19,7 +40,8 @@ exists gcloud artifacts repositories describe lattice --location "$REGION" || gc
 for name in lattice-runtime lattice-deployer; do
   exists gcloud iam service-accounts describe "$name@$PROJECT.iam.gserviceaccount.com" || gcloud iam service-accounts create "$name"
 done
-exists gcloud sql instances describe lattice-db || gcloud sql instances create lattice-db --database-version POSTGRES_16 --tier db-f1-micro --region "$REGION" --edition ENTERPRISE --storage-size 10 --backup-start-time 04:00 --enable-point-in-time-recovery --deletion-protection
+exists gcloud sql instances describe lattice-db || gcloud sql instances create lattice-db --database-version POSTGRES_16 --tier db-f1-micro --region "$REGION" --edition ENTERPRISE --storage-size 10 --backup-start-time 04:00 --enable-point-in-time-recovery --deletion-protection --async
+wait_for_database
 exists gcloud sql databases describe lattice --instance lattice-db || gcloud sql databases create lattice --instance lattice-db
 # Never regenerate a stable signing identity on rerun. No secret enters shell arguments or build context.
 if ! exists gcloud secrets describe lattice-signing-seed; then
@@ -33,7 +55,9 @@ from pathlib import Path
 from urllib.parse import quote
 root,project,region=Path(sys.argv[1]),sys.argv[2],sys.argv[3]
 password=secrets.token_hex(32)
-(root/'db-flags.yaml').write_text(json.dumps({'instance':'lattice-db','password':password}))
+# gcloud --flags-file keys are flag names, leading dashes included; bare keys are rejected as
+# unrecognized arguments and echoed back, password and all.
+(root/'db-flags.yaml').write_text(json.dumps({'--instance':'lattice-db','--password':password}))
 (root/'database-url').write_text(f'postgres://lattice:{password}@/lattice?host={quote(f"/cloudsql/{project}:{region}:lattice-db",safe="")}')
 for path in root.iterdir():path.chmod(0o600)
 PY

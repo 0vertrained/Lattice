@@ -1,4 +1,5 @@
 """Offline deployment contracts; fixtures never provision cloud resources."""
+import base64
 import json
 import contextlib
 import importlib.util
@@ -27,6 +28,58 @@ def module(name):
 github_setup = module('configure-github')
 keycloak_setup = module('keycloak-config')
 
+# Stands in for gcloud when running setup-gcp.sh: tracks which resources exist, reports a database that is still
+# being created on the first status check, and expands --flags-file the way gcloud does, where a key without its
+# leading dashes is an unrecognized argument that gcloud echoes back, value included.
+FAKE_GCLOUD = r'''#!/usr/bin/env python3
+import json, os, sys
+from pathlib import Path
+
+path = Path(os.environ['FAKE_GCLOUD_STATE'])
+state = json.loads(path.read_text()) if path.exists() else {'created': [], 'calls': [], 'status_checks': 0, 'secrets': {}}
+args = sys.argv[1:]
+if '--flags-file' in args:
+    at = args.index('--flags-file')
+    extra = []
+    for name, value in json.loads(Path(args[at + 1]).read_text()).items():
+        if not name.startswith('--'):
+            print(f'ERROR: unrecognized arguments: {name}={value}', file=sys.stderr)
+            sys.exit(2)
+        extra += [name, value]
+    args = args[:at] + args[at + 2:] + extra
+state['calls'].append(['<password>' if i and args[i - 1] == '--password' else a for i, a in enumerate(args)])
+
+def done(code=0, out=None):
+    path.write_text(json.dumps(state))
+    if out is not None:
+        print(out)
+    sys.exit(code)
+
+verbs = ('describe', 'create', 'create-oidc', 'list', 'enable', 'add-iam-policy-binding')
+at = next(i for i, a in enumerate(args) if a in verbs)
+verb, resource = args[at], ' '.join(args[:at] + args[at + 1:at + 2]).split('@')[0]
+if args[:2] == ['projects', 'describe']:
+    done(out='123456789')
+if verb in ('enable', 'add-iam-policy-binding'):
+    done()
+if args[:3] == ['sql', 'users', 'list']:
+    done(out='lattice' if 'sql users lattice' in state['created'] else '')
+if verb == 'describe':
+    if resource not in state['created']:
+        done(1)
+    if args[:2] == ['sql', 'instances'] and '--format=value(state)' in args:
+        state['status_checks'] += 1
+        done(out='PENDING_CREATE' if state['status_checks'] == 1 else 'RUNNABLE')
+    done()
+if args[:3] == ['sql', 'users', 'create'] and not {'--instance', '--password'} <= set(args):
+    done(2)
+if args[0] == 'secrets':
+    data = next(a.split('=', 1)[1] if '=' in a else args[args.index(a) + 1] for a in args if a.startswith('--data-file'))
+    state['secrets'][args[at + 1]] = sys.stdin.read() if data == '-' else Path(data).read_text()
+state['created'].append(resource)
+done()
+'''
+
 
 def inputs():
     project, region = 'lattice-test-123', 'us-central1'
@@ -45,6 +98,51 @@ class DeploymentTests(unittest.TestCase):
     def test_setup_and_runner_shell_syntax(self):
         for script in ('infrastructure/cloud-run/setup-gcp.sh', 'scripts/run-hosted-heterogeneous.sh'):
             subprocess.run(['bash', '-n', str(ROOT / script)], check=True)
+
+    def run_setup(self, directory):
+        fake = Path(directory) / 'gcloud'
+        if not fake.exists():
+            fake.write_text(FAKE_GCLOUD)
+            fake.chmod(0o755)
+        env = {**os.environ, 'PATH': f'{directory}{os.pathsep}{os.environ["PATH"]}',
+               'FAKE_GCLOUD_STATE': str(Path(directory) / 'state.json'), 'LATTICE_POLL_SECONDS': '0'}
+        env.pop('LATTICE_PUT_ONLINE', None)
+        return subprocess.run(['bash', str(ROOT / 'infrastructure/cloud-run/setup-gcp.sh'), 'lattice-test-123', '987654',
+                               'us-central1'], env=env, capture_output=True, text=True, timeout=60)
+
+    def test_setup_creates_the_database_user_without_echoing_its_password(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result = self.run_setup(directory)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            state = json.loads((Path(directory) / 'state.json').read_text())
+            self.assertIn('sql users lattice', state['created'])
+            url = state['secrets']['lattice-database-url']
+            password = url.split('postgres://lattice:', 1)[1].split('@', 1)[0]
+            self.assertRegex(password, '^[0-9a-f]{64}$')
+            self.assertEqual(url, f'postgres://lattice:{password}@/lattice'
+                                  '?host=%2Fcloudsql%2Flattice-test-123%3Aus-central1%3Alattice-db')
+            self.assertNotIn(password, result.stdout + result.stderr)
+            self.assertEqual(len(base64.b64decode(state['secrets']['lattice-signing-seed'])), 32)
+            # The database is created in the background and waited for, so a rerun can resume the wait.
+            self.assertIn('--async', next(call for call in state['calls'] if call[:3] == ['sql', 'instances', 'create']))
+            self.assertIn('Waiting for Cloud SQL', result.stdout)
+
+    def test_setup_rerun_resumes_without_recreating_or_resetting_anything(self):
+        with tempfile.TemporaryDirectory() as directory:
+            self.assertEqual(self.run_setup(directory).returncode, 0)
+            path = Path(directory) / 'state.json'
+            before = json.loads(path.read_text())
+            rerun = self.run_setup(directory)
+            self.assertEqual(rerun.returncode, 0, rerun.stderr)
+            after = json.loads(path.read_text())
+            self.assertEqual(after['created'], before['created'])
+            self.assertEqual(after['secrets'], before['secrets'])
+            # A database user whose stored connection secret is gone never silently gets a new password.
+            after['created'].remove('secrets lattice-database-url')
+            path.write_text(json.dumps(after))
+            refused = self.run_setup(directory)
+            self.assertNotEqual(refused.returncode, 0)
+            self.assertIn('refusing to reset credentials', refused.stderr)
 
     def test_keycloak_import_preserves_pkce_audience_and_exact_site(self):
         realm = keycloak_setup.imports(inputs()['LATTICE_SITE_ORIGIN'])

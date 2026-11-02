@@ -68,7 +68,9 @@ bash infrastructure/cloud-run/setup-gcp.sh \
   "$LATTICE_PROJECT_ID" "$LATTICE_REPOSITORY_ID" "$LATTICE_REGION"
 ```
 
-Allow the database creation to finish; this can take several minutes. The script
+Google takes 5 to 15 minutes to create the database; the script prints its progress
+every minute. If Cloud Shell disconnects meanwhile, run the same command again: the
+database keeps building and the script resumes waiting. The script
 creates dedicated Lattice resources: one Cloud SQL database, an Artifact Registry
 repository, two Secret Manager entries, runtime/deployment service accounts, and
 a GitHub federation provider restricted to this repository and `main`.
