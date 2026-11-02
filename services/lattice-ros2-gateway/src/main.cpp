@@ -285,6 +285,7 @@ private:
     command_id_ = id_value;
     active_route_ = op == "traverse_route" ? data.at("traversal") : Json(nullptr);
     route_observation_ = nullptr;
+    scan_transform_wait_at_.reset();
     inspection_ = data.value("inspection", false);
     state_ = "running";
     detail_ = "Nav2 goal requested";
@@ -393,11 +394,11 @@ private:
     }
     if (gate_.active() && !gate_.fault(wall).empty())
       stop(gate_.fault(wall));
-    if (gate_.active() && !active_route_.is_null())
-      check_route_obstacle(wall);
+    const bool route_observed_clear = !gate_.active() || active_route_.is_null() ||
+                                     check_route_obstacle(wall);
     geometry_msgs::msg::Twist safe;
     if (wall - velocity_at_ < 300ms && gate_.active() &&
-        gate_.fault(wall).empty()) {
+        gate_.fault(wall).empty() && route_observed_clear) {
       safe.linear.x = gate_.linear(desired_.linear.x, wall);
       safe.angular.z = std::isfinite(desired_.angular.z)
                            ? std::clamp(desired_.angular.z, -0.8, 0.8)
@@ -406,15 +407,15 @@ private:
     velocity_->publish(safe);
     serve(wall);
   }
-  void check_route_obstacle(MotionGate::Time wall) {
+  bool check_route_obstacle(MotionGate::Time wall) {
     if (!scan_ || wall - scan_at_ > 300ms || pose_.is_null()) {
       stop("route laser/localization watchdog");
-      return;
+      return false;
     }
     const double age = (now() - rclcpp::Time(scan_->header.stamp)).seconds();
     if (age < -0.1 || age > 0.3) {
       stop("route laser timestamp watchdog");
-      return;
+      return false;
     }
     try {
       // Transform the measured rays at their own timestamp, not at a later
@@ -422,6 +423,9 @@ private:
       const auto transform = tf_->lookupTransform(
           get_parameter("map_frame_id").as_string(), scan_->header.frame_id,
           rclcpp::Time(scan_->header.stamp));
+      if (scan_transform_wait_at_)
+        detail_ = "navigating after measured scan transform became available";
+      scan_transform_wait_at_.reset();
       const auto &translation = transform.transform.translation;
       const auto &q = transform.transform.rotation;
       const double yaw = std::atan2(2 * (q.w * q.z + q.x * q.y),
@@ -432,7 +436,7 @@ private:
           translation.x, translation.y, yaw, scan_->angle_min,
           scan_->angle_increment, scan_->range_min, scan_->range_max, scan_->ranges);
       if (!blocked)
-        return;
+        return true;
       Json ranges = Json::array();
       for (const auto value : scan_->ranges)
         ranges.push_back(std::isfinite(value) ? Json(value) : Json(nullptr));
@@ -456,8 +460,18 @@ private:
       // Freeze evidence before withdrawing local motion; reporting to the core
       // happens later and can never delay this stop.
       stop("laser returns block the reviewed route corridor");
-    } catch (const tf2::TransformException &) {
-      stop("route laser transform unavailable");
+      return false;
+    } catch (const tf2::TransformException &error) {
+      // Scan and TF callbacks can arrive in different orders. Withhold every
+      // motion output while waiting; use acquisition-time geometry only.
+      if (!scan_transform_wait_at_) {
+        scan_transform_wait_at_ = wall;
+        detail_ = "waiting stopped for laser acquisition transform";
+        RCLCPP_WARN(get_logger(), "Holding route while scan transform arrives: %s", error.what());
+      }
+      if (wall - *scan_transform_wait_at_ > 500ms)
+        stop("route laser transform unavailable for 500 ms");
+      return false;
     }
   }
   void serve(MotionGate::Time now) {
@@ -500,6 +514,7 @@ private:
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_subscription_;
   sensor_msgs::msg::LaserScan::ConstSharedPtr scan_;
   MotionGate::Time scan_at_{};
+  std::optional<MotionGate::Time> scan_transform_wait_at_;
   std::int64_t scan_unix_ms_{0};
   Json active_route_ = nullptr, route_observation_ = nullptr;
   sensor_msgs::msg::Image::ConstSharedPtr frame_;
