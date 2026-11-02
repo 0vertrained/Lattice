@@ -44,7 +44,14 @@ trap cleanup EXIT INT TERM
 env -i PATH="$PATH" OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 \
   services/lattice-ai-gateway/.venv/bin/python -m uvicorn app.main:app \
   --app-dir services/lattice-ai-gateway --host 127.0.0.1 --port 8001 > "$run_dir/ai.log" 2>&1 & pids+=("$!")
-docker run -d --init --name "$container" --user "$(id -u):$(id -g)" -v "$ROOT_DIR:/work" -v "$ROOT_DIR/target/nav2-source:/opt/overlay_ws/src/navigation2:ro" -v "$run_dir:/run/lattice" -e ROS_LOG_DIR=/tmp/ros-logs "$NAV2_IMAGE" bash /work/simulation/start-ros.sh >/dev/null
+# The simulator gets only what it runs, read-only: never the repository root, .env or .lattice-state.
+docker run -d --init --name "$container" --user "$(id -u):$(id -g)" \
+  -v "$ROOT_DIR/simulation:/work/simulation:ro" \
+  -v "$ROOT_DIR/target/nav2-install:/work/target/nav2-install:ro" \
+  -v "$ROOT_DIR/target/gateway-install:/work/target/gateway-install:ro" \
+  -v "$ROOT_DIR/target/nav2-watchdog:/work/target/nav2-watchdog:ro" \
+  -v "$ROOT_DIR/target/nav2-source:/opt/overlay_ws/src/navigation2:ro" \
+  -v "$run_dir:/run/lattice" -e ROS_LOG_DIR=/tmp/ros-logs "$NAV2_IMAGE" bash /work/simulation/start-ros.sh >/dev/null
 export LATTICE_ROS_SOCKET="$run_dir/gateway.sock"
 export LATTICE_SEQUENCE_FILE="${LATTICE_SEQUENCE_FILE:-$ROOT_DIR/.lattice-state/hosted-sequence.json}"
 export LATTICE_AI_GATEWAY_URL=http://127.0.0.1:8001
