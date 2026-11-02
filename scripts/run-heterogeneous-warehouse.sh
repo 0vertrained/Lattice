@@ -14,12 +14,14 @@ export LATTICE_AUTH_MODE="${LATTICE_AUTH_MODE:-development}"
 export LATTICE_BIND_ADDRESS=127.0.0.1:8000 LATTICE_CORE_URL=http://127.0.0.1:8000
 export LATTICE_ALLOWED_ORIGIN=http://localhost:5173
 export LATTICE_COMMAND_TTL_SECONDS="${LATTICE_COMMAND_TTL_SECONDS:-120}"
-export LATTICE_NAVIGATION_MAP_FILE="$ROOT_DIR/simulation/routes/warehouse-stairs.json"
+export LATTICE_NAVIGATION_MAP_FILE="${LATTICE_NAVIGATION_MAP_FILE:-$ROOT_DIR/simulation/routes/warehouse-stairs.json}"
 export NO_PROXY="${NO_PROXY:-},localhost,127.0.0.1"
 python3 - <<'PY'
 import socket
 for port in (8000, 8001, 5173):
     with socket.socket() as sock:
+        # Permit a prior owned listener's TIME_WAIT sockets, not a live listener.
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind(('127.0.0.1', port))
 PY
 AI_PYTHON="$ROOT_DIR/services/lattice-ai-gateway/.venv/bin/python"
@@ -137,7 +139,9 @@ PY
 echo "Heterogeneous warehouse started. Logs: $run_dir; ROS logs: docker logs $container"
 echo 'Gazebo and MuJoCo use separate physics worlds linked by the reviewed semantic map.'
 echo 'Open http://localhost:5173/operator.html and use the API key from your existing .env. Ctrl-C stops this run.'
-if [[ "${LATTICE_CAPABILITY_SHOWCASE:-0}" == 1 ]]; then
+if [[ "${LATTICE_ADAPTIVE_SHOWCASE:-0}" == 1 ]]; then
+  python3 scripts/record-adaptive-route.py
+elif [[ "${LATTICE_CAPABILITY_SHOWCASE:-0}" == 1 ]]; then
   python3 scripts/record-capability-route.py
 else
   wait -n "${owned_pids[@]}"
