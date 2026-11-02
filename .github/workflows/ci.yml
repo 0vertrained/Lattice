@@ -22,6 +22,18 @@ jobs:
       - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
       - run: cargo test --workspace
 
+  # docs/SECURITY.md lists both as required controls. Exceptions live in .cargo/audit.toml and deny.toml,
+  # each with its reason.
+  supply-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit,cargo-deny
+      - run: cargo audit
+      - run: cargo deny check
+
   frontend:
     runs-on: ubuntu-latest
     defaults:
