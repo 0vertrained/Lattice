@@ -57,6 +57,7 @@ async fn heartbeat(app: &LatticeService, body: &BodyId) {
             pose: Some(BodyPose {
                 x: 1.2,
                 y: -0.3,
+                z: None,
                 yaw: 0.2,
             }),
         },

@@ -69,11 +69,16 @@ pub enum SkillCommand {
         /// Stable semantic destination.
         destination: String,
     },
+    /// Traverse one immutable segment from a reviewed semantic route.
+    TraverseRoute {
+        /// Exact map, endpoints, capability requirements and speed bound.
+        traversal: crate::RouteTraversal,
+    },
 }
 
 impl SkillCommand {
     /// Returns the capability required by this skill.
-    pub const fn required_capability(&self) -> Capability {
+    pub fn required_capability(&self) -> Capability {
         match self {
             Self::Navigate { .. } => Capability::Navigate,
             Self::Inspect { .. } => Capability::Inspect,
@@ -81,6 +86,29 @@ impl SkillCommand {
             Self::Carry { .. } => Capability::Carry,
             Self::AerialInspect { .. } => Capability::Aerial,
             Self::TraverseRoughTerrain { .. } => Capability::RoughTerrain,
+            Self::TraverseRoute { traversal } => {
+                if traversal
+                    .required_capabilities
+                    .contains(&Capability::Stairs)
+                {
+                    Capability::Stairs
+                } else if traversal
+                    .required_capabilities
+                    .contains(&Capability::RoughTerrain)
+                {
+                    Capability::RoughTerrain
+                } else {
+                    Capability::Navigate
+                }
+            }
+        }
+    }
+
+    /// Every capability needed by the command, including combined route requirements.
+    pub fn required_capabilities(&self) -> std::collections::BTreeSet<Capability> {
+        match self {
+            Self::TraverseRoute { traversal } => traversal.required_capabilities.clone(),
+            _ => std::collections::BTreeSet::from([self.required_capability()]),
         }
     }
 
@@ -121,6 +149,7 @@ impl SkillCommand {
             Self::TraverseRoughTerrain { destination } => {
                 validate_semantic_name("destination", destination)
             }
+            Self::TraverseRoute { traversal } => traversal.validate(),
         }
     }
 }

@@ -13,6 +13,9 @@ pub struct BodyPose {
     pub x: f64,
     /// Map-frame north coordinate.
     pub y: f64,
+    /// Optional map-frame altitude. Legacy planar rover adapters omit it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub z: Option<f64>,
     /// Counterclockwise heading around the map's vertical axis.
     pub yaw: f64,
 }
@@ -25,6 +28,7 @@ impl BodyPose {
             || !self.yaw.is_finite()
             || self.x.abs() > 10_000.0
             || self.y.abs() > 10_000.0
+            || self.z.is_some_and(|z| !z.is_finite() || z.abs() > 10_000.0)
             || self.yaw.abs() > std::f64::consts::PI
         {
             return Err(DomainError::InvalidCommand(
@@ -146,11 +150,35 @@ impl BodySnapshot {
 mod pose_tests {
     use super::BodyPose;
     #[test]
+    fn old_planar_telemetry_remains_valid_and_nonfinite_elevation_is_rejected() {
+        let pose: BodyPose = serde_json::from_str(r#"{"x":1.0,"y":2.0,"yaw":0.0}"#)
+            .unwrap_or_else(|error| unreachable!("valid legacy pose: {error}"));
+        assert_eq!(pose.z, None);
+        assert!(pose.validate().is_ok());
+        assert!(
+            BodyPose {
+                z: Some(f64::NAN),
+                ..pose
+            }
+            .validate()
+            .is_err()
+        );
+        assert!(
+            BodyPose {
+                z: Some(0.15),
+                ..pose
+            }
+            .validate()
+            .is_ok()
+        );
+    }
+    #[test]
     fn accepts_map_coordinates_and_rejects_invalid_telemetry() {
         assert!(
             BodyPose {
                 x: 3.5,
                 y: -2.0,
+                z: None,
                 yaw: 1.0
             }
             .validate()
@@ -161,6 +189,7 @@ mod pose_tests {
                 BodyPose {
                     x: bad,
                     y: 0.0,
+                    z: None,
                     yaw: 0.0
                 }
                 .validate()
@@ -171,6 +200,7 @@ mod pose_tests {
             BodyPose {
                 x: 0.0,
                 y: 0.0,
+                z: None,
                 yaw: 4.0
             }
             .validate()

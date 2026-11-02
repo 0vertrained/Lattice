@@ -390,6 +390,7 @@ mod tests {
             pose: Some(BodyPose {
                 x: 1.0,
                 y: 2.0,
+                z: None,
                 yaw: 0.5,
             }),
             capabilities: Default::default(),

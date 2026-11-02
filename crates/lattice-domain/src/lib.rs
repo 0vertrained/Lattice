@@ -20,6 +20,9 @@ pub mod id;
 pub mod mission;
 /// Bounded semantic routes and deterministic body capability planning.
 pub mod navigation;
+/// Signed snapshots of individual approved route segments.
+pub mod traversal;
+pub use traversal::{RouteEndpoint, RouteTraversal};
 /// Closed, typed robot capability and skill vocabulary.
 pub mod skill;
 

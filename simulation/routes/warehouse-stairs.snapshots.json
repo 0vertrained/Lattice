@@ -1,0 +1,62 @@
+{
+  "map_digest": "1d93cd8e5a022db88ed3f9569579ef6365e5645b4d1a98e618a6fa6dd5de56c4",
+  "traversals": [
+    {
+      "from": {
+        "arrival_radius_m": 0.45,
+        "id": "inspection_bay",
+        "pose": {
+          "x": 0.0,
+          "y": 2.5,
+          "z": 0.0
+        }
+      },
+      "map_digest": "1d93cd8e5a022db88ed3f9569579ef6365e5645b4d1a98e618a6fa6dd5de56c4",
+      "map_id": "warehouse_stairs",
+      "map_revision": 1,
+      "max_speed_mps": 0.30000001192092896,
+      "required_capabilities": [
+        "navigate"
+      ],
+      "segment_id": "bay_to_transfer",
+      "to": {
+        "arrival_radius_m": 0.4,
+        "id": "stair_transfer",
+        "pose": {
+          "x": 1.0,
+          "y": -2.0,
+          "z": 0.0
+        }
+      }
+    },
+    {
+      "from": {
+        "arrival_radius_m": 0.4,
+        "id": "stair_transfer",
+        "pose": {
+          "x": 1.0,
+          "y": -2.0,
+          "z": 0.0
+        }
+      },
+      "map_digest": "1d93cd8e5a022db88ed3f9569579ef6365e5645b4d1a98e618a6fa6dd5de56c4",
+      "map_id": "warehouse_stairs",
+      "map_revision": 1,
+      "max_speed_mps": 0.30000001192092896,
+      "required_capabilities": [
+        "navigate",
+        "stairs"
+      ],
+      "segment_id": "stairs_to_upper",
+      "to": {
+        "arrival_radius_m": 0.25,
+        "id": "upper_inspection",
+        "pose": {
+          "x": 4.5,
+          "y": -2.0,
+          "z": 0.15
+        }
+      }
+    }
+  ]
+}
