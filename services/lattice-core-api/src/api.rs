@@ -75,12 +75,17 @@ pub fn router(
         .route("/bodies", get(list_bodies))
         .route("/bodies/register", post(register_body))
         .route("/bodies/{body_id}/heartbeat", post(heartbeat))
+        .route("/bodies/{body_id}/route-conditions", post(body_route_condition))
         .route("/bodies/{body_id}/commands/next", get(next_command))
         .route("/missions", get(list_missions))
         .route("/rounds", get(list_rounds).post(propose_round))
         .route("/rounds/{id}/approve", post(approve_round))
         .route("/rounds/{id}/transfer-options", get(route_transfer_options))
         .route("/rounds/{id}/abandon", post(abandon_round))
+        .route("/rounds/{id}/replan-proposal", post(propose_route_replan))
+        .route("/replans", get(list_route_replans))
+        .route("/replans/{id}/approve", post(approve_route_replan))
+        .route("/navigation/conditions", get(route_conditions).post(report_route_condition))
         .route("/navigation/map", get(navigation_map))
         .route("/navigation/plans", get(list_route_plans).post(propose_route_plan))
         .route("/navigation/plans/{id}/approve", post(approve_route_plan))
@@ -243,6 +248,78 @@ async fn navigation_map(
     Extension(state): Extension<ApiState>,
 ) -> Result<impl IntoResponse, ApiError> {
     Ok(Json(state.service.navigation_map()?))
+}
+async fn route_conditions(
+    Extension(state): Extension<ApiState>,
+) -> Result<impl IntoResponse, ApiError> {
+    Ok(Json(state.service.route_conditions().await?))
+}
+async fn report_route_condition(
+    Extension(state): Extension<ApiState>,
+    Extension(principal): Extension<Principal>,
+    Json(input): Json<lattice_application::RouteConditionInput>,
+) -> Result<impl IntoResponse, ApiError> {
+    Ok((
+        StatusCode::CREATED,
+        Json(
+            state
+                .service
+                .report_route_condition(input, principal.actor())
+                .await?,
+        ),
+    ))
+}
+async fn body_route_condition(
+    Extension(state): Extension<ApiState>,
+    Extension(principal): Extension<Principal>,
+    Path(body_id): Path<String>,
+    Json(input): Json<lattice_application::RouteConditionInput>,
+) -> Result<impl IntoResponse, ApiError> {
+    let body_id = BodyId::new(body_id).map_err(lattice_application::ApplicationError::from)?;
+    principal.require_body(&body_id)?;
+    Ok((
+        StatusCode::CREATED,
+        Json(
+            state
+                .service
+                .report_body_route_condition(&body_id, input)
+                .await?,
+        ),
+    ))
+}
+async fn list_route_replans(
+    Extension(state): Extension<ApiState>,
+) -> Result<impl IntoResponse, ApiError> {
+    Ok(Json(state.service.list_route_replans().await?))
+}
+async fn propose_route_replan(
+    Extension(state): Extension<ApiState>,
+    Extension(principal): Extension<Principal>,
+    Path(id): Path<String>,
+    Json(input): Json<ApprovalRequest>,
+) -> Result<impl IntoResponse, ApiError> {
+    Ok((
+        StatusCode::CREATED,
+        Json(
+            state
+                .service
+                .propose_route_replan(&id, &input.digest, principal.actor())
+                .await?,
+        ),
+    ))
+}
+async fn approve_route_replan(
+    Extension(state): Extension<ApiState>,
+    Extension(principal): Extension<Principal>,
+    Path(id): Path<String>,
+    Json(input): Json<ApprovalRequest>,
+) -> Result<impl IntoResponse, ApiError> {
+    Ok(Json(
+        state
+            .service
+            .approve_route_replan(&id, &input.digest, principal.actor())
+            .await?,
+    ))
 }
 async fn list_route_plans(
     Extension(state): Extension<ApiState>,
@@ -707,6 +784,11 @@ mod tests {
             ("POST", "/v1/navigation/plans"),
             ("GET", "/v1/rounds/r/transfer-options"),
             ("POST", "/v1/rounds/r/abandon"),
+            ("GET", "/v1/navigation/conditions"),
+            ("POST", "/v1/navigation/conditions"),
+            ("POST", "/v1/bodies/rover/route-conditions"),
+            ("POST", "/v1/rounds/r/replan-proposal"),
+            ("GET", "/v1/replans"),
         ] {
             let response = app()
                 .oneshot(
@@ -720,7 +802,12 @@ mod tests {
                 .unwrap();
             assert_eq!(response.status(), StatusCode::UNAUTHORIZED, "{path}");
         }
-        for path in ["/v1/navigation/plans/p/approve", "/v1/rounds/r/abandon"] {
+        for path in [
+            "/v1/navigation/plans/p/approve",
+            "/v1/rounds/r/abandon",
+            "/v1/rounds/r/replan-proposal",
+            "/v1/replans/p/approve",
+        ] {
             let response = app()
                 .oneshot(
                     Request::builder()

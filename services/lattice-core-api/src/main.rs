@@ -69,13 +69,54 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         service = service.with_navigation_map(Arc::new(map));
     }
 
+    let monitor_service = service.clone();
+    let monitor_db = postgres
+        .clone()
+        .filter(|_| config.navigation_map_file.is_some());
     let app = api::router(service, config.clone(), postgres, epoch, oidc)?;
     let listener = tokio::net::TcpListener::bind(config.bind_address).await?;
     info!(address = %config.bind_address, "Lattice Core listening");
 
-    axum::serve(listener, app)
+    // Route availability changes are observed independently of UI reads. Each
+    // sweep uses the same transactional writer fencing as an HTTP operation.
+    let monitor = monitor_db.map(|db| {
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
+            interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+            loop {
+                interval.tick().await;
+                match db.begin().await {
+                    Ok(tx) => {
+                        let result = monitor_service
+                            .in_transaction(tx.clone())
+                            .hold_unavailable_route_work()
+                            .await;
+                        let committed = tx.finish(result.is_ok()).await;
+                        match (result, committed) {
+                            (Ok(held), Ok(())) if held > 0 => {
+                                info!(held, "unavailable route bodies held for explicit review")
+                            }
+                            (Ok(_), Ok(())) => {}
+                            (Err(error), _) | (_, Err(error)) => {
+                                tracing::warn!(%error, "route availability sweep failed closed")
+                            }
+                        }
+                    }
+                    Err(error) => {
+                        tracing::warn!(%error, "route availability transaction unavailable")
+                    }
+                }
+            }
+        })
+    });
+
+    let result = axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
-        .await?;
+        .await;
+    if let Some(monitor) = monitor {
+        monitor.abort();
+    }
+    result?;
     Ok(())
 }
 

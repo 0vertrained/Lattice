@@ -2,8 +2,9 @@
 use async_trait::async_trait;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use lattice_application::{
-    ApplicationError, AuditSink, BodyRepository, CommandQueue, HandoffRepository, InspectionRound,
-    MissionRepository, Proposal, ProposalRepository, RoundRepository, RoutePlanRepository,
+    AdaptiveRouteRepository, ApplicationError, AuditSink, BodyRepository, CommandQueue,
+    HandoffRepository, InspectionRound, MissionRepository, Proposal, ProposalRepository,
+    RoundRepository, RoutePlanRepository,
 };
 use lattice_domain::{
     AuditActor, AuditRecord, BodyId, BodySnapshot, Mission, MissionId, SignedCommand,
@@ -129,6 +130,12 @@ impl PostgresPlatform {
                 8_i32,
                 include_str!("../../../infrastructure/postgres/migrations/0008_route_plans.sql"),
             ),
+            (
+                9_i32,
+                include_str!(
+                    "../../../infrastructure/postgres/migrations/0009_adaptive_routes.sql"
+                ),
+            ),
         ] {
             if tx
                 .client()
@@ -238,6 +245,12 @@ impl PostgresPlatform {
             if plan.status == "pending" {
                 plan.status = "invalidated".into();
                 RoutePlanRepository::save_route_plan(tx.as_ref(), plan).await?;
+            }
+        }
+        for mut replan in AdaptiveRouteRepository::list_route_replans(tx.as_ref()).await? {
+            if replan.status == "pending" {
+                replan.status = "invalidated".into();
+                AdaptiveRouteRepository::save_route_replan(tx.as_ref(), replan).await?;
             }
         }
         for mut b in BodyRepository::list(tx.as_ref()).await? {

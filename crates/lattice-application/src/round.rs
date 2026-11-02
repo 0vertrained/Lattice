@@ -27,7 +27,7 @@ pub struct InspectionRound {
     pub id: String,
     /// Frozen plan digest.
     pub digest: String,
-    /// Reviewed steps; never edited after creation.
+    /// Reviewed steps; a replan preserves the completed prefix and versions the remaining suffix.
     pub steps: Vec<RoundStep>,
     /// Proposal timestamp.
     pub created_at: DateTime<Utc>,
@@ -235,6 +235,7 @@ impl LatticeService {
         }
         round.status = "cancelled".into();
         self.round_store()?.save(round.clone()).await?;
+        self.invalidate_round_reviews(&round.id).await?;
         self.audit
             .append(AuditRecord {
                 occurred_at: now,
@@ -361,6 +362,13 @@ impl LatticeService {
             }
             if mission.status == MissionStatus::Failed {
                 round.anomaly_count += 1;
+                if round.route_plan_id.is_some()
+                    && self.adaptive_routes.is_some()
+                    && matches!(mission.command, SkillCommand::TraverseRoute { .. })
+                {
+                    self.hold_failed_route_round(&mut round, mission).await?;
+                    continue;
+                }
                 if !round.steps[round.current_step].continue_on_missing_marker
                     || mission
                         .evidence

@@ -7,7 +7,7 @@ use lattice_domain::{
     MissionId, MissionStatus, RouteTraversal, SkillCommand,
     navigation::{
         RouteCandidate, RouteFailureCode, RoutePlan, RoutePlanningFailure, RouteRequest,
-        SemanticMap, SemanticPlace, plan_route,
+        SemanticMap, SemanticPlace, plan_route_with_blocked_segments,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -52,10 +52,13 @@ pub struct RoutePlanProposal {
     pub status: String,
     /// Approved execution round, created once.
     pub round_id: Option<String>,
+    /// Frozen live-condition context; absent on pre-adaptive reviews.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub adaptive: Option<crate::AdaptiveRouteContext>,
 }
 impl RoutePlanProposal {
-    fn computed_digest(&self) -> Result<String, ApplicationError> {
-        let bytes = serde_json::to_vec(&(
+    pub(crate) fn computed_digest(&self) -> Result<String, ApplicationError> {
+        let legacy = serde_json::to_vec(&(
             &self.id,
             &self.request,
             &self.plan,
@@ -65,6 +68,12 @@ impl RoutePlanProposal {
             self.created_at,
             self.expires_at,
         ))
+        .map_err(|_| ApplicationError::Infrastructure)?;
+        // Preserve existing persisted review digests byte-for-byte.
+        let bytes = match &self.adaptive {
+            Some(context) => serde_json::to_vec(&(legacy, context)),
+            None => Ok(legacy),
+        }
         .map_err(|_| ApplicationError::Infrastructure)?;
         Ok(format!("{:x}", Sha256::digest(bytes)))
     }
@@ -150,7 +159,13 @@ impl LatticeService {
         let candidates = self
             .route_candidates(&map, &request.route.source_body_id)
             .await?;
-        let result = plan_route(&map, &request.route, &candidates);
+        let conditions = self.route_conditions().await?;
+        let result = plan_route_with_blocked_segments(
+            &map,
+            &request.route,
+            &candidates,
+            &conditions.blocked_segment_ids.iter().cloned().collect(),
+        );
         let (mut plan, mut failure) = match result {
             Ok(plan) => (Some(plan), None),
             Err(error) => (None, Some(error)),
@@ -222,6 +237,12 @@ impl LatticeService {
             expires_at: now + Duration::minutes(5),
             status: "pending".into(),
             round_id: None,
+            adaptive: Some(crate::AdaptiveRouteContext {
+                conditions_revision: conditions.revision,
+                blocked_segment_ids: conditions.blocked_segment_ids,
+                step_offset: 0,
+                parent_plan_id: None,
+            }),
         };
         if proposal.failure.is_some() {
             proposal.status = "blocked".into();
@@ -273,6 +294,7 @@ impl LatticeService {
             ));
         }
         let map = self.validate_route_snapshot(&proposal)?;
+        self.validate_route_conditions_review(&proposal).await?;
         let plan = proposal.plan.as_ref().ok_or(ApplicationError::Security)?;
         let candidates = self.route_candidates(&map, &plan.source_body_id).await?;
         for (index, body_id) in proposal.step_body_ids.iter().enumerate() {
@@ -405,6 +427,8 @@ impl LatticeService {
         options.recommended_target_body_id = Some(target.clone());
         let leg_index = round
             .current_step
+            .checked_sub(proposal.adaptive.as_ref().map_or(0, |c| c.step_offset))
+            .ok_or(ApplicationError::Security)?
             .checked_sub(usize::from(proposal.request.inspect_source))
             .ok_or(ApplicationError::Security)?;
         let transfer = plan
@@ -452,6 +476,8 @@ impl LatticeService {
             .get(round.current_step)
             .cloned()
             .ok_or(ApplicationError::Security)?;
+        self.validate_live_route_command(&round.steps[round.current_step].command)
+            .await?;
         if round.assigned_body_id.as_ref() == Some(&body_id) {
             let body = self
                 .bodies
@@ -513,6 +539,9 @@ impl LatticeService {
             .await?
             .ok_or(ApplicationError::Security)?;
         let map = self.validate_route_snapshot(&proposal)?;
+        for step in &round.steps[round.current_step..] {
+            self.validate_live_route_command(&step.command).await?;
+        }
         if proposal.round_id.as_ref() != Some(&round.id)
             || proposal.status != "approved"
             || proposal.steps != round.steps
@@ -529,6 +558,8 @@ impl LatticeService {
         let plan = proposal.plan.as_ref().ok_or(ApplicationError::Security)?;
         let index = round
             .current_step
+            .checked_sub(proposal.adaptive.as_ref().map_or(0, |c| c.step_offset))
+            .ok_or(ApplicationError::Security)?
             .checked_sub(usize::from(proposal.request.inspect_source))
             .ok_or(ApplicationError::Security)?;
         let transfer = plan
@@ -600,6 +631,25 @@ impl LatticeService {
         }) else {
             return Ok(false);
         };
+        let proposal = self
+            .route_store()?
+            .get_route_plan(
+                round
+                    .route_plan_id
+                    .as_ref()
+                    .ok_or(ApplicationError::Security)?,
+            )
+            .await?
+            .ok_or(ApplicationError::Security)?;
+        if self
+            .validate_route_conditions_review(&proposal)
+            .await
+            .is_err()
+        {
+            return Err(conflict(
+                "route conditions changed; prepare a remaining-work replan instead of generic recovery",
+            ));
+        }
         let planned = self
             .planned_route_body(&round)
             .await?
@@ -641,7 +691,7 @@ impl LatticeService {
         Ok(())
     }
 
-    fn validate_route_snapshot(
+    pub(crate) fn validate_route_snapshot(
         &self,
         proposal: &RoutePlanProposal,
     ) -> Result<SemanticMap, ApplicationError> {
@@ -664,7 +714,7 @@ impl LatticeService {
         Ok(map)
     }
 
-    async fn route_candidates(
+    pub(crate) async fn route_candidates(
         &self,
         map: &SemanticMap,
         source: &BodyId,
@@ -721,7 +771,7 @@ impl LatticeService {
         Ok(candidates)
     }
 
-    fn body_pose_is_fresh(&self, body: &BodySnapshot) -> bool {
+    pub(crate) fn body_pose_is_fresh(&self, body: &BodySnapshot) -> bool {
         let now = self.clock.now();
         body.pose.is_some()
             && body.last_seen <= now
@@ -730,7 +780,7 @@ impl LatticeService {
                 .to_std()
                 .is_ok_and(|age| age <= self.config.heartbeat_timeout)
     }
-    fn route_store(&self) -> Result<&Arc<dyn RoutePlanRepository>, ApplicationError> {
+    pub(crate) fn route_store(&self) -> Result<&Arc<dyn RoutePlanRepository>, ApplicationError> {
         self.route_plans
             .as_ref()
             .ok_or_else(|| conflict("capability route plans require durable storage"))
@@ -771,7 +821,7 @@ fn at_place(body: &BodySnapshot, place: &SemanticPlace) -> bool {
         .sqrt()
         <= place.arrival_radius_m
 }
-fn inspection_step(map: &SemanticMap, id: &str) -> Result<RoundStep, ApplicationError> {
+pub(crate) fn inspection_step(map: &SemanticMap, id: &str) -> Result<RoundStep, ApplicationError> {
     let place = map
         .place(id)
         .ok_or_else(|| conflict("unknown inspection place"))?;
@@ -790,5 +840,60 @@ fn safe_reason(error: ApplicationError) -> String {
     match error {
         ApplicationError::Conflict(message) => message,
         _ => "Route snapshot or required state is unavailable; request a fresh review.".into(),
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn legacy_route_review_digest_stays_valid_without_adaptive_context() {
+        let now = DateTime::from_timestamp(1_800_000_000, 0).unwrap();
+        let mut review = RoutePlanProposal {
+            id: "legacy-route".into(),
+            digest: String::new(),
+            request: RouteObjectiveRequest {
+                route: RouteRequest {
+                    source_body_id: BodyId::new("rover").unwrap(),
+                    source_place_id: "bay".into(),
+                    destination_place_id: "upper".into(),
+                    destination_capability: Some(Capability::Inspect),
+                },
+                inspect_source: true,
+                inspect_destination: true,
+            },
+            plan: None,
+            failure: None,
+            steps: vec![],
+            step_body_ids: vec![],
+            created_at: now,
+            expires_at: now + Duration::minutes(5),
+            status: "pending".into(),
+            round_id: None,
+            adaptive: None,
+        };
+        let original_bytes = serde_json::to_vec(&(
+            &review.id,
+            &review.request,
+            &review.plan,
+            &review.failure,
+            &review.steps,
+            &review.step_body_ids,
+            review.created_at,
+            review.expires_at,
+        ))
+        .unwrap();
+        let original_digest = format!("{:x}", Sha256::digest(original_bytes));
+        assert_eq!(review.computed_digest().unwrap(), original_digest);
+        assert!(!serde_json::to_string(&review).unwrap().contains("adaptive"));
+        review.adaptive = Some(crate::AdaptiveRouteContext {
+            conditions_revision: 1,
+            blocked_segment_ids: vec!["closed-aisle".into()],
+            step_offset: 0,
+            parent_plan_id: None,
+        });
+        assert_ne!(review.computed_digest().unwrap(), original_digest);
     }
 }

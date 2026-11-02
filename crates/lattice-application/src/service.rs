@@ -88,6 +88,7 @@ pub struct LatticeService {
     pub(crate) observations: Option<Arc<dyn crate::ObservationRepository>>,
     pub(crate) handoffs: Option<Arc<dyn crate::HandoffRepository>>,
     pub(crate) route_plans: Option<Arc<dyn crate::RoutePlanRepository>>,
+    pub(crate) adaptive_routes: Option<Arc<dyn crate::AdaptiveRouteRepository>>,
     pub(crate) navigation_map: Option<Arc<lattice_domain::navigation::SemanticMap>>,
     pub(crate) approval_lock: Arc<tokio::sync::Mutex<()>>,
 }
@@ -108,6 +109,7 @@ impl LatticeService {
             observations: None,
             handoffs: None,
             route_plans: None,
+            adaptive_routes: None,
             navigation_map: None,
             proposals: Arc::new(crate::proposal::Proposals::default()),
             approval_lock: Arc::default(),
@@ -139,6 +141,7 @@ impl LatticeService {
             + crate::ObservationRepository
             + crate::HandoffRepository
             + crate::RoutePlanRepository
+            + crate::AdaptiveRouteRepository
             + 'static,
     {
         let mut service = Self::new(
@@ -154,7 +157,8 @@ impl LatticeService {
         .with_rounds(unit.clone())
         .with_observations(unit.clone())
         .with_handoffs(unit.clone())
-        .with_route_plans(unit);
+        .with_route_plans(unit.clone())
+        .with_adaptive_routes(unit);
         service.navigation_map = self.navigation_map.clone();
         service
     }
@@ -183,6 +187,12 @@ impl LatticeService {
     /// Installs durable frozen capability-route proposals in the current unit of work.
     pub fn with_route_plans(mut self, plans: Arc<dyn crate::RoutePlanRepository>) -> Self {
         self.route_plans = Some(plans);
+        self
+    }
+
+    /// Installs transaction-scoped live condition and replan storage.
+    pub fn with_adaptive_routes(mut self, store: Arc<dyn crate::AdaptiveRouteRepository>) -> Self {
+        self.adaptive_routes = Some(store);
         self
     }
 
@@ -344,6 +354,19 @@ impl LatticeService {
                 self.missions.save(mission).await?;
                 self.audit_rejection("command.expired", &command.envelope.command_id, body_id)
                     .await?;
+                continue;
+            }
+
+            if self
+                .validate_live_route_command(&command.envelope.command)
+                .await
+                .is_err()
+            {
+                self.hold_adaptive_mission(
+                    &mut mission,
+                    "Route authorization could not be revalidated before delivery; review remaining work.",
+                )
+                .await?;
                 continue;
             }
 

@@ -1,6 +1,11 @@
 #![doc = "Lattice application use cases. Infrastructure is accessed only through ports."]
 
+mod adaptive;
 mod error;
+pub use adaptive::{
+    AdaptiveRouteContext, AdaptiveRouteRepository, RouteConditionEvidence, RouteConditionInput,
+    RouteConditionObservation, RouteConditionSnapshot, RouteConditionStatus, RouteReplanProposal,
+};
 mod handoff;
 pub use handoff::{HandoffProposal, HandoffRepository};
 mod navigation;

@@ -1,5 +1,6 @@
 #![doc = "Concrete Lattice adapters for memory, local PostgreSQL, signing and time."]
 
+mod adaptive;
 mod crypto;
 mod devices;
 pub use devices::DeviceCredential;

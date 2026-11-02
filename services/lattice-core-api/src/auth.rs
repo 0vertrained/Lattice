@@ -81,6 +81,9 @@ impl Principal {
                 && path.contains("/observations/")
                 && path.ends_with("/evidence"))
             || path.ends_with("/heartbeat")
+            || (method == Method::POST
+                && path.starts_with("/bodies/")
+                && path.ends_with("/route-conditions"))
             || path.ends_with("/commands/next")
             || path.ends_with("/result");
         match self {
@@ -214,5 +217,8 @@ mod tests {
         };
         assert!(!admin.permits(&Method::POST, "/bodies/register"));
         assert!(!admin.permits(&Method::GET, "/bodies/rover/commands/next"));
+        assert!(!admin.permits(&Method::POST, "/bodies/rover/route-conditions"));
+        assert!(!viewer.permits(&Method::POST, "/navigation/conditions"));
+        assert!(!viewer.permits(&Method::POST, "/replans/review/approve"));
     }
 }
