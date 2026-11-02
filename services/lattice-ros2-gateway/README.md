@@ -1,20 +1,16 @@
-# Lattice ROS 2 Gateway
+# Lattice ROS 2 navigation gateway
 
-C++/`rclcpp` owns the ROS boundary because this process integrates with Nav2,
-sensor pipelines, vendor SDKs, and body-local safety nodes.
+C++20 lifecycle node for the local Nav2 action boundary. The companion Rust
+`lattice-ros2-body` verifies signed commands and forwards authorized navigation
+over `/run/lattice/gateway.sock` (mode 0600). No HTTP listener or credentials are
+present in this C++ process.
 
-The gateway is not internet-facing. It receives authenticated, signed, typed
-commands from a local body agent, maps them to ROS actions, and reports bounded
-progress and results.
+The node resolves destinations from `locations_file`, submits `NavigateToPose`,
+tracks feedback/results, and reports map-frame localization. All navigation
+velocity is routed through `cmd_vel_nav`; the gateway publishes bounded output
+on `cmd_vel`. A steady-clock lease, command expiry, localization freshness,
+velocity freshness and `lattice/emergency_stop` can stop motion. The independent
+Gazebo watchdog forwards to `motor_cmd_vel` and stops on gateway loss.
 
-The initial scaffold intentionally exposes no movement publisher.
-
-Next implementation:
-
-1. Generate the body-stream gRPC client from `proto/`.
-2. Verify the mTLS body lease and signed command.
-3. Map `Navigate` to Nav2 `NavigateToPose`.
-4. Add command-expiry and sequence checks locally.
-5. Add a watchdog and E-stop subscription.
-6. Enforce body-local speed and geofence policy.
-7. Report evidence references rather than secrets or unbounded payloads.
+Read [the design decision](../../docs/adr/0006-ros-navigation-adapter.md) and
+[the runnable warehouse guide](../../docs/ROBOTICS_DEMO.md).

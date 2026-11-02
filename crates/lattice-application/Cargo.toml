@@ -13,6 +13,9 @@ lattice-domain = { path = "../lattice-domain" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+sha2.workspace = true
+base64.workspace = true
+tokio.workspace = true
 uuid.workspace = true
 
 [lints]

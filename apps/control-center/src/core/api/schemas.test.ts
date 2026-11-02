@@ -34,3 +34,27 @@ describe('API schemas', () => {
     expect(result.success).toBe(false);
   });
 });
+
+describe('map pose telemetry', () => {
+  const body = {
+    id: 'gazebo-rover',
+    display_name: 'Gazebo Rover',
+    kind: 'rover',
+    status: 'online',
+    battery: 100,
+    location: 'warehouse',
+    capabilities: ['navigate'],
+    last_seen: '2026-11-02T00:00:00Z',
+    adapter_version: '0.1.0',
+  };
+  it('accepts legacy adapters without localization', () => {
+    expect(bodySchema.safeParse(body).success).toBe(true);
+  });
+  it('accepts map coordinates and rejects non-finite or invalid headings', () => {
+    expect(bodySchema.safeParse({ ...body, pose: { x: 3.5, y: -2, yaw: 1 } }).success).toBe(true);
+    expect(bodySchema.safeParse({ ...body, pose: { x: Infinity, y: 0, yaw: 0 } }).success).toBe(
+      false,
+    );
+    expect(bodySchema.safeParse({ ...body, pose: { x: 0, y: 0, yaw: 4 } }).success).toBe(false);
+  });
+});

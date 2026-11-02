@@ -17,3 +17,9 @@ __pycache__/
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+/simulation/warehouse/world.sdf
+/simulation/warehouse/map.pgm
+
+/simulation/warehouse/marker.obj
+/simulation/warehouse/marker.mtl
+/simulation/warehouse/marker.dae

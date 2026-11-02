@@ -6,6 +6,7 @@ members = [
   "crates/lattice-infrastructure",
   "services/lattice-core-api",
   "robots/lattice-mock-body",
+  "robots/lattice-ros2-body",
 ]
 
 [workspace.package]

@@ -50,3 +50,29 @@ jobs:
           python-version: "3.13"
       - run: pip install -r requirements.txt
       - run: python -m compileall app
+      - run: python -m unittest discover -s tests -v
+        env:
+          OPENBLAS_NUM_THREADS: "1"
+          OMP_NUM_THREADS: "1"
+      - run: python evaluate.py ../../evaluation/ci-models.json
+        env:
+          OPENBLAS_NUM_THREADS: "1"
+          OMP_NUM_THREADS: "1"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: model-evaluation
+          path: evaluation/ci-models.json
+
+  motion-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test local motion lease, expiry and stop behavior
+        run: |
+          g++ -std=c++20 -Wall -Wextra -Wpedantic -Werror \
+            -Iservices/lattice-ros2-gateway/include \
+            services/lattice-ros2-gateway/test/motion_gate_test.cpp -o /tmp/motion-gate-test
+          /tmp/motion-gate-test
+      - name: Check rover geometry and drive configuration
+        run: python3 -m unittest discover -s simulation -p 'test_*.py' -v

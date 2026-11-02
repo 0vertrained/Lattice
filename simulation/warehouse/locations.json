@@ -1,0 +1,22 @@
+{
+  "loading_dock": {
+    "x": 3.5,
+    "y": 0.0,
+    "yaw": 0.0
+  },
+  "charging_station": {
+    "x": -3.0,
+    "y": -2.0,
+    "yaw": 0.0
+  },
+  "inspection_bay": {
+    "x": 0.0,
+    "y": 2.5,
+    "yaw": 1.5707963267948966
+  },
+  "blocked_shelf": {
+    "x": 2.0,
+    "y": 0.0,
+    "yaw": 0.0
+  }
+}

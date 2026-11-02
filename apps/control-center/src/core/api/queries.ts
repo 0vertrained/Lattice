@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from './apiClient';
-import type { CreateMissionRequest } from './schemas';
+import type { Proposal } from './schemas';
 
 export const queryKeys = {
   bodies: ['bodies'] as const,
@@ -35,10 +35,10 @@ export function useAudit(enabled: boolean) {
   });
 }
 
-export function useCreateMission() {
+export function useApproveProposal() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (request: CreateMissionRequest) => apiClient.createMission(request),
+    mutationFn: (proposal: Proposal) => apiClient.approve(proposal),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.missions });
       await queryClient.invalidateQueries({ queryKey: queryKeys.audit });

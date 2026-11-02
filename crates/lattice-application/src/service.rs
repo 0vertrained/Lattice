@@ -59,6 +59,9 @@ pub struct HeartbeatRequest {
     pub battery: BatteryPercent,
     /// Semantic location.
     pub location: String,
+    /// Optional map-frame telemetry; legacy mock bodies omit this field.
+    #[serde(default)]
+    pub pose: Option<lattice_domain::BodyPose>,
 }
 
 /// New mission input.
@@ -73,13 +76,14 @@ pub struct CreateMissionRequest {
 /// Application facade used by transports.
 #[derive(Clone)]
 pub struct LatticeService {
-    bodies: Arc<dyn BodyRepository>,
-    missions: Arc<dyn MissionRepository>,
-    commands: Arc<dyn CommandQueue>,
-    signer: Arc<dyn CommandSigner>,
-    audit: Arc<dyn AuditSink>,
-    clock: Arc<dyn Clock>,
-    config: ServiceConfig,
+    pub(crate) bodies: Arc<dyn BodyRepository>,
+    pub(crate) missions: Arc<dyn MissionRepository>,
+    pub(crate) commands: Arc<dyn CommandQueue>,
+    pub(crate) signer: Arc<dyn CommandSigner>,
+    pub(crate) audit: Arc<dyn AuditSink>,
+    pub(crate) clock: Arc<dyn Clock>,
+    pub(crate) config: ServiceConfig,
+    pub(crate) proposals: Arc<tokio::sync::Mutex<crate::proposal::Proposals>>,
 }
 
 impl LatticeService {
@@ -94,6 +98,7 @@ impl LatticeService {
         config: ServiceConfig,
     ) -> Self {
         Self {
+            proposals: Arc::default(),
             bodies,
             missions,
             commands,
@@ -121,6 +126,7 @@ impl LatticeService {
             status: BodyStatus::Online,
             battery: BatteryPercent::new(100)?,
             location: "registration".to_owned(),
+            pose: None,
             capabilities: request.capabilities,
             last_seen: now,
             adapter_version: request.adapter_version,
@@ -155,9 +161,13 @@ impl LatticeService {
         };
 
         validate_location(&request.location)?;
+        if let Some(pose) = request.pose {
+            pose.validate()?;
+        }
         body.status = request.status;
         body.battery = request.battery;
         body.location = request.location.trim().to_owned();
+        body.pose = request.pose;
         body.last_seen = self.clock.now();
         self.bodies.save(body.clone()).await?;
         Ok(body)
@@ -261,6 +271,61 @@ impl LatticeService {
         }
 
         let now = self.clock.now();
+        if let Some(evidence) = &result.evidence {
+            use base64::{Engine, engine::general_purpose::STANDARD};
+            use sha2::{Digest, Sha256};
+            let bad = || ApplicationError::Conflict("invalid inspection evidence".into());
+            if !matches!(mission.command, SkillCommand::Inspect { .. })
+                || !matches!(
+                    result.status,
+                    CommandResultStatus::Succeeded | CommandResultStatus::Failed
+                )
+                || evidence.image_base64.len() > 54_000
+                || evidence.detections.len() > 16
+                || evidence.model_id.len() > 120
+                || evidence.confidence_domain.len() > 150
+                || evidence.captured_at_ms < mission.created_at.timestamp_millis()
+                || evidence.captured_at_ms > now.timestamp_millis() + 2000
+                || now.timestamp_millis() - evidence.captured_at_ms > 30_000
+                || evidence.frame_sha256.len() != 64
+                || !evidence.frame_sha256.bytes().all(|b| b.is_ascii_hexdigit())
+            {
+                return Err(bad());
+            }
+            let image = STANDARD.decode(&evidence.image_base64).map_err(|_| bad())?;
+            if image.len() > 40_000
+                || !image.starts_with(&[0xff, 0xd8, 0xff])
+                || format!("{:x}", Sha256::digest(&image)) != evidence.image_sha256
+            {
+                return Err(bad());
+            }
+            for detection in &evidence.detections {
+                let [x, y, w, h] = detection.r#box;
+                if detection.label != "octagonal_safety_marker"
+                    || !detection.confidence.is_finite()
+                    || !(0.8..=1.0).contains(&detection.confidence)
+                    || w == 0
+                    || h == 0
+                    || x >= 320
+                    || y >= 240
+                    || w > 320 - x
+                    || h > 240 - y
+                {
+                    return Err(bad());
+                }
+            }
+        }
+        if matches!(mission.command, SkillCommand::Inspect { .. })
+            && result.status == CommandResultStatus::Succeeded
+            && result
+                .evidence
+                .as_ref()
+                .is_none_or(|e| e.detections.is_empty())
+        {
+            return Err(ApplicationError::Conflict(
+                "successful inspection requires detection evidence".into(),
+            ));
+        }
         match result.status {
             CommandResultStatus::Running => {
                 mission.mark_running(&result.command_id, result.progress_pct, now)?;
@@ -280,6 +345,9 @@ impl LatticeService {
             }
         }
 
+        if result.evidence.is_some() {
+            mission.evidence = result.evidence.clone();
+        }
         self.missions.save(mission.clone()).await?;
         self.audit
             .append(AuditRecord {
@@ -291,6 +359,7 @@ impl LatticeService {
                     "mission_id": mission.id,
                     "progress_pct": result.progress_pct,
                     "reported_at": result.reported_at,
+                    "evidence_sha256": result.evidence.as_ref().map(|e| &e.image_sha256),
                 }),
             })
             .await?;

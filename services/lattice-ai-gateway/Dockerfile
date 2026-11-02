@@ -4,6 +4,8 @@ RUN useradd --create-home --uid 10001 lattice
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
+COPY data ./data
+ENV OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1
 USER lattice
 EXPOSE 8100
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8100"]

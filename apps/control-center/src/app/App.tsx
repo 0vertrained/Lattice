@@ -141,8 +141,8 @@ export function App() {
           </div>
         </div>
         <div className="topbar-actions">
-          <span className="core-health online">
-            <span /> Core online
+          <span className={`core-health ${globalError ? 'offline' : 'online'}`}>
+            <span /> {globalError ? 'Core unavailable' : 'Core online'}
           </span>
           <button
             type="button"
@@ -164,6 +164,11 @@ export function App() {
         </p>
       )}
 
+      <div className="demo-context">
+        <strong>Warehouse simulation</strong>
+        <span>Propose → review → approve → navigate → inspect</span>
+        <span>Local CPU models · ROS 2 Jazzy · Gazebo</span>
+      </div>
       <section className="metrics" aria-label="Lattice metrics">
         <article>
           <span>Registered bodies</span>

@@ -11,6 +11,8 @@ pub struct AppConfig {
     pub dev_api_key: String,
     /// Exact allowed browser origin.
     pub allowed_origin: String,
+    /// Trusted deployment setting for the internal inference adapter.
+    pub ai_gateway_url: String,
     /// Signed-command lifetime.
     pub command_ttl: Duration,
     /// Heartbeat freshness window.
@@ -45,6 +47,8 @@ impl AppConfig {
             bind_address,
             dev_api_key,
             allowed_origin,
+            ai_gateway_url: env::var("LATTICE_AI_GATEWAY_URL")
+                .unwrap_or_else(|_| "http://127.0.0.1:8001".into()),
             command_ttl: parse_seconds("LATTICE_COMMAND_TTL_SECONDS", 30, 5, 300)?,
             heartbeat_timeout: parse_seconds("LATTICE_HEARTBEAT_TIMEOUT_SECONDS", 10, 2, 120)?,
         })

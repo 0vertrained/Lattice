@@ -53,6 +53,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         if let Some(command) = next_command(&client, &config).await? {
             validate_command(&command, &config.body_id, &public_key, highest_sequence)?;
             highest_sequence = command.envelope.sequence;
+            if matches!(
+                command.envelope.command,
+                lattice_domain::SkillCommand::Inspect { .. }
+            ) {
+                report(
+                    &client,
+                    &config,
+                    &command,
+                    CommandResultStatus::Failed,
+                    0,
+                    Some("mock body has no camera; use the Gazebo rover for inspection evidence"),
+                )
+                .await?;
+                continue;
+            }
 
             report(
                 &client,
@@ -180,6 +195,7 @@ async fn heartbeat(
         status: BodyStatus::Online,
         battery: BatteryPercent::new(battery)?,
         location: "simulation-lab".to_owned(),
+        pose: None,
     };
 
     client
@@ -272,6 +288,7 @@ async fn report(
     detail: Option<&str>,
 ) -> Result<(), reqwest::Error> {
     let result = CommandResult {
+        evidence: None,
         command_id: command.envelope.command_id.clone(),
         body_id: config.body_id.clone(),
         status,

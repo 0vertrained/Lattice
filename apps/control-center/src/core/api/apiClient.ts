@@ -7,6 +7,8 @@ import {
   type CreateMissionRequest,
   type Mission,
   missionSchema,
+  type Proposal,
+  proposalSchema,
 } from './schemas';
 
 const apiErrorSchema = z.object({
@@ -60,12 +62,59 @@ class ApiClient {
     return z.array(missionSchema).parse(payload);
   }
 
-  async createMission(request: CreateMissionRequest): Promise<Mission> {
-    const payload = await this.request('/missions', {
-      method: 'POST',
-      body: JSON.stringify(request),
-    });
-    return missionSchema.parse(payload);
+  async propose(request: CreateMissionRequest): Promise<Proposal> {
+    return proposalSchema.parse(
+      await this.request('/proposals', {
+        method: 'POST',
+        body: JSON.stringify(request),
+      }),
+    );
+  }
+
+  async plan(userIntent: string): Promise<Proposal> {
+    return proposalSchema.parse(
+      await this.request('/proposals/plan', {
+        method: 'POST',
+        body: JSON.stringify({ user_intent: userIntent }),
+      }),
+    );
+  }
+
+  async approve(proposal: Proposal): Promise<Mission> {
+    return missionSchema.parse(
+      await this.request(`/proposals/${proposal.id}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({ digest: proposal.digest }),
+      }),
+    );
+  }
+
+  async listProposals(): Promise<readonly Proposal[]> {
+    return z.array(proposalSchema).parse(await this.request('/proposals'));
+  }
+
+  async exportTrace(): Promise<void> {
+    const [proposals, missions, audit] = await Promise.all([
+      this.listProposals(),
+      this.listMissions(),
+      this.listAudit(),
+    ]);
+    const blob = new Blob(
+      [
+        JSON.stringify(
+          { exported_at: new Date().toISOString(), proposals, missions, audit },
+          null,
+          2,
+        ),
+      ],
+      { type: 'application/json' },
+    );
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'lattice-demo-trace.json';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   async reassignUnavailable(): Promise<readonly Mission[]> {

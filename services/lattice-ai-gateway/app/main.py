@@ -1,76 +1,67 @@
-"""Untrusted AI proposal boundary.
+"""Untrusted loopback-only inference. Never receives actuator credentials."""
+from contextlib import asynccontextmanager
+from typing import Annotated
+import threading
 
-No body credentials, command-signing keys, ROS publishers, or actuator APIs
-belong in this process.
-"""
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
-from enum import StrEnum
-from typing import Annotated, Literal
-
-from fastapi import FastAPI
-from pydantic import BaseModel, Field, StringConstraints
-
-SemanticName = Annotated[
-    str,
-    StringConstraints(strip_whitespace=True, min_length=1, max_length=100),
-]
+from .planner import Planner
+from .vision import Detector
 
 
-class Skill(StrEnum):
-    """Small proposal vocabulary for the first milestone."""
+@asynccontextmanager
+async def lifespan(app):
+    app.state.planner = Planner()
+    app.state.detector = Detector()
+    app.state.inference_lock = threading.Lock()
+    yield
 
-    NAVIGATE = "navigate"
-    INSPECT = "inspect"
+
+app = FastAPI(title='Lattice local inference', version='0.2.0', lifespan=lifespan)
+
+
+@app.middleware('http')
+async def bounded_body(request: Request, call_next):
+    # Enforce actual streamed bytes too; Content-Length alone is not a bound.
+    chunks, size = [], 0
+    async for chunk in request.stream():
+        size += len(chunk)
+        if size > 450_000:
+            return JSONResponse({'detail': 'request too large'}, status_code=413)
+        chunks.append(chunk)
+    request._body = b''.join(chunks)
+    return await call_next(request)
 
 
 class ProposalRequest(BaseModel):
-    """Bounded untrusted natural-language input."""
-
-    user_intent: Annotated[
-        str,
-        StringConstraints(strip_whitespace=True, min_length=3, max_length=500),
-    ]
-    suggested_location: SemanticName | None = None
+    model_config = ConfigDict(extra='forbid')
+    user_intent: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=500)]
 
 
-class SkillProposal(BaseModel):
-    """Typed proposal that still requires Rust policy validation."""
-
-    schema_version: Literal["lattice.skill-proposal.v1"] = "lattice.skill-proposal.v1"
-    skill: Skill
-    location: SemanticName
-    confidence: float = Field(ge=0.0, le=1.0)
-    requires_human_approval: Literal[True] = True
-    rationale: Annotated[str, StringConstraints(max_length=300)]
+class InspectionRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    image_base64: str = Field(max_length=400_000)
+    captured_at_ms: int = Field(gt=0)
 
 
-app = FastAPI(title="Lattice AI Gateway", version="0.1.0")
+@app.get('/health')
+def health():
+    return {'status': 'operational', 'trust_level': 'untrusted-inference-only',
+            'planner_model': app.state.planner.model_id}
 
 
-@app.get("/health")
-def health() -> dict[str, str]:
-    """Expose process health and trust level."""
+@app.post('/v1/proposals')
+def propose(request: ProposalRequest):
+    with app.state.inference_lock:
+        return app.state.planner.propose(request.user_intent)
 
-    return {"status": "operational", "trust_level": "untrusted-proposal-only"}
 
-
-@app.post("/v1/proposals", response_model=SkillProposal)
-def propose(request: ProposalRequest) -> SkillProposal:
-    """Return a deterministic development proposal.
-
-    A future model integration must still emit this exact bounded schema.
-    """
-
-    location = request.suggested_location or "operator_defined_location"
-    intent = request.user_intent.lower()
-    skill = (
-        Skill.INSPECT
-        if any(word in intent for word in ("inspect", "check", "look"))
-        else Skill.NAVIGATE
-    )
-    return SkillProposal(
-        skill=skill,
-        location=location,
-        confidence=0.5,
-        rationale="Development placeholder; Rust policy validation is still required.",
-    )
+@app.post('/v1/inspections')
+def inspect(request: InspectionRequest):
+    try:
+        with app.state.inference_lock:
+            return app.state.detector.inspect(request.image_base64, request.captured_at_ms)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error

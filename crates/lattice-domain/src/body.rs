@@ -6,6 +6,35 @@ use serde::{Deserialize, Serialize};
 
 use crate::{BodyId, Capability, DomainError};
 
+/// Planar localization in the shared map frame, in metres and radians.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct BodyPose {
+    /// Map-frame east coordinate.
+    pub x: f64,
+    /// Map-frame north coordinate.
+    pub y: f64,
+    /// Counterclockwise heading around the map's vertical axis.
+    pub yaw: f64,
+}
+
+impl BodyPose {
+    /// Rejects non-finite or unbounded telemetry before it enters server state.
+    pub fn validate(&self) -> Result<(), DomainError> {
+        if !self.x.is_finite()
+            || !self.y.is_finite()
+            || !self.yaw.is_finite()
+            || self.x.abs() > 10_000.0
+            || self.y.abs() > 10_000.0
+            || self.yaw.abs() > std::f64::consts::PI
+        {
+            return Err(DomainError::InvalidCommand(
+                "invalid map-frame pose".to_owned(),
+            ));
+        }
+        Ok(())
+    }
+}
+
 /// Bounded battery percentage.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -81,6 +110,9 @@ pub struct BodySnapshot {
     pub battery: BatteryPercent,
     /// Semantic location.
     pub location: String,
+    /// Latest map-frame localization, when this adapter provides it.
+    #[serde(default)]
+    pub pose: Option<BodyPose>,
     /// Explicit capability set.
     pub capabilities: BTreeSet<Capability>,
     /// Last authenticated heartbeat.
@@ -107,5 +139,42 @@ impl BodySnapshot {
             .unwrap_or(Duration::ZERO);
 
         age <= heartbeat_timeout && self.capabilities.contains(&capability)
+    }
+}
+
+#[cfg(test)]
+mod pose_tests {
+    use super::BodyPose;
+    #[test]
+    fn accepts_map_coordinates_and_rejects_invalid_telemetry() {
+        assert!(
+            BodyPose {
+                x: 3.5,
+                y: -2.0,
+                yaw: 1.0
+            }
+            .validate()
+            .is_ok()
+        );
+        for bad in [f64::NAN, f64::INFINITY, 10001.0] {
+            assert!(
+                BodyPose {
+                    x: bad,
+                    y: 0.0,
+                    yaw: 0.0
+                }
+                .validate()
+                .is_err()
+            );
+        }
+        assert!(
+            BodyPose {
+                x: 0.0,
+                y: 0.0,
+                yaw: 4.0
+            }
+            .validate()
+            .is_err()
+        );
     }
 }

@@ -108,6 +108,11 @@ Exit test:
 
 ## Milestone 2 — ROS 2 and Gazebo rover
 
+**Navigation increment implemented:** the signed Rust body agent, local C++ Nav2
+bridge, Gazebo rover, known warehouse map, pose telemetry and local watchdog are
+runnable via `scripts/run-warehouse.sh`. See `ROBOTICS_DEMO.md` for live validation.
+The intelligence increment adds RGB camera capture, a trained marker detector, backend-approved language proposals and evidence traces; see `INTELLIGENCE_DEMO.md`. The gRPC body stream, SLAM and physical hardware remain future increments. The current adapter retains authenticated HTTP.
+
 Target stack:
 
 - Ubuntu 24.04
@@ -217,6 +222,8 @@ Exit test:
 ---
 
 ## Milestone 5 — Intelligence services
+
+**Local baseline implemented:** supervised intent classification, grounded proposals, immutable backend approval, specialized marker detection, camera evidence and held-out evaluation. General LLM/VLM, speech and retrieval remain future work. See `INTELLIGENCE_DEMO.md`.
 
 Python remains outside the trusted command path.
 

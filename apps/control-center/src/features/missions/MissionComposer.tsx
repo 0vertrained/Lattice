@@ -1,149 +1,221 @@
 import { useMachine } from '@xstate/react';
-import { useMemo, useState } from 'react';
-import { useCreateMission } from '../../core/api/queries';
-import type { CreateMissionRequest, SkillCommand } from '../../core/api/schemas';
+import { useState } from 'react';
+import { apiClient } from '../../core/api/apiClient';
+import { useApproveProposal } from '../../core/api/queries';
+import type { Proposal, SkillCommand } from '../../core/api/schemas';
 import { missionApprovalMachine } from './missionApprovalMachine';
-
-type SkillChoice = 'inspect' | 'navigate';
 
 interface MissionComposerProps {
   readonly onCreated: () => void;
 }
 
 export function MissionComposer({ onCreated }: MissionComposerProps) {
+  const approve = useApproveProposal();
   const [snapshot, send] = useMachine(missionApprovalMachine);
-  const createMission = useCreateMission();
-  const [title, setTitle] = useState('Inspect the garage');
-  const [location, setLocation] = useState('garage');
-  const [skill, setSkill] = useState<SkillChoice>('inspect');
+  const [mode, setMode] = useState<'language' | 'manual'>('language');
+  const [intent, setIntent] = useState('Inspect the safety marker at the inspection bay');
+  const [location, setLocation] = useState('inspection_bay');
+  const [skill, setSkill] = useState<'navigate' | 'inspect'>('inspect');
+  const [proposal, setProposal] = useState<Proposal | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const complete = snapshot.matches('succeeded');
 
-  const command = useMemo<SkillCommand>(
-    () =>
-      skill === 'navigate'
-        ? { type: 'navigate', destination: location.trim(), max_speed_mps: 0.8 }
-        : { type: 'inspect', location: location.trim() },
-    [location, skill],
-  );
-
-  const request = useMemo<CreateMissionRequest>(
-    () => ({ title: title.trim(), command }),
-    [command, title],
-  );
-
-  const canReview = request.title.length >= 3 && location.trim().length > 0;
-
-  function authorize(): void {
-    send({ type: 'AUTHORIZE' });
-    createMission.mutate(request, {
-      onSuccess: () => {
-        send({ type: 'SUCCESS' });
-        onCreated();
-      },
-      onError: () => send({ type: 'FAILURE' }),
-    });
+  async function review(): Promise<void> {
+    setBusy(true);
+    setError('');
+    try {
+      const command: SkillCommand =
+        skill === 'navigate'
+          ? { type: 'navigate', destination: location, max_speed_mps: 0.3 }
+          : { type: 'inspect', location };
+      setProposal(
+        mode === 'language'
+          ? await apiClient.plan(intent)
+          : await apiClient.propose({ title: intent, command }),
+      );
+      send({ type: 'REVIEW' });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Proposal failed.');
+    } finally {
+      setBusy(false);
+    }
   }
 
   function reset(): void {
-    send({ type: 'RESET' });
-    createMission.reset();
+    setProposal(null);
+    setError('');
+    send({ type: snapshot.matches('succeeded') ? 'RESET' : 'EDIT' });
+    approve.reset();
   }
 
   return (
     <section className="panel mission-composer" aria-labelledby="mission-composer-title">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Typed skill request</p>
+          <p className="eyebrow">Language → review → approved mission</p>
           <h2 id="mission-composer-title">Create mission</h2>
         </div>
-        <span className="workflow-state">{String(snapshot.value)}</span>
       </div>
-
-      {snapshot.matches('editing') && (
+      {proposal === null && (
         <div className="form-grid">
           <label>
-            Mission title
-            <input
-              value={title}
-              maxLength={120}
-              onChange={(event) => setTitle(event.target.value)}
-            />
-          </label>
-          <label>
-            Skill
-            <select value={skill} onChange={(event) => setSkill(event.target.value as SkillChoice)}>
-              <option value="inspect">Inspect</option>
-              <option value="navigate">Navigate</option>
+            Request method
+            <select
+              disabled={busy}
+              value={mode}
+              onChange={(e) => setMode(e.target.value as 'language' | 'manual')}
+            >
+              <option value="language">Trained intent classifier</option>
+              <option value="manual">Typed command</option>
             </select>
           </label>
           <label className="full-width">
-            Semantic location
-            <input
-              value={location}
-              maxLength={100}
-              onChange={(event) => setLocation(event.target.value)}
+            What should the rover do?
+            <textarea
+              disabled={busy}
+              value={intent}
+              maxLength={500}
+              rows={3}
+              onChange={(e) => setIntent(e.target.value)}
             />
           </label>
+          {mode === 'manual' && (
+            <>
+              <label>
+                Skill
+                <select
+                  value={skill}
+                  disabled={busy}
+                  onChange={(e) => setSkill(e.target.value as 'navigate' | 'inspect')}
+                >
+                  <option value="navigate">Navigate</option>
+                  <option value="inspect">Inspect safety marker</option>
+                </select>
+              </label>
+              <label>
+                Destination
+                <select
+                  value={location}
+                  disabled={busy}
+                  onChange={(e) => setLocation(e.target.value)}
+                >
+                  <option value="loading_dock">Loading dock</option>
+                  <option value="charging_station">Charging station</option>
+                  <option value="inspection_bay">Inspection bay</option>
+                </select>
+              </label>
+            </>
+          )}
+          <p className="muted full-width">
+            One destination per request: loading dock, charging station, or inspection bay.
+            Inspection looks for the octagonal safety marker. The model may ask you to clarify.
+          </p>
           <div className="actions full-width">
-            <button type="button" disabled={!canReview} onClick={() => send({ type: 'REVIEW' })}>
-              Review mission
+            <button
+              type="button"
+              disabled={busy || intent.trim().length < 3}
+              onClick={() => {
+                void review();
+              }}
+            >
+              {busy ? 'Preparing proposal…' : 'Prepare for review'}
             </button>
           </div>
         </div>
       )}
-
-      {snapshot.matches('reviewing') && (
+      {proposal !== null && !complete && (
         <div className="review-box">
           <dl>
             <div>
-              <dt>Mission</dt>
-              <dd>{request.title}</dd>
+              <dt>Original request</dt>
+              <dd>{proposal.input.user_intent}</dd>
             </div>
             <div>
-              <dt>Typed command</dt>
+              <dt>Decision</dt>
               <dd>
-                <code>{JSON.stringify(request.command)}</code>
+                {proposal.input.decision}: {proposal.input.rationale}
               </dd>
             </div>
             <div>
-              <dt>Security path</dt>
-              <dd>Policy validation → capability match → signed expiring command</dd>
+              <dt>Proposed command</dt>
+              <dd>
+                <code>{JSON.stringify(proposal.input.command)}</code>
+              </dd>
+            </div>
+            <div>
+              <dt>Model</dt>
+              <dd>{proposal.input.model_id}</dd>
+            </div>
+            <div>
+              <dt>Classifier score</dt>
+              <dd>{(proposal.input.confidence * 100).toFixed(1)}% — not a safety guarantee</dd>
+            </div>
+            <div>
+              <dt>Review expires</dt>
+              <dd>{new Date(proposal.expires_at).toLocaleTimeString()}</dd>
             </div>
           </dl>
+          <p className="muted">
+            Approval applies to this exact command. Editing requires a new proposal.
+          </p>
           <div className="actions">
-            <button type="button" className="secondary" onClick={() => send({ type: 'EDIT' })}>
-              Edit
+            <button
+              className="secondary"
+              type="button"
+              disabled={approve.isPending}
+              onClick={reset}
+            >
+              Edit request
             </button>
-            <button type="button" onClick={authorize}>
-              Authorize mission
-            </button>
+            {proposal.input.decision === 'ready' && (
+              <button
+                type="button"
+                disabled={approve.isPending}
+                onClick={() => {
+                  if (snapshot.matches('failed')) send({ type: 'RETRY' });
+                  send({ type: 'AUTHORIZE' });
+                  approve.mutate(proposal, {
+                    onSuccess: () => {
+                      send({ type: 'SUCCESS' });
+                      onCreated();
+                    },
+                    onError: () => send({ type: 'FAILURE' }),
+                  });
+                }}
+              >
+                {approve.isPending ? 'Authorizing…' : 'Approve and dispatch'}
+              </button>
+            )}
           </div>
         </div>
       )}
-
-      {snapshot.matches('submitting') && <p className="notice">Authorizing typed command…</p>}
-
-      {snapshot.matches('succeeded') && (
+      {complete && (
         <div className="notice success" role="status">
-          <p>Mission authorized. Lattice selected the best eligible body.</p>
+          <p>Approved. Track execution and inspection evidence below.</p>
           <button type="button" onClick={reset}>
             Create another
           </button>
         </div>
       )}
-
-      {snapshot.matches('failed') && (
-        <div className="notice error" role="alert">
-          <p>{createMission.error?.message ?? 'Lattice Core rejected the mission.'}</p>
-          <div className="actions">
-            <button type="button" className="secondary" onClick={() => send({ type: 'EDIT' })}>
-              Edit
-            </button>
-            <button type="button" onClick={() => send({ type: 'RETRY' })}>
-              Review again
-            </button>
-          </div>
-        </div>
+      {(error || approve.error) && (
+        <p className="notice error" role="alert">
+          {error || approve.error?.message}
+        </p>
       )}
+      <button
+        type="button"
+        className="secondary"
+        onClick={() => {
+          void apiClient
+            .exportTrace()
+            .catch((cause: unknown) =>
+              setError(cause instanceof Error ? cause.message : 'Trace export failed.'),
+            );
+        }}
+      >
+        Download session trace
+      </button>
     </section>
   );
 }

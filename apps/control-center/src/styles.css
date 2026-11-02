@@ -237,7 +237,8 @@ h2 {
 }
 .dashboard-grid {
   display: grid;
-  grid-template-columns: 1.25fr 0.75fr;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
+  grid-template-areas: "twin composer" "missions fleet" "audit audit";
   gap: 14px;
   align-items: start;
 }
@@ -257,16 +258,19 @@ h2 {
   font-size: 0.8rem;
 }
 .digital-twin {
-  grid-column: 1;
+  grid-area: twin;
 }
 .mission-composer {
-  grid-column: 2;
+  grid-area: composer;
+}
+.fleet-panel {
+  grid-area: fleet;
 }
 .mission-panel {
-  grid-column: 1;
+  grid-area: missions;
 }
 .dashboard-grid > :last-child {
-  grid-column: 2;
+  grid-area: audit;
 }
 .twin-canvas {
   height: 390px;
@@ -471,6 +475,7 @@ h2 {
 @media (max-width: 1000px) {
   .dashboard-grid {
     grid-template-columns: 1fr;
+    grid-template-areas: "twin" "composer" "fleet" "missions" "audit";
   }
   .digital-twin,
   .mission-composer,
@@ -510,4 +515,52 @@ h2 {
   display: grid;
   place-items: center;
   color: #8297a8;
+}
+
+textarea {
+  width: 100%;
+  resize: vertical;
+  color: inherit;
+  background: var(--surface, #101622);
+  border: 1px solid #364152;
+  border-radius: 0.5rem;
+  padding: 0.7rem;
+  font: inherit;
+}
+.inspection-evidence {
+  margin: 1rem 0;
+}
+.inspection-evidence img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+}
+.inspection-evidence figcaption {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+}
+.inspection-evidence small {
+  display: block;
+  opacity: 0.75;
+  margin-top: 0.3rem;
+}
+.review-box dd {
+  overflow-wrap: anywhere;
+}
+
+.demo-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.5rem;
+  color: #a5bbca;
+  font-size: 0.85rem;
+  margin: 1.25rem 0;
+}
+.demo-context strong {
+  color: #77dbbc;
+}
+textarea:focus-visible {
+  outline: 2px solid #5dc4ff;
+  outline-offset: 2px;
 }

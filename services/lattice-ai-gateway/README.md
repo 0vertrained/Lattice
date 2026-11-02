@@ -1,20 +1,21 @@
-# Lattice AI Gateway
+# Local inference service
 
-This Python process is deliberately outside the trusted command path.
+CPU-only intent classification and camera-marker detection. See
+[the intelligence demo](../../docs/INTELLIGENCE_DEMO.md) for model cards, evaluation,
+training/calibration/test splits, approval contracts and scope.
 
-It may:
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8001
+```
 
-- transcribe speech
-- run LLM/VLM inference
-- propose a typed skill plan
-- attach confidence, rationale, and evidence references
+This service is untrusted and has no actuator API, body credential or signing key.
+It returns proposals and image evidence to Rust. It does not grant approval.
+Keep its unauthenticated inference port on loopback or a private Compose network.
+The warehouse runner starts it automatically without the development API key.
 
-It may not:
-
-- access body credentials
-- access command-signing keys
-- publish ROS actuator topics
-- update mission state directly
-- bypass policy or human approval
-
-The Rust core validates every proposal before creating a signed command.
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 .venv/bin/python -m unittest discover -s tests -v
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 .venv/bin/python evaluate.py ../../evaluation/local-models.json
+```

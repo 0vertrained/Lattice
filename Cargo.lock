@@ -737,11 +737,14 @@ name = "lattice-application"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "base64",
  "chrono",
  "lattice-domain",
  "serde",
  "serde_json",
+ "sha2",
  "thiserror",
+ "tokio",
  "uuid",
 ]
 
@@ -754,7 +757,9 @@ dependencies = [
  "lattice-application",
  "lattice-domain",
  "lattice-infrastructure",
+ "reqwest",
  "serde",
+ "serde_json",
  "sha2",
  "subtle",
  "tokio",
@@ -798,6 +803,24 @@ dependencies = [
  "lattice-application",
  "lattice-domain",
  "reqwest",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "lattice-ros2-body"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "chrono",
+ "ed25519-dalek",
+ "lattice-application",
+ "lattice-domain",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2",
  "tokio",
  "tracing",
  "tracing-subscriber",

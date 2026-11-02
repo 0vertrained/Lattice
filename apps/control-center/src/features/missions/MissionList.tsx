@@ -33,6 +33,28 @@ export function MissionList({ missions, bodies }: MissionListProps) {
               <span>{mission.active_command_id ?? 'No active command'}</span>
             </div>
             <progress value={mission.progress_pct} max={100} />
+            {mission.evidence && (
+              <figure className="inspection-evidence">
+                <img
+                  src={`data:image/jpeg;base64,${mission.evidence.image_base64}`}
+                  width={320}
+                  height={240}
+                  alt={`Camera evidence for ${mission.title}; ${mission.evidence.detections.length} safety markers detected`}
+                />
+                <figcaption>
+                  {mission.evidence.detections.length === 0
+                    ? 'No supported marker detected.'
+                    : mission.evidence.detections
+                        .map((d) => `${d.label}: ${(d.confidence * 100).toFixed(1)}%`)
+                        .join(', ')}
+                  <small>{mission.evidence.confidence_domain}</small>
+                  <small>
+                    Captured {new Date(mission.evidence.captured_at_ms).toLocaleTimeString()} ·{' '}
+                    {mission.evidence.model_id}
+                  </small>
+                </figcaption>
+              </figure>
+            )}
             {mission.status_detail !== null && (
               <p className="mission-detail">{mission.status_detail}</p>
             )}

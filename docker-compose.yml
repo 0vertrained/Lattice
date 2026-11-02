@@ -31,6 +31,7 @@ services:
       LATTICE_DEV_API_KEY: ${LATTICE_DEV_API_KEY}
       LATTICE_BIND_ADDRESS: 0.0.0.0:8000
       LATTICE_ALLOWED_ORIGIN: http://localhost:8080
+      LATTICE_AI_GATEWAY_URL: http://ai-gateway:8100
       LATTICE_COMMAND_TTL_SECONDS: 30
       LATTICE_HEARTBEAT_TIMEOUT_SECONDS: 10
       RUST_LOG: info,lattice=debug
@@ -133,7 +134,7 @@ services:
       context: services/lattice-ai-gateway
     profiles: ["ai"]
     ports:
-      - "8100:8100"
+      - "127.0.0.1:8100:8100"
     read_only: true
     tmpfs:
       - /tmp

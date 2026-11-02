@@ -35,6 +35,14 @@ export const bodySchema = z.object({
   status: bodyStatusSchema,
   battery: z.number().int().min(0).max(100),
   location: z.string(),
+  pose: z
+    .object({
+      x: z.number().finite().min(-10000).max(10000),
+      y: z.number().finite().min(-10000).max(10000),
+      yaw: z.number().finite().min(-Math.PI).max(Math.PI),
+    })
+    .nullable()
+    .optional(),
   capabilities: z.array(capabilitySchema),
   last_seen: z.string(),
   adapter_version: z.string(),
@@ -82,6 +90,44 @@ export const missionStatusSchema = z.enum([
   'interrupted',
 ]);
 
+export const evidenceSchema = z.object({
+  model_id: z.string(),
+  captured_at_ms: z.number().int(),
+  frame_sha256: z.string().length(64),
+  image_sha256: z.string().length(64),
+  image_base64: z.string().max(54000),
+  confidence_domain: z.string(),
+  detections: z
+    .array(
+      z.object({
+        label: z.literal('octagonal_safety_marker'),
+        confidence: z.number().finite().min(0.8).max(1),
+        box: z.tuple([z.number().int(), z.number().int(), z.number().int(), z.number().int()]),
+      }),
+    )
+    .max(16),
+});
+
+export const proposalSchema = z.object({
+  id: z.string(),
+  digest: z.string().length(64),
+  created_at: z.string(),
+  expires_at: z.string(),
+  status: z.enum(['pending', 'approving', 'approved', 'failed']),
+  mission_id: z.string().nullable(),
+  approved_at: z.string().nullable(),
+  input: z.object({
+    user_intent: z.string(),
+    decision: z.enum(['ready', 'clarify', 'rejected']),
+    command: skillCommandSchema.nullable(),
+    model_id: z.string(),
+    policy_version: z.string(),
+    confidence: z.number().finite().min(0).max(1),
+    rationale: z.string(),
+  }),
+});
+export type Proposal = z.infer<typeof proposalSchema>;
+
 export const missionSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -93,6 +139,7 @@ export const missionSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
   status_detail: z.string().nullable(),
+  evidence: evidenceSchema.nullable().optional(),
 });
 
 export const auditActorSchema = z.union([

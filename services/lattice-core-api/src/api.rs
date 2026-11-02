@@ -11,7 +11,7 @@ use lattice_application::{
     CreateMissionRequest, HeartbeatRequest, LatticeService, RegisterBodyRequest,
 };
 use lattice_domain::{AuditActor, BodyId, CommandId, CommandResult, MissionId};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tower::ServiceBuilder;
 use tower::limit::ConcurrencyLimitLayer;
 use tower_http::compression::CompressionLayer;
@@ -33,6 +33,8 @@ pub struct ApiState {
     pub service: LatticeService,
     /// Development-only API key.
     pub dev_api_key: Arc<str>,
+    /// Internal inference address; never supplied by a request.
+    pub ai_gateway_url: Arc<str>,
 }
 
 /// Creates the HTTP router.
@@ -40,6 +42,7 @@ pub fn router(service: LatticeService, config: AppConfig) -> Result<Router, Conf
     let state = ApiState {
         service,
         dev_api_key: Arc::from(config.dev_api_key),
+        ai_gateway_url: Arc::from(config.ai_gateway_url),
     };
 
     let origin = HeaderValue::from_str(&config.allowed_origin)
@@ -57,7 +60,10 @@ pub fn router(service: LatticeService, config: AppConfig) -> Result<Router, Conf
         .route("/bodies/register", post(register_body))
         .route("/bodies/{body_id}/heartbeat", post(heartbeat))
         .route("/bodies/{body_id}/commands/next", get(next_command))
-        .route("/missions", get(list_missions).post(create_mission))
+        .route("/missions", get(list_missions))
+        .route("/proposals", get(list_proposals).post(create_proposal))
+        .route("/proposals/plan", post(plan_proposal))
+        .route("/proposals/{proposal_id}/approve", post(approve_proposal))
         .route("/missions/reassign", post(reassign))
         .route(
             "/missions/{mission_id}/commands/{command_id}/result",
@@ -147,15 +153,106 @@ async fn list_bodies(
     Ok(Json(state.service.list_bodies().await?))
 }
 
-async fn create_mission(
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PlanRequest {
+    user_intent: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ApprovalRequest {
+    digest: String,
+}
+
+async fn list_proposals(State(state): State<ApiState>) -> Json<Vec<lattice_application::Proposal>> {
+    Json(state.service.list_proposals().await)
+}
+
+async fn create_proposal(
     State(state): State<ApiState>,
     Json(request): Json<CreateMissionRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
+    let p = state
+        .service
+        .propose(lattice_application::ProposalInput {
+            user_intent: request.title,
+            decision: "ready".into(),
+            command: Some(request.command),
+            model_id: "manual-v1".into(),
+            policy_version: "warehouse-v1".into(),
+            confidence: 1.0,
+            rationale: "Operator-authored typed proposal; review before approval.".into(),
+        })
+        .await?;
+    Ok((StatusCode::CREATED, Json(p)))
+}
+
+async fn plan_proposal(
+    State(state): State<ApiState>,
+    Json(request): Json<PlanRequest>,
+) -> Result<impl IntoResponse, ApiError> {
+    if !(3..=500).contains(&request.user_intent.len()) {
+        return Err(lattice_application::ApplicationError::Conflict(
+            "invalid intent length".into(),
+        )
+        .into());
+    }
+    // The untrusted inference service never receives the development API key.
+    let client = reqwest::Client::builder()
+        .no_proxy()
+        .redirect(reqwest::redirect::Policy::none())
+        .timeout(Duration::from_secs(3))
+        .build()
+        .map_err(|_| lattice_application::ApplicationError::Infrastructure)?;
+    let response = client
+        .post(format!(
+            "{}/v1/proposals",
+            state.ai_gateway_url.trim_end_matches('/')
+        ))
+        .json(&serde_json::json!({"user_intent":request.user_intent}))
+        .send()
+        .await
+        .and_then(reqwest::Response::error_for_status)
+        .map_err(|_| lattice_application::ApplicationError::Infrastructure)?;
+    // Bound the streamed response even when Content-Length is absent.
+    let mut response = response;
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|_| lattice_application::ApplicationError::Infrastructure)?
+    {
+        if bytes.len() + chunk.len() > 16_384 {
+            return Err(lattice_application::ApplicationError::Infrastructure.into());
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    let mut value: serde_json::Value = serde_json::from_slice(&bytes)
+        .map_err(|_| lattice_application::ApplicationError::Infrastructure)?;
+    value["user_intent"] = serde_json::Value::String(request.user_intent);
+    let input = serde_json::from_value(value)
+        .map_err(|_| lattice_application::ApplicationError::Infrastructure)?;
+    Ok((
+        StatusCode::CREATED,
+        Json(state.service.propose(input).await?),
+    ))
+}
+
+async fn approve_proposal(
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
+    Json(request): Json<ApprovalRequest>,
+) -> Result<impl IntoResponse, ApiError> {
     let mission = state
         .service
-        .create_mission(request, AuditActor::Operator("development-user".to_owned()))
+        .approve_proposal(
+            &id,
+            &request.digest,
+            AuditActor::Operator("development-user".into()),
+        )
         .await?;
-    Ok((StatusCode::CREATED, Json(mission)))
+    Ok(Json(mission))
 }
 
 async fn list_missions(
@@ -194,7 +291,7 @@ async fn report_result(
     }
 
     result.detail = result.detail.map(|mut detail| {
-        detail.truncate(500);
+        detail = detail.chars().take(500).collect();
         detail
     });
 
@@ -224,4 +321,69 @@ async fn list_audit(
     State(state): State<ApiState>,
 ) -> Result<Json<Vec<lattice_domain::AuditRecord>>, ApiError> {
     Ok(Json(state.service.list_audit().await?))
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+    use axum::{body::Body, http::Request};
+    use lattice_application::ServiceConfig;
+    use lattice_infrastructure::{Ed25519CommandSigner, InMemoryPlatform, SystemClock};
+    use tower::ServiceExt;
+    fn app() -> Router {
+        let p = Arc::new(InMemoryPlatform::default());
+        let service = LatticeService::new(
+            p.clone(),
+            p.clone(),
+            p.clone(),
+            Arc::new(Ed25519CommandSigner::generate_ephemeral("test")),
+            p,
+            Arc::new(SystemClock),
+            ServiceConfig::default(),
+        );
+        router(
+            service,
+            AppConfig {
+                bind_address: "127.0.0.1:8000".parse().unwrap(),
+                dev_api_key: "a".repeat(32),
+                allowed_origin: "http://localhost:5173".into(),
+                ai_gateway_url: "http://127.0.0.1:8001".into(),
+                command_ttl: Duration::from_secs(30),
+                heartbeat_timeout: Duration::from_secs(10),
+            },
+        )
+        .unwrap()
+    }
+    #[tokio::test]
+    async fn direct_dispatch_and_mutable_approval_payloads_are_rejected() {
+        let app = app();
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/v1/missions")
+                    .header("x-lattice-api-key", "a".repeat(32))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
+        let response=app.clone().oneshot(Request::builder().method("POST").uri("/v1/proposals/p/approve")
+            .header("content-type","application/json").header("x-lattice-api-key","a".repeat(32))
+            .body(Body::from(r#"{"digest":"abc","command":{"type":"inspect","location":"inspection_bay"}}"#)).unwrap()).await.unwrap();
+        assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/v1/proposals")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
 }

@@ -46,6 +46,9 @@ pub struct Mission {
     pub updated_at: DateTime<Utc>,
     /// Operator-safe status detail.
     pub status_detail: Option<String>,
+    /// Validated inspection result image and detections.
+    #[serde(default)]
+    pub evidence: Option<crate::InspectionEvidence>,
 }
 
 impl Mission {
@@ -76,6 +79,7 @@ impl Mission {
             created_at: now,
             updated_at: now,
             status_detail: None,
+            evidence: None,
         })
     }
 
@@ -215,7 +219,7 @@ fn invalid_transition(from: MissionStatus, to: MissionStatus) -> DomainError {
 }
 
 fn limit_detail(mut detail: String) -> String {
-    detail.truncate(500);
+    detail = detail.chars().take(500).collect();
     detail
 }
 

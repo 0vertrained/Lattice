@@ -5,14 +5,6 @@ interface DigitalTwinProps {
   readonly bodies: readonly Body[];
 }
 
-const bodyPositions: readonly [number, number, number][] = [
-  [-3, 0.4, -1],
-  [-1, 0.4, 1.5],
-  [1.5, 0.4, -1.5],
-  [3, 0.4, 1],
-  [0, 0.4, 0],
-];
-
 function BodyMesh({
   body,
   position,
@@ -24,7 +16,7 @@ function BodyMesh({
   const color = active ? '#55c4ff' : '#536171';
 
   return (
-    <group position={position}>
+    <group position={position} rotation={[0, body.pose?.yaw ?? 0, 0]} scale={0.45}>
       {body.kind === 'drone' ? (
         <>
           <mesh>
@@ -105,7 +97,7 @@ export function DigitalTwin({ bodies }: DigitalTwinProps) {
           <p className="eyebrow">Normalized fleet state</p>
           <h2 id="digital-twin-title">Digital twin</h2>
         </div>
-        <span>Simulation viewport</span>
+        <span>Warehouse · map frame · metres</span>
       </div>
       <div className="twin-canvas" role="img" aria-label="Three-dimensional fleet overview">
         <Canvas camera={{ position: [6, 6, 8], fov: 42 }}>
@@ -113,12 +105,34 @@ export function DigitalTwin({ bodies }: DigitalTwinProps) {
           <ambientLight intensity={0.8} />
           <directionalLight position={[4, 8, 5]} intensity={1.6} />
           <gridHelper args={[12, 12, '#29465d', '#172837']} />
-          {bodies.slice(0, bodyPositions.length).map((body, index) => {
-            const position = bodyPositions[index];
-            return position === undefined ? null : (
-              <BodyMesh key={body.id} body={body} position={position} />
-            );
-          })}
+          {/* ROS map x/y becomes Three.js x/-z; only measured poses are rendered. */}
+          {bodies
+            .filter((body) => body.pose != null)
+            .map((body) => (
+              <BodyMesh
+                key={body.id}
+                body={body}
+                position={[body.pose?.x ?? 0, 0.25, -(body.pose?.y ?? 0)]}
+              />
+            ))}
+          <mesh position={[2, 0.5, 0]}>
+            <boxGeometry args={[0.7, 1, 1.8]} />
+            <meshStandardMaterial color="#475569" />
+          </mesh>
+          {[
+            [3.5, 0],
+            [-3, -2],
+            [0, 2.5],
+          ].map(([x, y]) => (
+            <mesh
+              key={`${x}:${y}`}
+              position={[x ?? 0, 0.01, -(y ?? 0)]}
+              rotation={[-Math.PI / 2, 0, 0]}
+            >
+              <ringGeometry args={[0.25, 0.35, 24]} />
+              <meshBasicMaterial color="#7dd3fc" />
+            </mesh>
+          ))}
         </Canvas>
       </div>
       <div className="twin-legend">
@@ -126,6 +140,7 @@ export function DigitalTwin({ bodies }: DigitalTwinProps) {
           <span key={body.id}>
             <i className={body.status === 'online' ? 'online-dot' : 'offline-dot'} />
             {body.display_name}
+            {body.pose == null ? ' · no localization' : ''}
           </span>
         ))}
         {bodies.length === 0 && <span>Start a body adapter to populate the scene.</span>}

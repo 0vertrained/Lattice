@@ -4,15 +4,15 @@
 
 Lattice is a simulation-first, security-first embodiment control plane. A persistent intelligence can assign typed missions to interchangeable simulated or physical bodies while preserving identity, world state, audit history, and mission continuity.
 
-This starter is intentionally over-engineered at the boundaries—not in the deployment topology:
+The current demo combines a local trained intent classifier, backend approval, signed commands, real Gazebo navigation and camera-based safety-marker inspection:
 
 - **Rust modular monolith** for the trusted control plane
 - **React + TypeScript + Vite** for the operator product
 - **TanStack Query** for authoritative server state
-- **XState** for safety-sensitive UI workflows
+- **Backend approval** bound to immutable proposal digests
 - **React Three Fiber** for the digital-twin viewport
 - **C++ / ROS 2** behind a local gateway
-- **Python** only for untrusted AI/research proposals
+- **Python / scikit-learn / OpenCV** for untrusted intent and marker inference
 - **Typed, signed, expiring commands** between core and bodies
 - **PostgreSQL, NATS JetStream, and OpenTelemetry** prepared for the durable platform phase
 
@@ -56,7 +56,7 @@ crates/lattice-application/    Use cases and infrastructure ports
 crates/lattice-infrastructure/ Development adapters and signing
 services/lattice-core-api/     Trusted Rust HTTP API
 services/lattice-ai-gateway/   Untrusted typed-proposal service
-services/lattice-ros2-gateway/ C++ ROS 2 boundary scaffold
+services/lattice-ros2-gateway/ C++ Nav2, camera and local motion gateway
 robots/lattice-mock-body/      Signature-verifying simulated rover
 proto/                         Versioned cross-language contracts
 docs/                          Architecture, security, ADRs, roadmap
@@ -73,17 +73,17 @@ cp .env.example .env
 
 Replace `LATTICE_DEV_API_KEY` with at least 32 random characters.
 
-### 2. Run with Docker Compose
+### 2. Run the mock-body stack with Docker Compose
 
 ```bash
-docker compose up --build
+docker compose --profile ai up --build
 ```
 
 - Control Center: `http://localhost:8080`
 - Core health: `http://localhost:8000/health`
 - AI proposal service when enabled: `http://localhost:8100`
 
-Enter the development API key in Control Center. It is held in memory only and disappears on page reload.
+This Compose stack uses mock bodies; camera inspections require the warehouse runner below. Enter the development API key in Control Center. It is held in memory only and disappears on page reload.
 
 ### 3. Native development
 
@@ -110,6 +110,13 @@ Python boundary:
 python -m compileall services/lattice-ai-gateway/app
 ```
 
+## Full portfolio demo: ROS 2 warehouse and local ML
+
+The navigation adapter connects signed Rust missions to ROS 2 Jazzy, Nav2 and
+Gazebo Harmonic, with map-frame telemetry in Control Center. See the
+[warehouse demo guide](docs/ROBOTICS_DEMO.md) for setup, the live functional check,
+and the local watchdog/stop behavior. Follow the [language and inspection walkthrough](docs/INTELLIGENCE_DEMO.md) for model evaluation, backend approval and camera evidence.
+
 ## Current milestone
 
 The executable foundation provides:
@@ -124,10 +131,12 @@ The executable foundation provides:
 - unavailable-body reassignment
 - append-only development audit records
 - React fleet and mission UI
-- approval workflow state machine
+- immutable proposals with backend-enforced approval
+- trained intent classification with held-out evaluation
+- camera evidence and a trained safety-marker detector
 - live 3D digital-twin viewport
 
-The next milestone is the ROS 2 Jazzy + Gazebo Harmonic rover adapter described in `docs/IMPLEMENTATION_PLAN.md`.
+The implemented demo is described in `docs/INTELLIGENCE_DEMO.md`. Durable core state, per-user/device identities, general LLM/VLM planning, SLAM, and physical hardware remain future milestones.
 
 ## Safety status
 

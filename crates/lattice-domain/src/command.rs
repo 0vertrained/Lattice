@@ -88,4 +88,7 @@ pub struct CommandResult {
     pub detail: Option<String>,
     /// Body timestamp.
     pub reported_at: DateTime<Utc>,
+    /// Camera evidence for completed inspections only.
+    #[serde(default)]
+    pub evidence: Option<crate::InspectionEvidence>,
 }

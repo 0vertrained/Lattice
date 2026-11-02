@@ -7,7 +7,7 @@ interface FleetPanelProps {
 
 export function FleetPanel({ bodies, loading }: FleetPanelProps) {
   return (
-    <section className="panel" aria-labelledby="fleet-title">
+    <section className="panel fleet-panel" aria-labelledby="fleet-title">
       <div className="section-heading">
         <div>
           <p className="eyebrow">Capability registry</p>
@@ -34,6 +34,11 @@ export function FleetPanel({ bodies, loading }: FleetPanelProps) {
               </span>
             </div>
             <p>{body.location}</p>
+            {body.pose != null && (
+              <small>
+                Map: {body.pose.x.toFixed(2)}, {body.pose.y.toFixed(2)} m
+              </small>
+            )}
             <div className="capability-list">
               {body.capabilities.map((capability) => (
                 <span key={capability}>{capability.replaceAll('_', ' ')}</span>

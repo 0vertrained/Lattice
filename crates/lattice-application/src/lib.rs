@@ -2,6 +2,8 @@
 
 mod error;
 mod ports;
+mod proposal;
+pub use proposal::{Proposal, ProposalInput, validate_warehouse_command};
 mod service;
 
 pub use error::ApplicationError;

@@ -55,6 +55,7 @@ message Heartbeat {
   string status = 3;
   string semantic_location = 4;
   google.protobuf.Timestamp observed_at = 5;
+  optional MapPose pose = 6;
 }
 
 message SignedCommand {
@@ -75,4 +76,11 @@ message CommandResult {
 message LeaseUpdate {
   string body_lease_id = 1;
   google.protobuf.Timestamp lease_expires_at = 2;
+}
+
+// Planar map-frame localization; absent when the adapter is not localized.
+message MapPose {
+  double x = 1;
+  double y = 2;
+  double yaw = 3;
 }

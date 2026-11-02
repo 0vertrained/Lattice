@@ -8,6 +8,9 @@ pub mod body;
 pub mod command;
 /// Domain validation and state-transition errors.
 pub mod error;
+/// Inspection evidence contracts.
+pub mod evidence;
+pub use evidence::{Detection, InspectionEvidence};
 /// Validated identifiers.
 pub mod id;
 /// Mission lifecycle model and invariants.
@@ -16,7 +19,7 @@ pub mod mission;
 pub mod skill;
 
 pub use audit::{AuditActor, AuditRecord};
-pub use body::{BatteryPercent, BodyKind, BodySnapshot, BodyStatus};
+pub use body::{BatteryPercent, BodyKind, BodyPose, BodySnapshot, BodyStatus};
 pub use command::{
     CommandEnvelope, CommandResult, CommandResultStatus, SignedCommand, VerificationKey,
 };
