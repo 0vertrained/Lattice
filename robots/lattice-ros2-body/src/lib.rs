@@ -3,8 +3,11 @@
 use base64::{Engine, engine::general_purpose::STANDARD};
 use chrono::{DateTime, Utc};
 use ed25519_dalek::{Signature, VerifyingKey};
-use lattice_domain::{BodyId, BodyPose, SignedCommand, SkillCommand, VerificationKey};
+use lattice_domain::{
+    BodyId, BodyPose, Capability, RouteTraversal, SignedCommand, SkillCommand, VerificationKey,
+};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 
 /// Local gateway response. The gateway owns ROS action state and localization.
 #[derive(Debug, Clone, Deserialize)]
@@ -46,6 +49,9 @@ pub struct NavigationGoal<'a> {
     pub expires_unix_ms: i64,
     /// Inspection requires a fresh frame after arrival.
     pub inspection: bool,
+    /// Exact approved route geometry, when this is a semantic route command.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub traversal: Option<&'a RouteTraversal>,
 }
 
 /// Verifies authentication, target, sequence, wall-clock validity and skill bounds.
@@ -56,6 +62,26 @@ pub fn verify_navigation<'a>(
     body_id: &BodyId,
     highest_sequence: u64,
     now: DateTime<Utc>,
+) -> Result<NavigationGoal<'a>, Box<dyn std::error::Error + Send + Sync>> {
+    verify_navigation_with_capabilities(
+        command,
+        key,
+        body_id,
+        highest_sequence,
+        now,
+        &BTreeSet::from([Capability::Navigate, Capability::Inspect]),
+    )
+}
+
+/// Verifies a command for an explicitly configured local body capability set.
+/// A command's advertised requirements cannot grant a capability to this adapter.
+pub fn verify_navigation_with_capabilities<'a>(
+    command: &'a SignedCommand,
+    key: &VerificationKey,
+    body_id: &BodyId,
+    highest_sequence: u64,
+    now: DateTime<Utc>,
+    capabilities: &BTreeSet<Capability>,
 ) -> Result<NavigationGoal<'a>, Box<dyn std::error::Error + Send + Sync>> {
     let envelope = &command.envelope;
     if key.algorithm != "Ed25519" || key.key_id != command.key_id {
@@ -68,6 +94,13 @@ pub fn verify_navigation<'a>(
         return Err("expired or future-dated command".into());
     }
     envelope.command.validate()?;
+    if !envelope
+        .command
+        .required_capabilities()
+        .is_subset(capabilities)
+    {
+        return Err("local body lacks a required command capability".into());
+    }
     let key_bytes: [u8; 32] = STANDARD
         .decode(&key.public_key_base64)?
         .try_into()
@@ -86,14 +119,30 @@ pub fn verify_navigation<'a>(
             max_speed_mps,
         } => (destination.as_str(), *max_speed_mps, false),
         SkillCommand::Inspect { location } => (location.as_str(), 0.3, true),
-        _ => return Err("ROS adapter supports navigate and inspect only".into()),
+        SkillCommand::TraverseRoute { traversal } => {
+            (traversal.to.id.as_str(), traversal.max_speed_mps, false)
+        }
+        _ => {
+            return Err(
+                "local adapter supports navigate, inspect and reviewed route traversal only".into(),
+            );
+        }
+    };
+    let traversal = match &envelope.command {
+        SkillCommand::TraverseRoute { traversal } => Some(traversal),
+        _ => None,
     };
     Ok(NavigationGoal {
-        op: "navigate",
+        op: if traversal.is_some() {
+            "traverse_route"
+        } else {
+            "navigate"
+        },
         command_id: envelope.command_id.to_string(),
         destination,
         max_speed_mps: speed,
         inspection,
+        traversal,
         ttl_ms: (envelope.expires_at - now).num_milliseconds(),
         expires_unix_ms: envelope.expires_at.timestamp_millis(),
     })
@@ -145,6 +194,53 @@ mod tests {
         assert_eq!(goal.destination, "loading_dock");
         assert_eq!(goal.ttl_ms, 30_000);
         assert_eq!(goal.max_speed_mps, 0.3);
+    }
+
+    #[test]
+    fn signed_stairs_require_every_local_capability_and_preserve_geometry() {
+        let (mut command, key, body, now) = fixture();
+        let map: lattice_domain::navigation::SemanticMap = serde_json::from_str(include_str!(
+            "../../../simulation/routes/warehouse-stairs.json"
+        ))
+        .unwrap();
+        let traversal =
+            RouteTraversal::from_segment(&map, map.segment("stairs_to_upper").unwrap()).unwrap();
+        command.envelope.command = SkillCommand::TraverseRoute {
+            traversal: traversal.clone(),
+        };
+        let signer = SigningKey::from_bytes(&[7; 32]);
+        command.signature_base64 = STANDARD.encode(
+            signer
+                .sign(&command.envelope.signing_bytes().unwrap())
+                .to_bytes(),
+        );
+        assert!(verify_navigation(&command, &key, &body, 0, now).is_err());
+        assert!(
+            verify_navigation_with_capabilities(
+                &command,
+                &key,
+                &body,
+                0,
+                now,
+                &BTreeSet::from([Capability::Stairs]),
+            )
+            .is_err()
+        );
+        let capabilities = BTreeSet::from([Capability::Navigate, Capability::Stairs]);
+        let goal =
+            verify_navigation_with_capabilities(&command, &key, &body, 0, now, &capabilities)
+                .unwrap();
+        assert_eq!(goal.op, "traverse_route");
+        assert_eq!(goal.traversal, Some(&traversal));
+        assert_eq!(goal.destination, "upper_inspection");
+        assert!(!goal.inspection);
+        if let SkillCommand::TraverseRoute { traversal } = &mut command.envelope.command {
+            traversal.to.pose.z = 0.0;
+        }
+        assert!(
+            verify_navigation_with_capabilities(&command, &key, &body, 0, now, &capabilities,)
+                .is_err()
+        );
     }
 
     #[test]

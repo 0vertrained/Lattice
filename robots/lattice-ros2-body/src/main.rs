@@ -7,7 +7,7 @@ use lattice_domain::{
     BatteryPercent, BodyId, BodyKind, BodyStatus, Capability, CommandResult, CommandResultStatus,
     InspectionEvidence, SignedCommand, SkillCommand, VerificationKey,
 };
-use lattice_ros2_body::{GatewayState, verify_navigation};
+use lattice_ros2_body::{GatewayState, verify_navigation_with_capabilities};
 use reqwest::{Client, StatusCode};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -276,6 +276,38 @@ async fn main() -> Result<(), Error> {
     }
     let body_id =
         BodyId::new(env::var("LATTICE_BODY_ID").unwrap_or_else(|_| "gazebo-rover".into()))?;
+    let (body_kind, capabilities) =
+        match env::var("LATTICE_BODY_KIND").as_deref().unwrap_or("rover") {
+            "rover" => (
+                BodyKind::Rover,
+                BTreeSet::from([Capability::Navigate, Capability::Inspect]),
+            ),
+            "quadruped" => (
+                BodyKind::Quadruped,
+                BTreeSet::from([
+                    Capability::Navigate,
+                    Capability::Inspect,
+                    Capability::Stairs,
+                ]),
+            ),
+            _ => return Err("local body kind must be rover or quadruped".into()),
+        };
+    let navigation_map: Option<lattice_domain::navigation::SemanticMap> =
+        match env::var_os("LATTICE_NAVIGATION_MAP_FILE") {
+            Some(path) => {
+                if fs::metadata(&path)?.len() > 65_536 {
+                    return Err("local route map exceeds 64 KiB".into());
+                }
+                let map: lattice_domain::navigation::SemanticMap =
+                    serde_json::from_slice(&fs::read(path)?)?;
+                map.validate()?;
+                if map.frame_id != "map" {
+                    return Err("local gateway requires the map coordinate frame".into());
+                }
+                Some(map)
+            }
+            None => None,
+        };
     let socket =
         env::var("LATTICE_ROS_SOCKET").unwrap_or_else(|_| "/run/lattice/gateway.sock".into());
     let state_path = env::var("LATTICE_SEQUENCE_FILE")
@@ -311,8 +343,8 @@ async fn main() -> Result<(), Error> {
         .json(&RegisterBodyRequest {
             id: body_id.clone(),
             display_name: env::var("LATTICE_BODY_NAME").unwrap_or_else(|_| body_id.to_string()),
-            kind: BodyKind::Rover,
-            capabilities: BTreeSet::from([Capability::Navigate, Capability::Inspect]),
+            kind: body_kind,
+            capabilities: capabilities.clone(),
             adapter_version: env!("CARGO_PKG_VERSION").into(),
         })
         .send()
@@ -455,13 +487,26 @@ async fn main() -> Result<(), Error> {
             }
             if response.status() != StatusCode::NO_CONTENT {
                 let command: SignedCommand = response.json().await?;
-                let goal = match verify_navigation(&command, &key, &body_id, highest, Utc::now()) {
+                let goal = match verify_navigation_with_capabilities(
+                    &command,
+                    &key,
+                    &body_id,
+                    highest,
+                    Utc::now(),
+                    &capabilities,
+                ) {
                     Ok(goal) => goal,
                     Err(error) => {
                         tracing::warn!(%error, "command rejected before ROS");
                         continue;
                     }
                 };
+                if let SkillCommand::TraverseRoute { traversal } = &command.envelope.command {
+                    let map = navigation_map
+                        .as_ref()
+                        .ok_or("local trusted route map is required before traversal")?;
+                    traversal.validate_against(map)?;
+                }
                 highest = command.envelope.sequence;
                 let parent = Path::new(&state_path)
                     .parent()

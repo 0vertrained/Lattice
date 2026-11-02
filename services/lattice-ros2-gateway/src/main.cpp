@@ -3,6 +3,7 @@
 #include "lifecycle_msgs/msg/transition.hpp"
 #include "lifecycle_msgs/srv/get_state.hpp"
 #include "motion_gate.hpp"
+#include "route_geometry.hpp"
 #include "nav2_msgs/action/navigate_to_pose.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
@@ -19,6 +20,7 @@
 #include <filesystem>
 #include <fstream>
 #include <memory>
+#include <optional>
 #include <nlohmann/json.hpp>
 #include <stdexcept>
 #include <string>
@@ -204,16 +206,43 @@ private:
       result["capture_unix_ms"] = frame_unix_ms_;
       return result;
     }
-    if (op != "navigate")
+    if (op != "navigate" && op != "traverse_route")
       throw std::runtime_error("unknown local operation");
     if (state_ == "running")
       throw std::runtime_error("navigation already active");
     const auto destination = data.at("destination").get<std::string>();
-    if (!locations_.contains(destination))
-      throw std::runtime_error("unknown warehouse destination");
     if (!ready())
       throw std::runtime_error("navigation/localization not ready");
     const auto speed = data.at("max_speed_mps").get<double>();
+    Json target;
+    std::optional<RouteRegion> arrival;
+    if (op == "traverse_route") {
+      const auto &route = data.at("traversal");
+      const auto &from = route.at("from");
+      const auto &to = route.at("to");
+      const auto &requirements = route.at("required_capabilities");
+      if (!requirements.is_array() || requirements.size() != 1 ||
+          requirements.at(0) != "navigate" || to.at("id") != destination ||
+          route.at("max_speed_mps").get<double>() != speed)
+        throw std::runtime_error("rover cannot execute the requested route capabilities");
+      const auto a = from.at("pose"), b = to.at("pose");
+      const double ax = a.at("x"), ay = a.at("y"), az = a.at("z");
+      const double bx = b.at("x"), by = b.at("y"), bz = b.at("z");
+      const double radius = from.at("arrival_radius_m");
+      const auto current = pose_;
+      const RouteRegion source{ax, ay, az, radius};
+      source.validate();
+      arrival = RouteRegion{bx, by, bz, to.at("arrival_radius_m")};
+      arrival->validate();
+      if (current.is_null() ||
+          !source.contains(current.at("x"), current.at("y")))
+        throw std::runtime_error("rover must start at the reviewed ground-level route source");
+      target = {{"x", bx}, {"y", by}, {"yaw", std::atan2(by - ay, bx - ax)}};
+    } else {
+      if (!locations_.contains(destination))
+        throw std::runtime_error("unknown warehouse destination");
+      target = locations_.at(destination);
+    }
     const auto utc_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                             std::chrono::system_clock::now().time_since_epoch())
                             .count();
@@ -240,9 +269,9 @@ private:
     Navigate::Goal message;
     message.pose.header.frame_id = get_parameter("map_frame_id").as_string();
     message.pose.header.stamp = this->now();
-    message.pose.pose.position.x = locations_.at(destination).at("x");
-    message.pose.pose.position.y = locations_.at(destination).at("y");
-    const double yaw = locations_.at(destination).at("yaw");
+    message.pose.pose.position.x = target.at("x");
+    message.pose.pose.position.y = target.at("y");
+    const double yaw = target.at("yaw");
     message.pose.pose.orientation.z = std::sin(yaw / 2);
     message.pose.pose.orientation.w = std::cos(yaw / 2);
     const auto id = command_id_;
@@ -276,13 +305,15 @@ private:
                 static_cast<int>(100 * (1 - distance / initial_distance_)), 0,
                 99);
         };
-    options.result_callback = [this, id](const Handle::WrappedResult &result) {
+    options.result_callback = [this, id, arrival](const Handle::WrappedResult &result) {
       if (id != command_id_ || !gate_.active())
         return;
       gate_.stop();
       goal_.reset();
       desired_ = geometry_msgs::msg::Twist{};
-      if (result.code == rclcpp_action::ResultCode::SUCCEEDED) {
+      const bool in_region = !arrival ||
+          (!pose_.is_null() && arrival->contains(pose_.at("x"), pose_.at("y")));
+      if (result.code == rclcpp_action::ResultCode::SUCCEEDED && in_region) {
         state_ = "succeeded";
         arrived_at_ = MotionGate::Clock::now();
         arrived_sim_ = this->now();
@@ -290,7 +321,8 @@ private:
         detail_ = "destination reached";
       } else {
         state_ = "failed";
-        detail_ = "Nav2 could not reach destination";
+        detail_ = in_region ? "Nav2 could not reach destination"
+                            : "Nav2 stopped outside the reviewed arrival region";
       }
       velocity_->publish(geometry_msgs::msg::Twist{});
     };
