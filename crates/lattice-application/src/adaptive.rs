@@ -302,8 +302,10 @@ impl LatticeService {
             || input.reason.chars().any(char::is_control)
             || input.map_digest != map.digest()?
             || map.segment(&input.segment_id).is_none()
-            || input.observed_at < now - Duration::seconds(5)
             || input.observed_at > now + Duration::seconds(1)
+            // An operator reports what they see now. A body's scan is judged against its active command
+            // below instead, so a retry that lands after an outage still counts while that command runs.
+            || (body.is_none() && input.observed_at < now - Duration::seconds(5))
         {
             return Err(conflict(
                 "condition report requires a current map segment, fresh time and bounded identity/reason",
@@ -354,16 +356,19 @@ impl LatticeService {
                     "body evidence pose differs from fresh authenticated localization",
                 ));
             }
+            // Commands are issued with the configured TTL, so expiry - ttl is when this one was issued.
+            let ttl = Duration::from_std(self.config.command_ttl)
+                .map_err(|_| ApplicationError::Infrastructure)?;
             let valid_command = self.missions.list().await?.iter().any(|mission| {
                 mission.assigned_body_id.as_ref() == Some(body_id) && mission.active_command_id.as_ref() == Some(command_id)
                     && matches!(mission.status, MissionStatus::Assigned | MissionStatus::Running)
-                    && mission.command_expires_at.is_some_and(|expiry| now < expiry)
+                    && mission.command_expires_at.is_some_and(|expiry| now < expiry && input.observed_at >= expiry - ttl)
                     && matches!(&mission.command, SkillCommand::TraverseRoute { traversal }
                         if traversal.segment_id == input.segment_id && traversal.map_digest == input.map_digest)
             });
             if !valid_command {
                 return Err(conflict(
-                    "body evidence does not belong to an active matching route command",
+                    "body evidence must come from its active, unexpired route command, observed while it ran",
                 ));
             }
         }

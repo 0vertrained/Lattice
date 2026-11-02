@@ -389,6 +389,11 @@ async fn adaptive_conditions_preserve_completed_work_and_review_a_safe_suffix() 
             .await
             .is_err()
     );
+    // A retry that lands after an outage still counts while its command runs: the scan is older than
+    // five seconds, but it was taken during this command and the body is still where it took it.
+    clock.0.fetch_add(8, Ordering::SeqCst);
+    pose(&service, a.as_str(), 0.0, 0.0, None).await;
+    pose(&service, b.as_str(), 1.0, 0.0, Some(0.0)).await;
     let observation = service
         .report_body_route_condition(&a, evidence.clone())
         .await
