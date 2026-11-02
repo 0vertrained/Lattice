@@ -8,8 +8,11 @@ import {
   useMissions,
   useReassignUnavailable,
 } from '../core/api/queries';
+import type { AuthConfig } from '../core/auth/oidc';
 import { AuditPanel } from '../features/audit/AuditPanel';
+import { DevicePanel } from '../features/devices/DevicePanel';
 import { FleetPanel } from '../features/fleet/FleetPanel';
+import { InspectionRound } from '../features/missions/InspectionRound';
 import { MissionComposer } from '../features/missions/MissionComposer';
 import { MissionList } from '../features/missions/MissionList';
 
@@ -22,6 +25,13 @@ const DigitalTwin = lazy(() =>
 export function App() {
   const queryClient = useQueryClient();
   const [apiKey, setApiKey] = useState('');
+  const [auth, setAuth] = useState<AuthConfig | null>(null);
+  const [identity, setIdentity] = useState<{
+    subject: string;
+    roles: string[];
+    mode: string;
+  } | null>(null);
+  const canOperate = identity?.roles.some((r) => r === 'operator' || r === 'admin') ?? false;
   const [connected, setConnected] = useState(false);
   const [health, setHealth] = useState<'checking' | 'online' | 'offline'>('checking');
   const [connectionError, setConnectionError] = useState('');
@@ -33,14 +43,32 @@ export function App() {
 
   useEffect(() => {
     let active = true;
-    apiClient
-      .health()
-      .then((online) => {
-        if (active) setHealth(online ? 'online' : 'offline');
-      })
-      .catch(() => {
-        if (active) setHealth('offline');
-      });
+    async function initialize(): Promise<void> {
+      try {
+        const response = await fetch('/api/v1/auth/config', { cache: 'no-store' });
+        if (!response.ok) throw new Error('Control plane is unavailable.');
+        const config = (await response.json()) as AuthConfig;
+        if (!active) return;
+        setAuth(config);
+        setHealth('online');
+        if (
+          config.mode === 'oidc' &&
+          (await (await import('../core/auth/oidc')).initialize(config))
+        ) {
+          const user = await apiClient.identity();
+          if (active) {
+            setIdentity(user);
+            setConnected(true);
+          }
+        }
+      } catch (error) {
+        if (active) {
+          setHealth('offline');
+          setConnectionError(error instanceof Error ? error.message : 'Sign-in failed.');
+        }
+      }
+    }
+    void initialize();
     return () => {
       active = false;
     };
@@ -70,6 +98,7 @@ export function App() {
     apiClient.setApiKey(apiKey);
     try {
       await Promise.all([apiClient.listBodies(), apiClient.listMissions()]);
+      setIdentity(await apiClient.identity());
       setConnected(true);
     } catch (error) {
       apiClient.clearApiKey();
@@ -80,10 +109,15 @@ export function App() {
   function disconnect(): void {
     apiClient.clearApiKey();
     setConnected(false);
+    setIdentity(null);
+    if (auth?.mode === 'oidc')
+      void import('../core/auth/oidc').then((m) => m.signOut()).catch(() => location.reload());
     setApiKey('');
     queryClient.removeQueries({ queryKey: queryKeys.bodies });
     queryClient.removeQueries({ queryKey: queryKeys.missions });
     queryClient.removeQueries({ queryKey: queryKeys.audit });
+    queryClient.removeQueries({ queryKey: ['devices'] });
+    queryClient.removeQueries({ queryKey: ['rounds'] });
   }
 
   if (!connected) {
@@ -99,23 +133,48 @@ export function App() {
           <div className={`core-health ${health}`}>
             <span /> Core {health}
           </div>
-          <label>
-            Development API key
-            <input
-              type="password"
-              value={apiKey}
-              minLength={32}
-              autoComplete="off"
-              onChange={(event) => setApiKey(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') void connect();
-              }}
-            />
-          </label>
-          <button type="button" onClick={() => void connect()}>
-            Connect to local core
-          </button>
-          <small>The key remains in memory only and is cleared on reload.</small>
+          {auth?.mode === 'development' && (
+            <>
+              <label>
+                Development API key
+                <input
+                  type="password"
+                  value={apiKey}
+                  minLength={32}
+                  autoComplete="off"
+                  onChange={(event) => setApiKey(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') void connect();
+                  }}
+                />
+              </label>
+              <button type="button" onClick={() => void connect()}>
+                Connect to local core
+              </button>
+              <small>Local development mode. The key is cleared on reload.</small>
+            </>
+          )}
+          {auth?.mode === 'oidc' && (
+            <>
+              <p>
+                Sign in through your organization’s identity provider. Your role determines what you
+                can view and approve.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  void import('../core/auth/oidc')
+                    .then((m) => m.signIn())
+                    .catch((e) =>
+                      setConnectionError(e instanceof Error ? e.message : 'Sign-in failed.'),
+                    );
+                }}
+              >
+                Sign in
+              </button>
+            </>
+          )}
+          <a href="./">Explore the guided warehouse demo</a>
           {connectionError !== '' && (
             <p className="form-error" role="alert">
               {connectionError}
@@ -147,13 +206,13 @@ export function App() {
           <button
             type="button"
             className="secondary"
-            disabled={reassign.isPending}
+            disabled={reassign.isPending || !canOperate}
             onClick={() => reassign.mutate()}
           >
             Reassign unavailable
           </button>
           <button type="button" className="ghost" onClick={disconnect}>
-            Disconnect
+            {auth?.mode === 'oidc' ? 'Sign out' : 'Disconnect'}
           </button>
         </div>
       </header>
@@ -188,6 +247,7 @@ export function App() {
         </article>
       </section>
 
+      {auth?.durable && <InspectionRound canOperate={canOperate} />}
       <div className="dashboard-grid">
         <Suspense
           fallback={
@@ -196,10 +256,19 @@ export function App() {
         >
           <DigitalTwin bodies={bodies} />
         </Suspense>
-        <MissionComposer onCreated={() => missionsQuery.refetch()} />
+        {canOperate ? (
+          <MissionComposer onCreated={() => missionsQuery.refetch()} />
+        ) : (
+          <section className="panel">
+            <p className="eyebrow">Viewer access</p>
+            <h2>Observe the fleet</h2>
+            <p>Your account can inspect missions and evidence. An operator approves execution.</p>
+          </section>
+        )}
         <FleetPanel bodies={bodies} loading={bodiesQuery.isLoading} />
-        <MissionList missions={missions} bodies={bodies} />
+        <MissionList missions={missions} bodies={bodies} canOperate={canOperate} />
         <AuditPanel records={audit} />
+        {identity?.roles.includes('admin') && <DevicePanel />}
       </div>
     </main>
   );

@@ -25,3 +25,7 @@ __pycache__/
 /simulation/warehouse/marker.dae
 
 /.lattice-state/
+
+/.deploy/
+
+dist-visitor/

@@ -44,6 +44,19 @@ impl Ed25519CommandSigner {
         })
     }
 
+    /// Loads a stable secret-manager seed without writing it to a container filesystem.
+    pub fn from_base64(seed: &str) -> Result<Self, ApplicationError> {
+        let bytes: [u8; 32] = STANDARD
+            .decode(seed.trim())
+            .map_err(|_| ApplicationError::Security)?
+            .try_into()
+            .map_err(|_| ApplicationError::Security)?;
+        Ok(Self {
+            key_id: "lattice-local-persistent-v1".into(),
+            signing_key: SigningKey::from_bytes(&bytes),
+        })
+    }
+
     /// Generates a process-local development key.
     pub fn generate_ephemeral(key_id: impl Into<String>) -> Self {
         Self {

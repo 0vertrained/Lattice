@@ -29,6 +29,7 @@ services:
         PACKAGE: lattice-core-api
     environment:
       LATTICE_DEV_API_KEY: ${LATTICE_DEV_API_KEY}
+      LATTICE_AUTH_MODE: development
       LATTICE_BIND_ADDRESS: 0.0.0.0:8000
       LATTICE_ALLOWED_ORIGIN: http://localhost:8080
       LATTICE_AI_GATEWAY_URL: http://ai-gateway:8100

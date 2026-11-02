@@ -108,3 +108,31 @@ jobs:
         run: python3 scripts/smoke-recovery.py
         env:
           LATTICE_TEST_DATABASE_URL: postgres://postgres:integration-only@127.0.0.1:5432/lattice_api
+
+  hosted-identities:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.97.1
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/control-center/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -r tests/identity/requirements.txt
+      - run: npm ci --no-audit --no-fund
+        working-directory: apps/control-center
+      - run: npx playwright install --with-deps chromium
+        working-directory: apps/control-center
+      - run: scripts/test-hosted.sh
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: identity-test-logs
+          path: target/identity-test.*/*.log

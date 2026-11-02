@@ -2,8 +2,8 @@
 use async_trait::async_trait;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use lattice_application::{
-    ApplicationError, AuditSink, BodyRepository, CommandQueue, MissionRepository, Proposal,
-    ProposalRepository,
+    ApplicationError, AuditSink, BodyRepository, CommandQueue, InspectionRound, MissionRepository,
+    Proposal, ProposalRepository, RoundRepository,
 };
 use lattice_domain::{
     AuditActor, AuditRecord, BodyId, BodySnapshot, Mission, MissionId, SignedCommand,
@@ -15,10 +15,10 @@ use std::sync::{
     Arc,
     atomic::{AtomicBool, Ordering},
 };
-use tokio::sync::{Mutex, OwnedMutexGuard};
+use tokio::sync::{Mutex, OwnedMutexGuard, RwLock};
 use tokio_postgres::{Client, NoTls};
 
-fn failure(error: impl std::fmt::Display) -> ApplicationError {
+pub(crate) fn failure(error: impl std::fmt::Display) -> ApplicationError {
     tracing::error!(%error, "PostgreSQL operation failed");
     ApplicationError::Infrastructure
 }
@@ -29,16 +29,25 @@ fn decode<T: DeserializeOwned>(value: Value) -> Result<T, ApplicationError> {
     serde_json::from_value(value).map_err(failure)
 }
 
-/// One control-plane writer. A session advisory lock rejects a second core.
-/// This adapter intentionally targets a local, single-replica deployment.
+/// One active writer. Local mode holds a session lock; hosted rollouts use epoch fencing.
+/// The connection must use a local socket/loopback, including a managed Cloud SQL connector.
 #[derive(Clone)]
 pub struct PostgresPlatform {
     client: Arc<Mutex<Client>>,
+    owner_epoch: Arc<RwLock<Option<String>>>,
 }
 impl PostgresPlatform {
     /// Connects to local PostgreSQL, migrates atomically, and acquires sole ownership.
     /// The connection string must select a Unix socket or loopback host (no TLS here).
     pub async fn connect(url: &str) -> Result<Self, ApplicationError> {
+        Self::connect_for_runtime(url, false).await
+    }
+
+    /// Cloud revisions may explicitly transfer ownership. Every old request is fenced.
+    pub async fn connect_for_runtime(
+        url: &str,
+        allow_takeover: bool,
+    ) -> Result<Self, ApplicationError> {
         let config: tokio_postgres::Config = url.parse().map_err(failure)?;
         if config.get_hosts().is_empty()
             || config.get_hosts().iter().any(|host| match host {
@@ -69,8 +78,15 @@ impl PostgresPlatform {
                 "another core owns this database".into(),
             ));
         }
+        if allow_takeover {
+            client
+                .simple_query("SELECT pg_advisory_unlock(710683028831)")
+                .await
+                .map_err(failure)?;
+        }
         let platform = Self {
             client: Arc::new(Mutex::new(client)),
+            owner_epoch: Arc::new(RwLock::new(None)),
         };
         let tx = platform.begin().await?;
         tx.client().batch_execute("CREATE TABLE IF NOT EXISTS lattice_schema_migrations (version integer PRIMARY KEY)").await.map_err(failure)?;
@@ -82,6 +98,22 @@ impl PostgresPlatform {
             (
                 2_i32,
                 include_str!("../../../infrastructure/postgres/migrations/0002_runtime.sql"),
+            ),
+            (
+                3_i32,
+                include_str!(
+                    "../../../infrastructure/postgres/migrations/0003_device_identities.sql"
+                ),
+            ),
+            (
+                4_i32,
+                include_str!("../../../infrastructure/postgres/migrations/0004_core_fencing.sql"),
+            ),
+            (
+                5_i32,
+                include_str!(
+                    "../../../infrastructure/postgres/migrations/0005_inspection_rounds.sql"
+                ),
             ),
         ] {
             if tx
@@ -111,6 +143,12 @@ impl PostgresPlatform {
         Ok(platform)
     }
 
+    /// Readiness checks the actual database connection without mutating state.
+    pub async fn ready(&self) -> Result<(), ApplicationError> {
+        let tx = self.begin().await?;
+        tx.finish(false).await
+    }
+
     /// Begins an isolated use case. Cancellation retains the connection until rollback.
     pub async fn begin(&self) -> Result<Arc<PostgresUnit>, ApplicationError> {
         let unit = Arc::new(PostgresUnit {
@@ -118,6 +156,21 @@ impl PostgresPlatform {
             finished: AtomicBool::new(false),
         });
         unit.client().batch_execute("BEGIN; SET LOCAL statement_timeout = '5s'; SET LOCAL idle_in_transaction_session_timeout = '15s'").await.map_err(failure)?;
+        unit.client()
+            .simple_query("SELECT pg_advisory_xact_lock(710683028832)")
+            .await
+            .map_err(failure)?;
+        if let Some(expected) = self.owner_epoch.read().await.as_ref() {
+            let current: Option<String> = unit
+                .client()
+                .query_one("SELECT owner_epoch FROM core_identity", &[])
+                .await
+                .map_err(failure)?
+                .get(0);
+            if current.as_ref() != Some(expected) {
+                return Err(ApplicationError::Infrastructure);
+            }
+        }
         Ok(unit)
     }
 
@@ -152,6 +205,14 @@ impl PostgresPlatform {
                 held += 1;
             }
         }
+        for mut round in RoundRepository::list(tx.as_ref()).await? {
+            match round.status.as_str() {
+                "pending" => round.status = "invalidated".into(),
+                "active" => round.status = "recovery_required".into(),
+                _ => {}
+            }
+            RoundRepository::save(tx.as_ref(), round).await?;
+        }
         for mut b in BodyRepository::list(tx.as_ref()).await? {
             b.status = lattice_domain::BodyStatus::Offline;
             BodyRepository::save(tx.as_ref(), b).await?;
@@ -180,7 +241,13 @@ impl PostgresPlatform {
             },
         )
         .await?;
-        tx.finish(true).await
+        tx.client()
+            .execute("UPDATE core_identity SET owner_epoch=$1", &[&epoch])
+            .await
+            .map_err(failure)?;
+        tx.finish(true).await?;
+        *self.owner_epoch.write().await = Some(epoch.to_owned());
+        Ok(())
     }
 }
 
@@ -190,7 +257,7 @@ pub struct PostgresUnit {
     finished: AtomicBool,
 }
 impl PostgresUnit {
-    fn client(&self) -> &Client {
+    pub(crate) fn client(&self) -> &Client {
         self.client
             .as_deref()
             .unwrap_or_else(|| unreachable!("connection retained until drop"))
@@ -357,6 +424,34 @@ impl AuditSink for PostgresUnit {
     async fn list(&self) -> Result<Vec<AuditRecord>, ApplicationError> {
         self.client()
             .query("SELECT record FROM audit_log ORDER BY position", &[])
+            .await
+            .map_err(failure)?
+            .into_iter()
+            .map(|r| decode(r.get(0)))
+            .collect()
+    }
+}
+
+#[async_trait]
+impl RoundRepository for PostgresUnit {
+    async fn save(&self, round: InspectionRound) -> Result<(), ApplicationError> {
+        self.client().execute("INSERT INTO inspection_rounds VALUES($1,$2) ON CONFLICT(round_id) DO UPDATE SET round=$2",&[&round.id,&encode(&round)?]).await.map_err(failure)?;
+        Ok(())
+    }
+    async fn get(&self, id: &str) -> Result<Option<InspectionRound>, ApplicationError> {
+        self.client()
+            .query_opt(
+                "SELECT round FROM inspection_rounds WHERE round_id=$1",
+                &[&id],
+            )
+            .await
+            .map_err(failure)?
+            .map(|r| decode(r.get(0)))
+            .transpose()
+    }
+    async fn list(&self) -> Result<Vec<InspectionRound>, ApplicationError> {
+        self.client()
+            .query("SELECT round FROM inspection_rounds ORDER BY round_id", &[])
             .await
             .map_err(failure)?
             .into_iter()

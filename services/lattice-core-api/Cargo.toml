@@ -7,6 +7,10 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
+jsonwebtoken = { version = "10.3", default-features = false, features = ["rust_crypto"] }
+chrono.workspace = true
+base64.workspace = true
+rand_core.workspace = true
 axum.workspace = true
 http.workspace = true
 uuid.workspace = true

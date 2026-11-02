@@ -7,3 +7,12 @@ target
 **/__pycache__
 .dev-pki
 *.zip
+
+.lattice-state
+.deploy
+**/.env
+**/.env.*
+*.key
+*.pem
+**/.venv
+**/dist-visitor

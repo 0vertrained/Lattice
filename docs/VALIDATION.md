@@ -1,3 +1,53 @@
+# Current showcase and hosted identity validation (November 2, 2026)
+
+The checked-in round is a fresh Gazebo/ROS 2/Nav2 run, recorded by
+`scripts/record-inspection-round.py`. It completed three reviewed steps in 74.471 s,
+with 271 measured poses and a 14.21 m reported path. The bay inspection detected a
+marker (score 0.991058); the dock retained a failed inspection with no detection.
+The reviewed continuation policy recorded one anomaly and advanced to return.
+
+The recorder killed its own core during real return-leg motion. The previous goal
+was observed stopped after 0.341 s, with 0.0176 m reported drift during the next
+four seconds. Both camera results and the signing identity survived. No motion
+resumed automatically. A fresh recovery proposal/approval completed the round
+at the charging station. These are simulator measurements, not hardware guarantees.
+The interrupted attempt remains in history.
+
+Checks completed for this increment:
+
+- Rust workspace tests: 17 passed; the isolated PostgreSQL test passed separately.
+- Rust formatting and Clippy with warnings denied.
+- PostgreSQL transaction cancellation, concurrent approval, sole-writer behavior,
+  abrupt process restart, evidence/audit retention, key failures and recovery tests.
+- JWT signature, issuer, audience, expiry/future claims and development-key rejection.
+- Real Keycloak authorization-code/PKCE sign-in and logout for viewer/operator/admin;
+  memory-only browser tokens, server-enforced roles, one-body credentials and revocation.
+- Immutable round digests/policies, no-image failures stopping a round, conditional
+  no-marker continuation, duplicate-result idempotency, old-revision fencing while
+  its process remains alive, and reviewed round recovery through completion.
+- Separate-database pg_dump/pg_restore, comparing mission/round/audit counts and
+  the retained signing identity. No source database was overwritten.
+- Frontend strict TypeScript, Biome, six Vitest tests and production bundle budgets.
+- Guided tour chapters, focus, replay/3D switching, four viewport widths, exact JPEG
+  hashes and no robot API requests; GitHub Pages subdirectory build also tested.
+- Portfolio replay, media/download links, captioned video, light/dark layouts,
+  mobile widths and JavaScript-disabled content. Its existing design is retained.
+- Cloud Run manifest rendering and deployment-script syntax; Netlify static build.
+
+The public tour initially loads approximately 212 KB of JavaScript; the operator
+page loads 368 KB. Three.js loads only when requested (903 KB with the replay scene).
+The portfolio's captioned walkthrough is 88.6 s and 1.8 MB. All published camera
+frames and route samples are actual recorded simulator outputs. The 3D view is
+explicitly labeled as a simplified reconstruction.
+
+Cloud Run/Cloud SQL, Netlify deployment, the remote simulator runner and an external
+OIDC issuer remain unverified on hosted infrastructure. No GCP/Netlify deployment
+credentials are connected to this workspace. GitHub Pages and hosted CI status
+cannot be verified through the active network policy. The recorded showcase uses
+a local development identity; hosted-role behavior is tested separately above.
+
+---
+
 # Validation
 
 ## PostgreSQL recovery increment — November 2, 2026 (UTC)

@@ -21,7 +21,7 @@ startup output. Subsequent runs reuse them. PostgreSQL remains running after the
 simulator exits; stop it with `docker stop <name-from-startup>` when finished.
 The regular `run-warehouse.sh` remains a disposable, in-memory option.
 
-Open Control Center, connect using your existing development API key, and approve
+Open `http://localhost:5173/operator.html`, connect using your existing development API key, and approve
 a mission. After a core restart, unfinished missions show **recovery required**.
 Choose **Review recovery**, check the robot position and command, then **Approve
 recovery**. This creates a new mission, command identity, sequence and expiry.
@@ -43,7 +43,7 @@ only this isolated simulator; do not use it against physical robots.
 ## Transaction and restart behavior
 
 The core uses one PostgreSQL connection and a session advisory lock. A second
-core using the same database is refused. Each authenticated operation uses one
+core using the same database is refused in the default local mode. Hosted OIDC mode can explicitly transfer ownership using a database epoch fence; see [HOSTED_DEMO.md](HOSTED_DEMO.md). Each authenticated operation uses one
 serialized transaction; inference runs outside it so a slow model does not block
 heartbeats. The HTTP response is released only after commit. Approval, mission
 creation, sequence allocation, signed-command enqueue, audit append and outbox
@@ -85,8 +85,7 @@ Do not commit these credentials or include them in a trace or screenshot.
 For an already provisioned local database, set `LATTICE_DATABASE_URL` and
 `LATTICE_SIGNING_KEY_FILE` before starting `lattice-core-api`. The adapter applies
 versioned migrations transactionally on an empty database; a database bootstrapped
-manually with the old untracked SQL scaffold requires migration review. Remote
-PostgreSQL is intentionally unsupported by this adapter until TLS is configured.
+manually with the old untracked SQL scaffold requires migration review. Direct remote PostgreSQL is rejected. Hosted Cloud SQL uses its managed encrypted connector and a local Unix socket.
 
 ## Validation
 
@@ -117,7 +116,7 @@ perception validation is the real-camera scenario above.
 
 ## Scope
 
-This is a single-core, single-operator local simulator. The shared API key and
+This local runner uses a single core and a development identity. The hosted configuration separately implements OIDC user roles and body-scoped credentials. The shared API key and
 file-based development signer are not multi-user authorization or a hardware key
 store. Bounded inspection images currently live in mission JSONB; larger artifacts
 need object storage and retention controls. Audit entries have a hash chain, but

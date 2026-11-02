@@ -565,3 +565,39 @@ textarea:focus-visible {
   outline: 2px solid #5dc4ff;
   outline-offset: 2px;
 }
+
+.inspection-round {
+  margin: 20px 0;
+}
+.round-steps {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.round-steps li,
+.round-progress {
+  padding: 16px;
+  border: 1px solid #30465b;
+  border-radius: 10px;
+}
+.round-steps strong,
+.round-steps span,
+.round-progress span {
+  display: block;
+}
+.round-steps span,
+.round-progress span {
+  margin-top: 8px;
+  color: #bbcad7;
+  font-size: 0.85rem;
+}
+.round-progress {
+  margin-top: 16px;
+}
+@media (max-width: 700px) {
+  .round-steps {
+    grid-template-columns: 1fr;
+  }
+}

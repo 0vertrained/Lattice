@@ -74,3 +74,14 @@ pub trait Clock: Send + Sync {
     /// Returns current UTC time.
     fn now(&self) -> DateTime<Utc>;
 }
+
+/// Transaction-scoped persistence for multi-step inspection objectives.
+#[async_trait]
+pub trait RoundRepository: Send + Sync {
+    /// Stores an immutable plan and mutable execution cursor.
+    async fn save(&self, round: crate::InspectionRound) -> Result<(), ApplicationError>;
+    /// Finds one plan.
+    async fn get(&self, id: &str) -> Result<Option<crate::InspectionRound>, ApplicationError>;
+    /// Lists round history.
+    async fn list(&self) -> Result<Vec<crate::InspectionRound>, ApplicationError>;
+}

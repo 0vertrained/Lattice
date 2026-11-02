@@ -115,12 +115,31 @@ impl LatticeService {
         if mission.status != lattice_domain::MissionStatus::RecoveryRequired {
             return Err(conflict("mission does not require recovery"));
         }
-        self.propose_inner(ProposalInput {
-            user_intent: mission.title,
-            decision: "ready".into(), command: Some(mission.command), model_id: "operator-recovery-v1".into(),
-            policy_version: "warehouse-v1".into(), confidence: 1.0,
-            rationale: "Review the current robot position and surroundings. Approval creates a new command; previous execution will not resume.".into(),
-        }, Some(id.clone())).await
+        let mut rationale="Review the current robot position and surroundings. Approval creates a new command; previous execution will not resume.".to_owned();
+        if let Some(store) = &self.rounds
+            && let Some(round) = store.list().await?.into_iter().find(|r| {
+                r.current_mission_id.as_ref() == Some(id) && r.status == "recovery_required"
+            })
+        {
+            rationale = format!(
+                "Recover step {} of {} in the approved inspection round. After this command, the remaining approved steps continue automatically; their failure policies remain in force.",
+                round.current_step + 1,
+                round.steps.len()
+            );
+        }
+        self.propose_inner(
+            ProposalInput {
+                user_intent: mission.title,
+                decision: "ready".into(),
+                command: Some(mission.command),
+                model_id: "operator-recovery-v1".into(),
+                policy_version: "warehouse-v1".into(),
+                confidence: 1.0,
+                rationale,
+            },
+            Some(id.clone()),
+        )
+        .await
     }
 
     async fn propose_inner(
@@ -257,6 +276,7 @@ impl LatticeService {
                     old.status_detail =
                         Some(format!("Continued after operator review as {}", m.id));
                     self.missions.save(old.clone()).await?;
+                    self.recover_round_mission(&old.id, &m.id).await?;
                 }
             }
             Err(_) => p.status = "failed".into(),

@@ -10,8 +10,8 @@ use axum::{Extension, Json, Router};
 use lattice_application::{
     CreateMissionRequest, HeartbeatRequest, LatticeService, RegisterBodyRequest,
 };
-use lattice_domain::{AuditActor, BodyId, CommandId, CommandResult, MissionId};
-use lattice_infrastructure::PostgresPlatform;
+use lattice_domain::{BodyId, CommandId, CommandResult, MissionId};
+use lattice_infrastructure::{PostgresPlatform, PostgresUnit};
 use serde::{Deserialize, Serialize};
 use tower::ServiceBuilder;
 use tower::limit::ConcurrencyLimitLayer;
@@ -23,14 +23,17 @@ use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
 
-use crate::auth::require_api_key;
+use crate::auth::{Principal, authenticate};
 use crate::config::{AppConfig, ConfigError};
 use crate::error::ApiError;
 
 /// Shared transport state.
 #[derive(Clone)]
 pub struct ApiState {
-    postgres: Option<PostgresPlatform>,
+    pub(crate) postgres: Option<PostgresPlatform>,
+    pub(crate) transaction: Option<Arc<PostgresUnit>>,
+    pub(crate) oidc: Option<crate::oidc::OidcVerifier>,
+    oidc_config: Option<crate::oidc::OidcConfig>,
     /// Application facade.
     pub service: LatticeService,
     /// Development-only API key.
@@ -45,8 +48,12 @@ pub fn router(
     config: AppConfig,
     postgres: Option<PostgresPlatform>,
     epoch: String,
+    oidc: Option<crate::oidc::OidcVerifier>,
 ) -> Result<Router, ConfigError> {
     let state = ApiState {
+        transaction: None,
+        oidc,
+        oidc_config: config.oidc.clone(),
         postgres,
         service,
         dev_api_key: Arc::from(config.dev_api_key),
@@ -60,6 +67,7 @@ pub fn router(
         .allow_methods([Method::GET, Method::POST])
         .allow_headers([
             axum::http::header::CONTENT_TYPE,
+            axum::http::header::AUTHORIZATION,
             HeaderName::from_static("x-lattice-api-key"),
         ]);
 
@@ -69,6 +77,8 @@ pub fn router(
         .route("/bodies/{body_id}/heartbeat", post(heartbeat))
         .route("/bodies/{body_id}/commands/next", get(next_command))
         .route("/missions", get(list_missions))
+        .route("/rounds", get(list_rounds).post(propose_round))
+        .route("/rounds/{id}/approve", post(approve_round))
         .route("/proposals", get(list_proposals).post(create_proposal))
         .route("/proposals/{proposal_id}/approve", post(approve_proposal))
         .route("/missions/reassign", post(reassign))
@@ -82,17 +92,22 @@ pub fn router(
         )
         .route("/security/verification-key", get(verification_key))
         .route("/audit", get(list_audit))
+        .route("/auth/me", get(identity))
+        .route("/devices", get(crate::devices::list).post(crate::devices::issue))
+        .route("/devices/{id}/revoke", post(crate::devices::revoke))
         .route_layer(middleware::from_fn_with_state(state.clone(), unit_of_work))
         // Inference runs outside the serialized database transaction, so it cannot
         // delay body heartbeats. Only freezing the returned proposal opens a unit.
         .route("/proposals/plan", post(plan_proposal).layer(Extension(state.clone())))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
-            require_api_key,
+            authenticate,
         ));
 
     Ok(Router::new()
         .route("/health", get(health))
+        .route("/ready", get(readiness))
+        .route("/v1/auth/config", get(auth_config))
         .nest("/v1", authenticated)
         .with_state(state)
         .layer(
@@ -144,7 +159,15 @@ async fn unit_of_work(
         None => None,
     };
     if let Some(tx) = &tx {
+        if let Some(Principal::Device { hash, .. }) = request.extensions().get::<Principal>() {
+            match tx.authenticate_device(hash).await {
+                Ok(Some(_)) => {}
+                Ok(None) => return StatusCode::UNAUTHORIZED.into_response(),
+                Err(e) => return ApiError::from(e).into_response(),
+            }
+        }
         state.service = state.service.in_transaction(tx.clone());
+        state.transaction = Some(tx.clone());
     }
     request.extensions_mut().insert(state);
     let response = next.run(request).await;
@@ -167,6 +190,60 @@ async fn recovery_proposal(
     ))
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RoundRequest {
+    steps: Vec<lattice_application::RoundStep>,
+}
+async fn list_rounds(
+    Extension(state): Extension<ApiState>,
+) -> Result<Json<Vec<lattice_application::InspectionRound>>, ApiError> {
+    Ok(Json(state.service.list_rounds().await?))
+}
+async fn propose_round(
+    Extension(state): Extension<ApiState>,
+    Json(input): Json<RoundRequest>,
+) -> Result<impl IntoResponse, ApiError> {
+    Ok((
+        StatusCode::CREATED,
+        Json(state.service.propose_round(input.steps).await?),
+    ))
+}
+async fn approve_round(
+    Extension(state): Extension<ApiState>,
+    Extension(principal): Extension<Principal>,
+    Path(id): Path<String>,
+    Json(input): Json<ApprovalRequest>,
+) -> Result<impl IntoResponse, ApiError> {
+    Ok(Json(
+        state
+            .service
+            .approve_round(&id, &input.digest, principal.actor())
+            .await?,
+    ))
+}
+
+async fn identity(Extension(principal): Extension<Principal>) -> Json<crate::auth::Identity> {
+    Json(principal.identity())
+}
+async fn auth_config(State(state): State<ApiState>) -> Json<serde_json::Value> {
+    Json(match state.oidc_config {
+        Some(c) => {
+            serde_json::json!({"mode":"oidc","issuer":c.issuer,"client_id":c.client_id,"audience":c.audience,"durable":state.postgres.is_some()})
+        }
+        None => serde_json::json!({"mode":"development","durable":state.postgres.is_some()}),
+    })
+}
+async fn readiness(State(state): State<ApiState>) -> StatusCode {
+    match state.postgres {
+        Some(db) => match tokio::time::timeout(Duration::from_secs(2), db.ready()).await {
+            Ok(Ok(())) => StatusCode::OK,
+            _ => StatusCode::SERVICE_UNAVAILABLE,
+        },
+        None => StatusCode::OK,
+    }
+}
+
 #[derive(Serialize)]
 struct Health {
     status: &'static str,
@@ -183,25 +260,26 @@ async fn health() -> impl IntoResponse {
 }
 
 async fn register_body(
+    Extension(principal): Extension<Principal>,
     Extension(state): Extension<ApiState>,
     Json(request): Json<RegisterBodyRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
+    principal.require_body(&request.id)?;
     let body = state
         .service
-        .register_body(
-            request,
-            AuditActor::Service("body-registration-api".to_owned()),
-        )
+        .register_body(request, principal.actor())
         .await?;
     Ok((StatusCode::CREATED, Json(body)))
 }
 
 async fn heartbeat(
+    Extension(principal): Extension<Principal>,
     Extension(state): Extension<ApiState>,
     Path(body_id): Path<String>,
     Json(request): Json<HeartbeatRequest>,
 ) -> Result<Json<lattice_domain::BodySnapshot>, ApiError> {
     let body_id = BodyId::new(body_id).map_err(lattice_application::ApplicationError::from)?;
+    principal.require_body(&body_id)?;
     Ok(Json(state.service.heartbeat(&body_id, request).await?))
 }
 
@@ -309,17 +387,14 @@ async fn plan_proposal(
 }
 
 async fn approve_proposal(
+    Extension(principal): Extension<Principal>,
     Extension(state): Extension<ApiState>,
     Path(id): Path<String>,
     Json(request): Json<ApprovalRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
     let mission = state
         .service
-        .approve_proposal(
-            &id,
-            &request.digest,
-            AuditActor::Operator("development-user".into()),
-        )
+        .approve_proposal(&id, &request.digest, principal.actor())
         .await?;
     Ok(Json(mission))
 }
@@ -331,10 +406,12 @@ async fn list_missions(
 }
 
 async fn next_command(
+    Extension(principal): Extension<Principal>,
     Extension(state): Extension<ApiState>,
     Path(body_id): Path<String>,
 ) -> Result<Response, ApiError> {
     let body_id = BodyId::new(body_id).map_err(lattice_application::ApplicationError::from)?;
+    principal.require_body(&body_id)?;
     let command = state.service.next_command(&body_id).await?;
     Ok(match command {
         Some(command) => Json(command).into_response(),
@@ -343,6 +420,7 @@ async fn next_command(
 }
 
 async fn report_result(
+    Extension(principal): Extension<Principal>,
     Extension(state): Extension<ApiState>,
     Path((mission_id, command_id)): Path<(String, String)>,
     Json(mut result): Json<CommandResult>,
@@ -352,6 +430,7 @@ async fn report_result(
     let path_command_id =
         CommandId::new(command_id).map_err(lattice_application::ApplicationError::from)?;
 
+    principal.require_body(&result.body_id)?;
     if result.command_id != path_command_id {
         return Err(lattice_application::ApplicationError::Conflict(
             "command ID in path and body must match".to_owned(),
@@ -370,12 +449,13 @@ async fn report_result(
 }
 
 async fn reassign(
+    Extension(principal): Extension<Principal>,
     Extension(state): Extension<ApiState>,
 ) -> Result<Json<Vec<lattice_domain::Mission>>, ApiError> {
     Ok(Json(
         state
             .service
-            .reassign_unavailable(AuditActor::Operator("development-user".to_owned()))
+            .reassign_unavailable(principal.actor())
             .await?,
     ))
 }
@@ -414,6 +494,9 @@ mod tests {
         router(
             service,
             AppConfig {
+                oidc: None,
+                signing_seed: None,
+                allow_takeover: false,
                 database_url: None,
                 signing_key_file: None,
                 bind_address: "127.0.0.1:8000".parse().unwrap(),
@@ -425,6 +508,7 @@ mod tests {
             },
             None,
             "test-epoch".into(),
+            None,
         )
         .unwrap()
     }

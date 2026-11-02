@@ -1,0 +1,2346 @@
+{
+  "schema": "lattice.walkthrough.v1",
+  "recorded_at": "2026-11-02T04:07:16.535766+00:00",
+  "duration_s": 74.471,
+  "distance_m": 14.21,
+  "round_id": "round-12409b7b6c444d408adc29842e6e99eb",
+  "digest": "1ec2cf7bc9815db8449bbec43afcd7c9c39bb3c90a82c38f22f3a57abe3226b4",
+  "outcome": "completed",
+  "anomaly_count": 1,
+  "steps": [
+    {
+      "title": "Verify the inspection bay",
+      "command": {
+        "type": "inspect",
+        "location": "inspection_bay"
+      },
+      "continue_on_missing_marker": false
+    },
+    {
+      "title": "Check the loading dock",
+      "command": {
+        "type": "inspect",
+        "location": "loading_dock"
+      },
+      "continue_on_missing_marker": true
+    },
+    {
+      "title": "Return to the charging station",
+      "command": {
+        "type": "navigate",
+        "destination": "charging_station",
+        "max_speed_mps": 0.3
+      },
+      "continue_on_missing_marker": false
+    }
+  ],
+  "poses": [
+    {
+      "t": 0.049,
+      "x": 1.4347004364145583e-19,
+      "y": 1.1047244114754644e-37,
+      "yaw": 2.462610733662819e-18,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "idle"
+    },
+    {
+      "t": 0.329,
+      "x": -4.547972419034684e-15,
+      "y": -6.280405465141667e-17,
+      "yaw": 0.03647999996863519,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 0.609,
+      "x": -7.242949933696408e-14,
+      "y": -7.609648404447581e-15,
+      "yaw": 0.18909999992982682,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 0.889,
+      "x": -1.28636348270669e-13,
+      "y": -2.2387130603974542e-14,
+      "yaw": 0.3250999998974413,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 1.169,
+      "x": -1.8233994907471233e-13,
+      "y": -4.465657136343777e-14,
+      "yaw": 0.46109999986273215,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 1.449,
+      "x": -2.325702530467501e-13,
+      "y": -7.402604748234015e-14,
+      "yaw": 0.5970999998265365,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 1.729,
+      "x": -0.00011735141158399396,
+      "y": -9.967079626450308e-14,
+      "yaw": 0.7398305311113562,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 2.009,
+      "x": 0.0006740771564849096,
+      "y": 0.000911871994043655,
+      "yaw": 0.8719398719311396,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 2.289,
+      "x": 0.040112196810084114,
+      "y": 0.028153657870207842,
+      "yaw": 1.055346569686321,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 2.569,
+      "x": 0.06616502945240074,
+      "y": 0.08404720520064614,
+      "yaw": 1.201587192836505,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 2.849,
+      "x": 0.09546285495201619,
+      "y": 0.15477946637619033,
+      "yaw": 1.3474105211281988,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 3.129,
+      "x": 0.1066492691853798,
+      "y": 0.23392372892902585,
+      "yaw": 1.4745565534991498,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 3.409,
+      "x": 0.10976424328811715,
+      "y": 0.31304711365287996,
+      "yaw": 1.5416719230173652,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 3.689,
+      "x": 0.08274479227051604,
+      "y": 0.3939939455289123,
+      "yaw": 1.583280581745859,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 3.969,
+      "x": 0.08226859967451533,
+      "y": 0.47559202059752903,
+      "yaw": 1.5707438828743114,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 4.249,
+      "x": 0.0588601588023651,
+      "y": 0.5453671070188346,
+      "yaw": 1.5848475814349714,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 4.529,
+      "x": 0.058107410626846046,
+      "y": 0.6269635636668953,
+      "yaw": 1.5806453283482358,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 4.809,
+      "x": 0.057224588616751976,
+      "y": 0.7085587773625639,
+      "yaw": 1.582404395388966,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 5.13,
+      "x": 0.041445863979080066,
+      "y": 0.7782674689951516,
+      "yaw": 1.5900650068946316,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 5.469,
+      "x": 0.040647943663599535,
+      "y": 0.8292611147624324,
+      "yaw": 1.58290686485556,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 5.792,
+      "x": 0.04009109158695709,
+      "y": 0.9006587412958008,
+      "yaw": 1.5746622161205046,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 6.09,
+      "x": 0.04002911493544291,
+      "y": 0.9618586344629179,
+      "yaw": 1.5691965018878486,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 6.37,
+      "x": 0.032533120729409934,
+      "y": 1.015342771719689,
+      "yaw": 1.5842124032388631,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 6.65,
+      "x": 0.030199212353983807,
+      "y": 1.0934774003736663,
+      "yaw": 1.5732650201304479,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 7.06,
+      "x": 0.030535980715424908,
+      "y": 1.1750761816223823,
+      "yaw": 1.5608748717586736,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 7.329,
+      "x": 0.0313536722871382,
+      "y": 1.2362706089156394,
+      "yaw": 1.554302365517921,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 7.611,
+      "x": 0.04357321552993523,
+      "y": 1.3252534497004802,
+      "yaw": 1.5388092367759199,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 7.889,
+      "x": 0.045663177213497996,
+      "y": 1.396622769301084,
+      "yaw": 1.5441831289673336,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 8.172,
+      "x": 0.04738090824967242,
+      "y": 1.468002028336141,
+      "yaw": 1.549215442171393,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 8.469,
+      "x": 0.04007294645871083,
+      "y": 1.5494020527047534,
+      "yaw": 1.5631778575745323,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 8.749,
+      "x": 0.032103929908876644,
+      "y": 1.6307227978439334,
+      "yaw": 1.563077747077005,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 9.029,
+      "x": 0.03309791335110038,
+      "y": 1.7123165087100654,
+      "yaw": 1.5547545537402465,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 9.33,
+      "x": 0.03463376643384486,
+      "y": 1.7939019663209879,
+      "yaw": 1.5496833479972842,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 9.609,
+      "x": 0.03780539361308276,
+      "y": 1.8778192413560721,
+      "yaw": 1.544524908540198,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 9.891,
+      "x": 0.039896630323281494,
+      "y": 1.9584880832195783,
+      "yaw": 1.5454144093378104,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 10.169,
+      "x": 0.04132002921823326,
+      "y": 2.0297003566998923,
+      "yaw": 1.5616190536078158,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 10.449,
+      "x": 0.03344647788775919,
+      "y": 2.08123405691669,
+      "yaw": 1.6028518068191406,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 10.729,
+      "x": 0.03133218042150414,
+      "y": 2.1362121626029906,
+      "yaw": 1.6154597143536562,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 11.009,
+      "x": 0.0289419473681609,
+      "y": 2.1839208910675154,
+      "yaw": 1.6262503079997994,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 11.289,
+      "x": 0.02642599758454746,
+      "y": 2.225678261983967,
+      "yaw": 1.6357001088344512,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "running"
+    },
+    {
+      "t": 11.569,
+      "x": 0.006921084730789076,
+      "y": 2.2567297638598918,
+      "yaw": 1.6480818972737048,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "succeeded"
+    },
+    {
+      "t": 11.849,
+      "x": 0.006921084730851609,
+      "y": 2.2567297638590795,
+      "yaw": 1.6480818972735007,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "succeeded"
+    },
+    {
+      "t": 12.129,
+      "x": 0.006921084730851609,
+      "y": 2.2567297638590795,
+      "yaw": 1.6480818972735007,
+      "mission_id": "mission-cd9b9e7ff4c34f77b0b6a0cfc42bfdaf",
+      "status": "succeeded"
+    },
+    {
+      "t": 12.409,
+      "x": 0.006921084730851609,
+      "y": 2.2567297638590795,
+      "yaw": 1.6480818972735007,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "succeeded"
+    },
+    {
+      "t": 12.689,
+      "x": 0.0069210847308515955,
+      "y": 2.2567297638590795,
+      "yaw": 1.6480818972735007,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "succeeded"
+    },
+    {
+      "t": 12.989,
+      "x": 0.006921084730849944,
+      "y": 2.256729763859079,
+      "yaw": 1.6063218973062063,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 13.269,
+      "x": 0.0069210847308422,
+      "y": 2.2567297638590498,
+      "yaw": 1.4709418973432098,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 13.549,
+      "x": 0.00692108473082674,
+      "y": 2.2567297638590227,
+      "yaw": 1.3349418973740426,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 13.829,
+      "x": 0.006921084730803273,
+      "y": 2.256729763858993,
+      "yaw": 1.1989418974076191,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 14.129,
+      "x": 0.006921084730774366,
+      "y": 2.2567297638589645,
+      "yaw": 1.0629418974431295,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 14.409,
+      "x": 0.0065909147476683055,
+      "y": 2.2585602838420464,
+      "yaw": 0.9184491777404683,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 14.689,
+      "x": 0.006406803722614304,
+      "y": 2.2595177147203622,
+      "yaw": 0.7776720229239003,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 14.969,
+      "x": 0.004967208378133733,
+      "y": 2.2612463965168126,
+      "yaw": 0.6391200094796842,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 15.249,
+      "x": 0.029244319552217603,
+      "y": 2.2763741785370453,
+      "yaw": 0.4685198548104234,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 15.549,
+      "x": 0.08703494576559098,
+      "y": 2.3062353826212845,
+      "yaw": 0.2974827933037685,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 15.833,
+      "x": 0.15312010102899945,
+      "y": 2.3220800138603535,
+      "yaw": 0.17590529898874424,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 16.109,
+      "x": 0.2263155116417022,
+      "y": 2.317734849326018,
+      "yaw": 0.05597797785936116,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 16.37,
+      "x": 0.31499586807887375,
+      "y": 2.3288387221540106,
+      "yaw": -0.017128285892849725,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 16.649,
+      "x": 0.3863452566490783,
+      "y": 2.3262627980835275,
+      "yaw": -0.05434622311917318,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 16.929,
+      "x": 0.45992224358423306,
+      "y": 2.311753116714177,
+      "yaw": -0.10774015513860107,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 17.209,
+      "x": 0.5408408610279263,
+      "y": 2.3012772942174564,
+      "yaw": -0.15001935193112564,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 17.491,
+      "x": 0.6212389268105084,
+      "y": 2.2873596269332532,
+      "yaw": -0.19262629300416653,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 17.769,
+      "x": 0.6953172149861666,
+      "y": 2.258144190592517,
+      "yaw": -0.254151263110608,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 18.049,
+      "x": 0.7697930139538224,
+      "y": 2.2273830899479896,
+      "yaw": -0.27043517440747056,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 18.329,
+      "x": 0.8485311001212734,
+      "y": 2.205962528892932,
+      "yaw": -0.2627587253953393,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 18.609,
+      "x": 0.9273407206566879,
+      "y": 2.1848058863459627,
+      "yaw": -0.26238609538102103,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 18.889,
+      "x": 1.0021002270616166,
+      "y": 2.142991251167746,
+      "yaw": -0.2720296829140097,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 19.169,
+      "x": 1.0808310658367715,
+      "y": 2.1215441502516237,
+      "yaw": -0.26429860696600777,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 19.449,
+      "x": 1.1595615346465715,
+      "y": 2.1000950601038095,
+      "yaw": -0.2683540627721745,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 19.729,
+      "x": 1.2260972426626535,
+      "y": 2.0303086720712136,
+      "yaw": -0.3084286825602898,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 20.009,
+      "x": 1.3042914449018426,
+      "y": 2.006994614893625,
+      "yaw": -0.27654320542215155,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 20.289,
+      "x": 1.3825481206864114,
+      "y": 1.983881848554163,
+      "yaw": -0.29769963886571316,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 20.59,
+      "x": 1.44345950597736,
+      "y": 1.9630912711072017,
+      "yaw": -0.31434116861253864,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 20.869,
+      "x": 1.538369793120661,
+      "y": 1.917475272277145,
+      "yaw": -0.3394478666003848,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 21.149,
+      "x": 1.605662364122297,
+      "y": 1.8936089935216944,
+      "yaw": -0.3500464818452069,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 21.43,
+      "x": 1.6724122850534084,
+      "y": 1.8682684249380104,
+      "yaw": -0.37495306770163117,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 21.71,
+      "x": 1.7309005529360963,
+      "y": 1.8411413256418565,
+      "yaw": -0.3952366694081207,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 21.989,
+      "x": 1.778809291040829,
+      "y": 1.8188141798853472,
+      "yaw": -0.4076581386279416,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 22.269,
+      "x": 1.8532450498378585,
+      "y": 1.7853873190438383,
+      "yaw": -0.4371484535586468,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 22.57,
+      "x": 1.9267097039453467,
+      "y": 1.7498746638286815,
+      "yaw": -0.4624627134792829,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 22.849,
+      "x": 1.9954910880597645,
+      "y": 1.705804212070003,
+      "yaw": -0.4934095105874329,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 23.129,
+      "x": 2.067223239680362,
+      "y": 1.6669064023323328,
+      "yaw": -0.4971954085622311,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 23.409,
+      "x": 2.139175149050131,
+      "y": 1.6284172193643731,
+      "yaw": -0.4863841151021919,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 23.689,
+      "x": 2.2042151469169475,
+      "y": 1.593257941611425,
+      "yaw": -0.4837423891482688,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 23.969,
+      "x": 2.281705553740981,
+      "y": 1.5518715528958362,
+      "yaw": -0.4882835832160317,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 24.249,
+      "x": 2.3535038044969903,
+      "y": 1.5130974728803883,
+      "yaw": -0.5044031891380756,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 24.529,
+      "x": 2.424357109025477,
+      "y": 1.4726274554397294,
+      "yaw": -0.5357764515378091,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 24.809,
+      "x": 2.4859579242433,
+      "y": 1.4346092319473471,
+      "yaw": -0.569880823232953,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 25.089,
+      "x": 2.5534316863462077,
+      "y": 1.3887384773720686,
+      "yaw": -0.6255492398581212,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 25.37,
+      "x": 2.6101657964883165,
+      "y": 1.3454029904358142,
+      "yaw": -0.6793954637786581,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 25.649,
+      "x": 2.6787464417280855,
+      "y": 1.2853199572457965,
+      "yaw": -0.749059127477437,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 25.929,
+      "x": 2.7139684782594213,
+      "y": 1.2347259495630047,
+      "yaw": -0.7948049744095704,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 26.209,
+      "x": 2.764631490394228,
+      "y": 1.1806270114544963,
+      "yaw": -0.8431040457028928,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 26.489,
+      "x": 2.8144143563446855,
+      "y": 1.1217970942685551,
+      "yaw": -0.8928776808999048,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 26.769,
+      "x": 2.82394623085055,
+      "y": 1.054307387435131,
+      "yaw": -0.949170188299735,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 27.05,
+      "x": 2.8676107673432423,
+      "y": 0.987033067677966,
+      "yaw": -0.9617127146307947,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 27.329,
+      "x": 2.9138268646752676,
+      "y": 0.919784146800539,
+      "yaw": -0.9803709339542367,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 27.609,
+      "x": 2.958457923841982,
+      "y": 0.8514734178698252,
+      "yaw": -1.002561781446291,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 27.889,
+      "x": 3.0018102968908043,
+      "y": 0.7823430710381061,
+      "yaw": -1.0177173137377853,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 28.169,
+      "x": 2.9802646930152825,
+      "y": 0.6875438878753694,
+      "yaw": -1.0661394292265953,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 28.449,
+      "x": 3.0211660637881486,
+      "y": 0.6169410487812221,
+      "yaw": -1.0264437857726132,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 28.773,
+      "x": 3.070191837667659,
+      "y": 0.5393345506686831,
+      "yaw": -0.9897715842654584,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 29.049,
+      "x": 3.1100774143438477,
+      "y": 0.48011562260744833,
+      "yaw": -0.9670556669169492,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 29.329,
+      "x": 3.1215644312326263,
+      "y": 0.40416817300038227,
+      "yaw": -0.9725227895876736,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 29.609,
+      "x": 3.1635954984644417,
+      "y": 0.34524812830422613,
+      "yaw": -0.9305952595879131,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 29.889,
+      "x": 3.2022871144323077,
+      "y": 0.29513835016894385,
+      "yaw": -0.8959614631630219,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 30.169,
+      "x": 3.237155163220053,
+      "y": 0.25287578290627893,
+      "yaw": -0.8659908131351506,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 30.449,
+      "x": 3.261786852384626,
+      "y": 0.21153448452477933,
+      "yaw": -0.847504874731788,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 30.729,
+      "x": 3.2686723825504056,
+      "y": 0.1687989553756014,
+      "yaw": -0.8268107846396203,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 31.009,
+      "x": 3.2904654510330142,
+      "y": 0.14611745897257683,
+      "yaw": -0.7839323954880858,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 31.289,
+      "x": 3.299898157544676,
+      "y": 0.1368801209396966,
+      "yaw": -0.7013593041312388,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 31.569,
+      "x": 3.2998981575446438,
+      "y": 0.13688012093972834,
+      "yaw": -0.5653593041667881,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 31.849,
+      "x": 3.29989815754463,
+      "y": 0.13688012093974328,
+      "yaw": -0.42935930420024754,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 32.109,
+      "x": 3.304202731604139,
+      "y": 0.15231605698053546,
+      "yaw": -0.28449360469600643,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 32.389,
+      "x": 3.309977426814855,
+      "y": 0.16190525245956322,
+      "yaw": -0.242781953203488,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "running"
+    },
+    {
+      "t": 32.669,
+      "x": 3.330308408434019,
+      "y": 0.15297148385091203,
+      "yaw": -0.23991574362171733,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "succeeded"
+    },
+    {
+      "t": 32.949,
+      "x": 3.330308408434019,
+      "y": 0.15297148385091197,
+      "yaw": -0.23991574362171733,
+      "mission_id": "mission-322d4d8bf5df41a4956872c54edc2c94",
+      "status": "succeeded"
+    },
+    {
+      "t": 33.229,
+      "x": 3.3578820236164133,
+      "y": 0.16298844317172953,
+      "yaw": -0.20065297389841763,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "succeeded"
+    },
+    {
+      "t": 33.51,
+      "x": 3.35788202361641,
+      "y": 0.16298844317172959,
+      "yaw": -0.21953297388067794,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "running"
+    },
+    {
+      "t": 33.77,
+      "x": 3.357882023616369,
+      "y": 0.1629884431717467,
+      "yaw": -0.3405129738183039,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "running"
+    },
+    {
+      "t": 34.029,
+      "x": 3.357882023616351,
+      "y": 0.16298844317176356,
+      "yaw": -0.4595129737896598,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "running"
+    },
+    {
+      "t": 34.289,
+      "x": 3.357882023616314,
+      "y": 0.16298844317179467,
+      "yaw": -0.5955129737548541,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "running"
+    },
+    {
+      "t": 34.549,
+      "x": 3.357882023616314,
+      "y": 0.16298844317179467,
+      "yaw": -0.714512973723293,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "running"
+    },
+    {
+      "t": 34.816,
+      "x": 3.357882023616273,
+      "y": 0.16298844317183597,
+      "yaw": -0.7825129737048847,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "running"
+    },
+    {
+      "t": 35.069,
+      "x": 3.3580995156735898,
+      "y": 0.1644634162537028,
+      "yaw": -0.8956966743965015,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "running"
+    },
+    {
+      "t": 35.362,
+      "x": 3.3564148863609065,
+      "y": 0.1735241296596693,
+      "yaw": -0.9449679788214991,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "running"
+    },
+    {
+      "t": 35.629,
+      "x": 3.35641488636087,
+      "y": 0.17352412965972613,
+      "yaw": -1.0809679787859074,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "running"
+    },
+    {
+      "t": 35.892,
+      "x": 3.3713294059242567,
+      "y": 0.15078717626596244,
+      "yaw": -1.208357005870836,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "running"
+    },
+    {
+      "t": 36.194,
+      "x": 3.380240658316898,
+      "y": 0.12116033468137097,
+      "yaw": -1.3324476090600132,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "running"
+    },
+    {
+      "t": 36.451,
+      "x": 3.4052649317118693,
+      "y": 0.08045209325322354,
+      "yaw": -1.437239371243696,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "running"
+    },
+    {
+      "t": 36.709,
+      "x": 3.4090677532572577,
+      "y": 0.038135421598546035,
+      "yaw": -1.5212329651636247,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "running"
+    },
+    {
+      "t": 36.97,
+      "x": 3.409273890621816,
+      "y": -0.01117171406920579,
+      "yaw": -1.6344649634431432,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "running"
+    },
+    {
+      "t": 37.229,
+      "x": 3.402971303113315,
+      "y": -0.0703432849513754,
+      "yaw": -1.7174584058910312,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "running"
+    },
+    {
+      "t": 37.489,
+      "x": 3.3712258632791006,
+      "y": -0.1315822817946125,
+      "yaw": -1.8219513886137657,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "running"
+    },
+    {
+      "t": 37.509,
+      "x": 3.3686467414273187,
+      "y": -0.14145078982838072,
+      "yaw": -1.8307985734948895,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "running"
+    },
+    {
+      "t": 37.569,
+      "x": 3.3659820218098284,
+      "y": -0.1512965312635467,
+      "yaw": -1.8394234847825288,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "running"
+    },
+    {
+      "t": 37.629,
+      "x": 3.3605184720642027,
+      "y": -0.1709512831038998,
+      "yaw": -1.8433600045192133,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "running"
+    },
+    {
+      "t": 37.689,
+      "x": 3.3550014675225643,
+      "y": -0.1905911004934313,
+      "yaw": -1.8459607293219105,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "running"
+    },
+    {
+      "t": 37.769,
+      "x": 3.3475558379821266,
+      "y": -0.19870191177970076,
+      "yaw": -1.8601592010388108,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "running"
+    },
+    {
+      "t": 37.83,
+      "x": 3.3398626439638273,
+      "y": -0.20982857696727103,
+      "yaw": -1.8703390071775459,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "failed"
+    },
+    {
+      "t": 38.109,
+      "x": 3.339862643961313,
+      "y": -0.20982857697544316,
+      "yaw": -1.870339007175245,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "failed"
+    },
+    {
+      "t": 38.369,
+      "x": 3.338845241959213,
+      "y": -0.20360984662468534,
+      "yaw": -1.876678418860918,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "failed"
+    },
+    {
+      "t": 38.629,
+      "x": 3.3366368208729487,
+      "y": -0.19250670256410435,
+      "yaw": -1.8879484840802987,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "failed"
+    },
+    {
+      "t": 38.889,
+      "x": 3.3366368208729487,
+      "y": -0.19250670256410435,
+      "yaw": -1.8879484840802987,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "failed"
+    },
+    {
+      "t": 39.17,
+      "x": 3.3366368208729487,
+      "y": -0.19250670256410435,
+      "yaw": -1.8879484840802987,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "failed"
+    },
+    {
+      "t": 39.429,
+      "x": 3.3366368208729487,
+      "y": -0.19250670256410435,
+      "yaw": -1.8879484840802987,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "failed"
+    },
+    {
+      "t": 39.689,
+      "x": 3.3366368208729487,
+      "y": -0.19250670256410435,
+      "yaw": -1.8879484840802987,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "failed"
+    },
+    {
+      "t": 39.95,
+      "x": 3.3366368208729487,
+      "y": -0.19250670256410435,
+      "yaw": -1.8879484840802987,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "failed"
+    },
+    {
+      "t": 40.229,
+      "x": 3.3366368208729487,
+      "y": -0.19250670256410435,
+      "yaw": -1.8879484840802987,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "failed"
+    },
+    {
+      "t": 40.489,
+      "x": 3.3366368208729487,
+      "y": -0.19250670256410435,
+      "yaw": -1.8879484840802987,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "failed"
+    },
+    {
+      "t": 40.75,
+      "x": 3.3366368208729487,
+      "y": -0.19250670256410435,
+      "yaw": -1.8879484840802987,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "failed"
+    },
+    {
+      "t": 41.009,
+      "x": 3.3366368208729487,
+      "y": -0.1925067025641043,
+      "yaw": -1.8879484840802987,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "failed"
+    },
+    {
+      "t": 41.269,
+      "x": 3.3366368208729487,
+      "y": -0.19250670256410435,
+      "yaw": -1.8879484840802987,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "failed"
+    },
+    {
+      "t": 41.529,
+      "x": 3.3366368208729487,
+      "y": -0.19250670256410435,
+      "yaw": -1.8879484840802987,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "failed"
+    },
+    {
+      "t": 41.789,
+      "x": 3.3366368208729487,
+      "y": -0.19250670256410435,
+      "yaw": -1.8879484840802987,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "failed"
+    },
+    {
+      "t": 42.049,
+      "x": 3.3366368208729487,
+      "y": -0.19250670256410435,
+      "yaw": -1.8879484840802987,
+      "mission_id": "mission-bbe4cf2fa6714175be1124b5f3cfc144",
+      "status": "failed"
+    },
+    {
+      "t": 42.389,
+      "x": 3.3366368208729487,
+      "y": -0.19250670256410435,
+      "yaw": -1.8879484840802987,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "failed"
+    },
+    {
+      "t": 42.669,
+      "x": 3.334292589750561,
+      "y": -0.1995666758474473,
+      "yaw": -1.8930320401961074,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 42.949,
+      "x": 3.320832020325067,
+      "y": -0.23930470227039308,
+      "yaw": -1.900825789249849,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 43.23,
+      "x": 3.2959800014552387,
+      "y": -0.3106551446090245,
+      "yaw": -1.9112027521919859,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 43.509,
+      "x": 3.2682107231435777,
+      "y": -0.38738397617979864,
+      "yaw": -1.9254563963665174,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 43.789,
+      "x": 3.235532529385403,
+      "y": -0.473169303469307,
+      "yaw": -1.9444014816124386,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 44.069,
+      "x": 3.205074751093014,
+      "y": -0.54887072560874,
+      "yaw": -1.9623206527703365,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 44.349,
+      "x": 3.1515041707423608,
+      "y": -0.6176543419477492,
+      "yaw": -2.007961227589916,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 44.629,
+      "x": 3.1171568274794828,
+      "y": -0.6916732611460166,
+      "yaw": -2.0021502607096973,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 44.909,
+      "x": 3.083148636718902,
+      "y": -0.7658487338054056,
+      "yaw": -2.0003255736716814,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 45.189,
+      "x": 3.0498173232114545,
+      "y": -0.8227516567116921,
+      "yaw": -2.0146187037163257,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 45.469,
+      "x": 3.0146554381846267,
+      "y": -0.8873389163549482,
+      "yaw": -2.0191712577467533,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 45.749,
+      "x": 2.9790542097613715,
+      "y": -0.9607628059429071,
+      "yaw": -2.027734215474399,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 46.03,
+      "x": 2.9423473656194945,
+      "y": -1.0336387466823744,
+      "yaw": -2.049361879458021,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 46.309,
+      "x": 2.902333386529567,
+      "y": -1.102551223479518,
+      "yaw": -2.0795530246643428,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 46.589,
+      "x": 2.866101584702302,
+      "y": -1.1640671852210187,
+      "yaw": -2.128142999451136,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 46.911,
+      "x": 2.8262279314675336,
+      "y": -1.2225426931637395,
+      "yaw": -2.2154928461811774,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 47.209,
+      "x": 2.750675135169403,
+      "y": -1.2568841357061982,
+      "yaw": -2.3301168654301323,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 47.49,
+      "x": 2.6922239930014094,
+      "y": -1.3137732475660102,
+      "yaw": -2.4113508014005767,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 47.769,
+      "x": 2.6315517424425083,
+      "y": -1.3638149449374153,
+      "yaw": -2.483697006739654,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 48.049,
+      "x": 2.5732895326442335,
+      "y": -1.4073513382701868,
+      "yaw": -2.552770521785795,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 48.333,
+      "x": 2.5200546886288047,
+      "y": -1.4413273863065104,
+      "yaw": -2.6165914488258193,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 48.609,
+      "x": 2.447944709704527,
+      "y": -1.4794768717992761,
+      "yaw": -2.6939936868963565,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 48.889,
+      "x": 2.3818974471014576,
+      "y": -1.4868809907572285,
+      "yaw": -2.787910980472273,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 49.17,
+      "x": 2.2948819136953933,
+      "y": -1.5160917675718246,
+      "yaw": -2.8459612359795554,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 49.449,
+      "x": 2.216262568337444,
+      "y": -1.537913678988779,
+      "yaw": -2.8954739572258013,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 49.729,
+      "x": 2.1207094425101713,
+      "y": -1.5339513433210765,
+      "yaw": -2.971441279126231,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 50.009,
+      "x": 2.0403432417494516,
+      "y": -1.5480867156859146,
+      "yaw": -2.965534317665169,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 50.289,
+      "x": 1.9599431286453608,
+      "y": -1.56202598920677,
+      "yaw": -2.97674766577202,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 50.569,
+      "x": 1.8793338923077314,
+      "y": -1.5746957525520378,
+      "yaw": -2.9951002308530383,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 50.849,
+      "x": 1.7854746368468535,
+      "y": -1.554972513320501,
+      "yaw": -3.0510114189445052,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 51.129,
+      "x": 1.704125893657727,
+      "y": -1.561345209082135,
+      "yaw": -3.075395642926602,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 51.41,
+      "x": 1.6124615176329564,
+      "y": -1.5662935197096175,
+      "yaw": -3.0991595365685267,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 51.69,
+      "x": 1.5505188979699227,
+      "y": -1.5338936322671506,
+      "yaw": 3.1294961461545157,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 51.969,
+      "x": 1.4713919156915465,
+      "y": -1.5279661258451633,
+      "yaw": 3.140029184319311,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 52.249,
+      "x": 1.3999933072374395,
+      "y": -1.5283281413608414,
+      "yaw": -3.1305216652075343,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 52.529,
+      "x": 1.308151122120917,
+      "y": -1.5288318210347558,
+      "yaw": -3.1203233919125473,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 52.809,
+      "x": 1.2246266718671894,
+      "y": -1.5024108513889272,
+      "yaw": -3.131262150321939,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 53.089,
+      "x": 1.143029616680507,
+      "y": -1.5030988416278284,
+      "yaw": -3.13488081450472,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 53.349,
+      "x": 1.0716307104945197,
+      "y": -1.5034912210863514,
+      "yaw": -3.1371739645909114,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 53.629,
+      "x": 0.9869155383103343,
+      "y": -1.4764700309939887,
+      "yaw": 3.1311879623228527,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 53.909,
+      "x": 0.905316731825007,
+      "y": -1.4764390460986072,
+      "yaw": -3.133288991087535,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 54.189,
+      "x": 0.8237266883496726,
+      "y": -1.4776766551804092,
+      "yaw": -3.120301813581436,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 54.469,
+      "x": 0.7611038007366784,
+      "y": -1.474859275141595,
+      "yaw": -3.1173422672782296,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 54.749,
+      "x": 0.6795392968895718,
+      "y": -1.4772544336980757,
+      "yaw": -3.107546934871551,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 55.029,
+      "x": 0.5979956017728635,
+      "y": -1.48028285088579,
+      "yaw": -3.102268264055872,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 55.31,
+      "x": 0.5272008043481539,
+      "y": -1.4848811866948775,
+      "yaw": -3.1012880749655576,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 55.589,
+      "x": 0.4796531110287323,
+      "y": -1.4919116219405752,
+      "yaw": -3.1060719335820335,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 55.869,
+      "x": 0.3981014338730137,
+      "y": -1.494718925557302,
+      "yaw": -3.1085898499768025,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 56.169,
+      "x": 0.3165404711815043,
+      "y": -1.4972408902053733,
+      "yaw": -3.1126256183415064,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 56.489,
+      "x": 0.2757565811394426,
+      "y": -1.4983871495151615,
+      "yaw": -3.114320299167604,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 56.77,
+      "x": 0.2441065103541672,
+      "y": -1.5150775926291664,
+      "yaw": -3.117228044905172,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 57.049,
+      "x": 0.18291839599306947,
+      "y": -1.5162710593534476,
+      "yaw": -3.1269470505277264,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 57.329,
+      "x": 0.10132215672501416,
+      "y": -1.5170158241065521,
+      "yaw": -3.1371900229937846,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 57.609,
+      "x": 0.019722328841808967,
+      "y": -1.5171201364190368,
+      "yaw": 3.140390401564857,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 57.909,
+      "x": -0.05675998740650989,
+      "y": -1.5637751107370594,
+      "yaw": -3.126494082747643,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 58.189,
+      "x": -0.13835545274536415,
+      "y": -1.5646099229597203,
+      "yaw": -3.1354170131704153,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 58.469,
+      "x": -0.2097548882607413,
+      "y": -1.5648792901268143,
+      "yaw": -3.13974908584495,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 58.769,
+      "x": -0.2913548548149053,
+      "y": -1.5649406603422682,
+      "yaw": -3.141417740767472,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 59.049,
+      "x": -0.34282412996848916,
+      "y": -1.59746491895684,
+      "yaw": -3.1332120096361806,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 59.329,
+      "x": -0.42442136507751244,
+      "y": -1.597106583071287,
+      "yaw": 3.126135748934462,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 59.609,
+      "x": -0.4958035766255812,
+      "y": -1.5955317215465703,
+      "yaw": 3.114251008814473,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 59.889,
+      "x": -0.5819199416416942,
+      "y": -1.5983120247501235,
+      "yaw": 3.0999191597730555,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 60.169,
+      "x": -0.6655980852193011,
+      "y": -1.5977937491067595,
+      "yaw": 3.1165879211535623,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 60.449,
+      "x": -0.7471880504046011,
+      "y": -1.5966104928961609,
+      "yaw": 3.137299293138817,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 60.73,
+      "x": -0.8287856610305222,
+      "y": -1.5970463292424903,
+      "yaw": -3.126901990269852,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 61.009,
+      "x": -0.9208422816355946,
+      "y": -1.5962861246035922,
+      "yaw": -3.118478491722826,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 61.289,
+      "x": -1.002412486185398,
+      "y": -1.5984833388043131,
+      "yaw": -3.1106408693566774,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 61.569,
+      "x": -1.0839610543399618,
+      "y": -1.6013719894663232,
+      "yaw": -3.101458921887942,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 61.849,
+      "x": -1.1446329574071943,
+      "y": -1.615992576872592,
+      "yaw": -3.076046349528022,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 62.129,
+      "x": -1.2260724961411762,
+      "y": -1.6211008041169321,
+      "yaw": -3.085570377000957,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 62.41,
+      "x": -1.3075697981753125,
+      "y": -1.6251859775931543,
+      "yaw": -3.095963669404474,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 62.689,
+      "x": -1.389090674699775,
+      "y": -1.6287781975495281,
+      "yaw": -3.0979571041253067,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 62.969,
+      "x": -1.4749108277805167,
+      "y": -1.6290587496065048,
+      "yaw": -3.1000954838527606,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 63.252,
+      "x": -1.556406447457759,
+      "y": -1.6331634862414044,
+      "yaw": -3.0824516079513407,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 63.529,
+      "x": -1.6378183193552474,
+      "y": -1.6386865189417283,
+      "yaw": -3.065287024120476,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 63.809,
+      "x": -1.708502028982098,
+      "y": -1.64493015310589,
+      "yaw": -3.04990882522778,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 64.089,
+      "x": -1.7843719880824893,
+      "y": -1.6558484958183977,
+      "yaw": -3.042736404360774,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 64.369,
+      "x": -1.8656068209335215,
+      "y": -1.663557759958418,
+      "yaw": -3.049737599842328,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 64.649,
+      "x": -1.946860248253465,
+      "y": -1.6710702055870446,
+      "yaw": -3.0474108456632347,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 64.929,
+      "x": -2.0171651830371915,
+      "y": -1.6909024276124291,
+      "yaw": -3.031205926733556,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 65.229,
+      "x": -2.0977125738023656,
+      "y": -1.7012311256315134,
+      "yaw": -3.0037648896113063,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 65.529,
+      "x": -2.1782895826600615,
+      "y": -1.7140758665794629,
+      "yaw": -2.963141184817124,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 65.83,
+      "x": -2.2383458312846174,
+      "y": -1.7258407836770069,
+      "yaw": -2.9335805250349627,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 66.109,
+      "x": -2.310086101304193,
+      "y": -1.734747556071149,
+      "yaw": -2.9024080999563986,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 66.411,
+      "x": -2.3921197071547873,
+      "y": -1.747838212737311,
+      "yaw": -2.872608846021995,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 66.709,
+      "x": -2.4411640169474493,
+      "y": -1.7618235972952,
+      "yaw": -2.8553216450153034,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 66.989,
+      "x": -2.5078256813439643,
+      "y": -1.7821819416368125,
+      "yaw": -2.836024292740854,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 67.289,
+      "x": -2.574843550224599,
+      "y": -1.8042155527038468,
+      "yaw": -2.810014150835083,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 67.569,
+      "x": -2.6356456901397958,
+      "y": -1.8465177625471842,
+      "yaw": -2.765879385635783,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 67.85,
+      "x": -2.666266111639038,
+      "y": -1.8586641167968316,
+      "yaw": -2.762042500012916,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 68.15,
+      "x": -2.7051296117108428,
+      "y": -1.8742760932875246,
+      "yaw": -2.7571782047503546,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 68.449,
+      "x": -2.7439328683146016,
+      "y": -1.8900835557995561,
+      "yaw": -2.7523118812084304,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 68.75,
+      "x": -2.7737198629491355,
+      "y": -1.902367773330971,
+      "yaw": -2.748569693877044,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 69.049,
+      "x": -2.778204388545273,
+      "y": -1.9123693190917388,
+      "yaw": -2.6696529824113373,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 69.329,
+      "x": -2.778204388545106,
+      "y": -1.9123693190916313,
+      "yaw": -2.533652982446966,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 69.649,
+      "x": -2.778204388545106,
+      "y": -1.9123693190916313,
+      "yaw": -2.397652982484968,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 69.951,
+      "x": -2.778204388545106,
+      "y": -1.9123693190916313,
+      "yaw": -2.278652982518211,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 70.229,
+      "x": -2.778204388544987,
+      "y": -1.912369319091464,
+      "yaw": -2.1596529825493334,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 70.509,
+      "x": -2.77961487317388,
+      "y": -1.915516345991172,
+      "yaw": -2.0716060152925553,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 70.789,
+      "x": -2.786642334741636,
+      "y": -1.9315704346826252,
+      "yaw": -1.91960943711579,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 71.069,
+      "x": -2.795172689149046,
+      "y": -1.9319810410282696,
+      "yaw": -1.7962503720125809,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 71.37,
+      "x": -2.8191995989329692,
+      "y": -1.932825500597753,
+      "yaw": -1.6478438020549055,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 71.649,
+      "x": -2.822324668367636,
+      "y": -1.9343409480517422,
+      "yaw": -1.4880318774282801,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 71.929,
+      "x": -2.823259630764743,
+      "y": -1.9344374240138054,
+      "yaw": -1.3588267668895055,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 72.209,
+      "x": -2.840195690302614,
+      "y": -1.94115611865574,
+      "yaw": -1.2105364678706882,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 72.489,
+      "x": -2.8443765391602804,
+      "y": -1.9427593005436912,
+      "yaw": -1.0714638931431963,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 72.769,
+      "x": -2.854755644234981,
+      "y": -1.9657193805866684,
+      "yaw": -0.8871162341756346,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 73.049,
+      "x": -2.854755644235011,
+      "y": -1.9657193805866415,
+      "yaw": -0.7511162342133791,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 73.329,
+      "x": -2.8619600805675836,
+      "y": -1.9576833403928395,
+      "yaw": -0.6032142931129654,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 73.61,
+      "x": -2.8619600805675836,
+      "y": -1.9576833403928393,
+      "yaw": -0.46721429314710194,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 73.889,
+      "x": -2.863995216185999,
+      "y": -1.9621634587836765,
+      "yaw": -0.30306134481183183,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 74.169,
+      "x": -2.863995216186059,
+      "y": -1.9621634587836676,
+      "yaw": -0.16806134483772586,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "running"
+    },
+    {
+      "t": 74.449,
+      "x": -2.8680142153682775,
+      "y": -1.9652905019823153,
+      "yaw": -0.1504824929249899,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "succeeded"
+    },
+    {
+      "t": 74.469,
+      "x": -2.8680142153682775,
+      "y": -1.9652905019823153,
+      "yaw": -0.1504824929249899,
+      "mission_id": "mission-d2e3d27ac176453aba0e61fcffd5002f",
+      "status": "succeeded"
+    }
+  ],
+  "events": [
+    {
+      "t": 0.028,
+      "title": "Round approved",
+      "detail": "A single digest binds all three steps and the missing-marker continuation policy.",
+      "kind": "approval"
+    },
+    {
+      "t": 0.049,
+      "title": "Verify the inspection bay",
+      "detail": "assigned",
+      "kind": "mission"
+    },
+    {
+      "t": 0.609,
+      "title": "Verify the inspection bay",
+      "detail": "running",
+      "kind": "mission"
+    },
+    {
+      "t": 12.409,
+      "title": "Check the loading dock",
+      "detail": "assigned",
+      "kind": "mission"
+    },
+    {
+      "t": 12.409,
+      "title": "Verify the inspection bay",
+      "detail": "succeeded",
+      "kind": "mission"
+    },
+    {
+      "t": 13.269,
+      "title": "Check the loading dock",
+      "detail": "running",
+      "kind": "mission"
+    },
+    {
+      "t": 33.229,
+      "title": "Return to the charging station",
+      "detail": "assigned",
+      "kind": "mission"
+    },
+    {
+      "t": 33.23,
+      "title": "Check the loading dock",
+      "detail": "failed",
+      "kind": "anomaly"
+    },
+    {
+      "t": 37.489,
+      "title": "Core interrupted during motion",
+      "detail": "The body must stop and the interrupted round must remain held.",
+      "kind": "recovery"
+    },
+    {
+      "t": 42.058,
+      "title": "Recovery requires review",
+      "detail": "Camera evidence and history survived. No automatic motion resumed.",
+      "kind": "recovery"
+    },
+    {
+      "t": 42.105,
+      "title": "Recovery approved",
+      "detail": "A fresh reviewed command resumes the remaining round step.",
+      "kind": "approval"
+    },
+    {
+      "t": 42.389,
+      "title": "Return to the charging station",
+      "detail": "assigned",
+      "kind": "mission"
+    },
+    {
+      "t": 42.389,
+      "title": "Return to the charging station",
+      "detail": "cancelled",
+      "kind": "mission"
+    },
+    {
+      "t": 42.949,
+      "title": "Return to the charging station",
+      "detail": "running",
+      "kind": "mission"
+    },
+    {
+      "t": 74.449,
+      "title": "Return to the charging station",
+      "detail": "succeeded",
+      "kind": "mission"
+    },
+    {
+      "t": 74.469,
+      "title": "Round completed",
+      "detail": "Two stations inspected, one marker anomaly retained, and the rover returned to charge.",
+      "kind": "complete"
+    }
+  ],
+  "evidence": [
+    {
+      "title": "Verify the inspection bay",
+      "outcome": "succeeded",
+      "image": "inspection-1.jpg",
+      "model_id": "red-marker-silhouette-logreg-v1-seed41",
+      "captured_at_ms": 1793592448352,
+      "frame_sha256": "f5b411378d45419bb110aa43d1b652cf63a849a352ae33b7fb3dc4e2297e2bdb",
+      "image_sha256": "6de3d029a15c930099d12bb78b8e25a9ddc6af90b91f1eb563739a0a39e5345d",
+      "detections": [
+        {
+          "label": "octagonal_safety_marker",
+          "confidence": 0.991058,
+          "box": [
+            124,
+            33,
+            130,
+            130
+          ]
+        }
+      ],
+      "confidence_domain": "synthetic calibration; not calibrated on real cameras"
+    },
+    {
+      "title": "Check the loading dock",
+      "outcome": "failed",
+      "image": "inspection-2.jpg",
+      "model_id": "red-marker-silhouette-logreg-v1-seed41",
+      "captured_at_ms": 1793592468990,
+      "frame_sha256": "451a54088ea8916b199416c4b1da378b68f0ef53106ed280f9c10185b256d582",
+      "image_sha256": "21a005cd5d5b8b7f22e72f91fbd22f32702ff0d4760246aaa0df0eefe53fb2c2",
+      "detections": [],
+      "confidence_domain": "synthetic calibration; not calibrated on real cameras"
+    }
+  ],
+  "recovery": {
+    "stop_observed_after_s": 0.341,
+    "post_stop_drift_m": 0.0176,
+    "automatic_resume": false,
+    "operator_approved_recovery": "succeeded"
+  }
+}

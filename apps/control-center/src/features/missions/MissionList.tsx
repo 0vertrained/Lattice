@@ -6,9 +6,10 @@ import type { Body, Mission, Proposal } from '../../core/api/schemas';
 interface MissionListProps {
   readonly missions: readonly Mission[];
   readonly bodies: readonly Body[];
+  readonly canOperate: boolean;
 }
 
-export function MissionList({ missions, bodies }: MissionListProps) {
+export function MissionList({ missions, bodies, canOperate }: MissionListProps) {
   const bodyNames = new Map(bodies.map((body) => [body.id, body.display_name]));
 
   return (
@@ -60,7 +61,9 @@ export function MissionList({ missions, bodies }: MissionListProps) {
                 </figcaption>
               </figure>
             )}
-            {mission.status === 'recovery_required' && <RecoveryReview mission={mission} />}
+            {canOperate && mission.status === 'recovery_required' && (
+              <RecoveryReview mission={mission} />
+            )}
             {mission.status_detail !== null && (
               <p className="mission-detail">{mission.status_detail}</p>
             )}

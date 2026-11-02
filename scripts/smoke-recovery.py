@@ -48,7 +48,7 @@ with tempfile.TemporaryDirectory(prefix='lattice-recovery-') as directory:
     work = Path(directory)
     keyfile = work/'signing.key'
     keyfile.write_bytes(secrets.token_bytes(32)); keyfile.chmod(0o600)
-    env = {**os.environ, 'LATTICE_DEV_API_KEY':KEY,'LATTICE_BIND_ADDRESS':f'127.0.0.1:{PORT}', 'LATTICE_DATABASE_URL':os.environ['LATTICE_TEST_DATABASE_URL'], 'LATTICE_SIGNING_KEY_FILE':str(keyfile)}
+    env = {**os.environ, 'LATTICE_AUTH_MODE':'development', 'LATTICE_DEV_API_KEY':KEY,'LATTICE_BIND_ADDRESS':f'127.0.0.1:{PORT}', 'LATTICE_DATABASE_URL':os.environ['LATTICE_TEST_DATABASE_URL'], 'LATTICE_SIGNING_KEY_FILE':str(keyfile)}
     with socket.socket() as sock:
         sock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
         sock.bind(('127.0.0.1',PORT))

@@ -1,0 +1,50 @@
+name: Deploy hosted Lattice
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: lattice-cloud-run
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      GCP_PROJECT: ${{ vars.GCP_PROJECT }}
+      GCP_REGION: ${{ vars.GCP_REGION || 'us-central1' }}
+      LATTICE_SITE_ORIGIN: ${{ vars.LATTICE_SITE_ORIGIN }}
+      LATTICE_OIDC_ISSUER: ${{ vars.LATTICE_OIDC_ISSUER }}
+      LATTICE_OIDC_JWKS_URL: ${{ vars.LATTICE_OIDC_JWKS_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v3
+      - name: Build and push immutable images
+        run: |
+          set -euo pipefail
+          registry="$GCP_REGION-docker.pkg.dev/$GCP_PROJECT/lattice"
+          gcloud auth configure-docker "$GCP_REGION-docker.pkg.dev" --quiet
+          docker build -f Dockerfile.rust-service --build-arg PACKAGE=lattice-core-api -t "$registry/core:$GITHUB_SHA" .
+          docker build -t "$registry/inference:$GITHUB_SHA" services/lattice-ai-gateway
+          docker push "$registry/core:$GITHUB_SHA"
+          docker push "$registry/inference:$GITHUB_SHA"
+          core_digest=$(docker inspect --format='{{index .RepoDigests 0}}' "$registry/core:$GITHUB_SHA")
+          ai_digest=$(docker inspect --format='{{index .RepoDigests 0}}' "$registry/inference:$GITHUB_SHA")
+          echo "LATTICE_CORE_IMAGE=$core_digest" >> "$GITHUB_ENV"
+          echo "LATTICE_INFERENCE_IMAGE=$ai_digest" >> "$GITHUB_ENV"
+      - name: Deploy core and private inference sidecar
+        run: |
+          set -euo pipefail
+          python3 infrastructure/cloud-run/render.py > /tmp/lattice-service.json
+          gcloud run services replace /tmp/lattice-service.json --region "$GCP_REGION" --project "$GCP_PROJECT"
+          url=$(gcloud run services describe lattice-core --region "$GCP_REGION" --format='value(status.url)')
+          curl --fail --retry 8 --retry-delay 3 "$url/ready"
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' "$url/v1/missions")" = 401
+          printf 'Set Netlify LATTICE_API_ORIGIN to %s\n' "$url"

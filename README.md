@@ -4,7 +4,7 @@
 
 Lattice is a simulation-first, security-first embodiment control plane. A persistent intelligence can assign typed missions to interchangeable simulated or physical bodies while preserving identity, world state, audit history, and mission continuity.
 
-The current demo combines a local trained intent classifier, backend approval, signed commands, real Gazebo navigation and camera-based safety-marker inspection:
+The current demo completes an approved three-step warehouse round: inspect two stations, retain a missing-marker anomaly, and return to charge. Killing the core during motion stops the rover; a fresh approval recovers the round with its camera evidence intact. A public guided tour replays the measured run, while a separate operator interface controls the simulator.
 
 - **Rust modular monolith** for the trusted control plane
 - **React + TypeScript + Vite** for the operator product
@@ -79,7 +79,8 @@ Replace `LATTICE_DEV_API_KEY` with at least 32 random characters.
 docker compose --profile ai up --build
 ```
 
-- Control Center: `http://localhost:8080`
+- Public guided tour: `http://localhost:8080`
+- Control Center: `http://localhost:8080/operator.html`
 - Core health: `http://localhost:8000/health`
 - AI proposal service when enabled: `http://localhost:8100`
 
@@ -117,6 +118,10 @@ Gazebo Harmonic, with map-frame telemetry in Control Center. See the
 [warehouse demo guide](docs/ROBOTICS_DEMO.md) for setup, the live functional check,
 and the local watchdog/stop behavior. Follow the [language and inspection walkthrough](docs/INTELLIGENCE_DEMO.md) for model evaluation, backend approval and camera evidence.
 
+## Guided showcase
+
+Run `LATTICE_SHOWCASE=1 ./scripts/run-durable-warehouse.sh` to record the full round, real camera frames and restart recovery. The recorder deliberately interrupts its own local core and explicitly approves recovery. Open `http://localhost:5173/` for the checked-in public walkthrough or `/operator.html` for the live operator UI. See [SHOWCASE.md](docs/SHOWCASE.md).
+
 ## Current milestone
 
 The executable foundation provides:
@@ -138,7 +143,7 @@ The executable foundation provides:
 - transactional PostgreSQL approvals, command queues and audit/outbox records
 - persistent signing identity and explicit recovery after core restarts
 
-The implemented demo is described in `docs/INTELLIGENCE_DEMO.md`. Run `./scripts/run-durable-warehouse.sh` for persistent history and operator-reviewed restart recovery; see the [recovery guide](docs/RECOVERY_DEMO.md). Per-user/device identities, remote hosting, general LLM/VLM planning, SLAM, and physical hardware remain future milestones.
+The implemented demo is described in `docs/INTELLIGENCE_DEMO.md`. Run `./scripts/run-durable-warehouse.sh` for persistent history and operator-reviewed restart recovery; see the [recovery guide](docs/RECOVERY_DEMO.md). OIDC viewer/operator/admin roles, body-scoped revocable credentials, immutable multi-step rounds and revision fencing are implemented. Netlify and Cloud Run deployment configuration is in [HOSTED_DEMO.md](docs/HOSTED_DEMO.md); an authenticated cloud deployment still needs provisioning. General LLM/VLM planning, SLAM and physical hardware validation remain future milestones.
 
 ## Safety status
 

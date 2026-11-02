@@ -30,18 +30,48 @@ export class ApiError extends Error {
 
 class ApiClient {
   private apiKey = '';
+  private accessToken = '';
   private readonly baseUrl = '/api/v1';
 
   setApiKey(apiKey: string): void {
     this.apiKey = apiKey.trim();
   }
 
+  setAccessToken(token: string): void {
+    this.accessToken = token;
+    this.apiKey = '';
+  }
+
   clearApiKey(): void {
+    this.accessToken = '';
     this.apiKey = '';
   }
 
   hasApiKey(): boolean {
-    return this.apiKey.length >= 32;
+    return this.apiKey.length >= 32 || this.accessToken.length > 0;
+  }
+
+  async identity(): Promise<{ subject: string; roles: string[]; mode: string }> {
+    return z
+      .object({ subject: z.string(), roles: z.array(z.string()), mode: z.string() })
+      .parse(await this.request('/auth/me'));
+  }
+  async listDevices(): Promise<DeviceCredential[]> {
+    return z.array(deviceSchema).parse(await this.request('/devices'));
+  }
+  async issueDevice(
+    bodyId: string,
+    label: string,
+  ): Promise<{ credential: DeviceCredential; token: string }> {
+    return z.object({ credential: deviceSchema, token: z.string() }).parse(
+      await this.request('/devices', {
+        method: 'POST',
+        body: JSON.stringify({ body_id: bodyId, label, expires_in_days: 30 }),
+      }),
+    );
+  }
+  async revokeDevice(id: string): Promise<void> {
+    await this.request(`/devices/${encodeURIComponent(id)}/revoke`, { method: 'POST', body: '{}' });
   }
 
   async health(): Promise<boolean> {
@@ -139,9 +169,9 @@ class ApiClient {
     return z.array(auditRecordSchema).parse(payload);
   }
 
-  private async request(path: string, init: RequestInit = {}): Promise<unknown> {
+  async request(path: string, init: RequestInit = {}): Promise<unknown> {
     if (!this.hasApiKey()) {
-      throw new ApiError(401, 'missing_api_key', 'A development API key is required.');
+      throw new ApiError(401, 'missing_api_key', 'Sign in to access the control plane.');
     }
 
     const response = await fetch(`${this.baseUrl}${path}`, {
@@ -150,7 +180,9 @@ class ApiClient {
       headers: {
         accept: 'application/json',
         'content-type': 'application/json',
-        'x-lattice-api-key': this.apiKey,
+        ...(this.accessToken
+          ? { authorization: `Bearer ${this.accessToken}` }
+          : { 'x-lattice-api-key': this.apiKey }),
         ...init.headers,
       },
     });
@@ -174,3 +206,13 @@ class ApiClient {
 }
 
 export const apiClient = new ApiClient();
+
+const deviceSchema = z.object({
+  id: z.string(),
+  body_id: z.string(),
+  label: z.string(),
+  created_at: z.string(),
+  expires_at: z.string(),
+  revoked_at: z.string().nullable(),
+});
+export type DeviceCredential = z.infer<typeof deviceSchema>;

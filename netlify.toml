@@ -1,0 +1,12 @@
+[build]
+  base = "apps/control-center"
+  command = "node ../../scripts/netlify-build.mjs"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "24"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

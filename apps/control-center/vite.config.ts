@@ -19,7 +19,9 @@ export default defineConfig({
     strictPort: true,
   },
   build: {
-    sourcemap: true,
+    sourcemap: false,
+    manifest: true,
+    rollupOptions: { input: { index: 'index.html', operator: 'operator.html' } },
     target: 'es2022',
     chunkSizeWarningLimit: 950,
   },

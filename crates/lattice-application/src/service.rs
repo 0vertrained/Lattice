@@ -84,6 +84,7 @@ pub struct LatticeService {
     pub(crate) clock: Arc<dyn Clock>,
     pub(crate) config: ServiceConfig,
     pub(crate) proposals: Arc<dyn crate::ProposalRepository>,
+    pub(crate) rounds: Option<Arc<dyn crate::RoundRepository>>,
     pub(crate) approval_lock: Arc<tokio::sync::Mutex<()>>,
 }
 
@@ -99,6 +100,7 @@ impl LatticeService {
         config: ServiceConfig,
     ) -> Self {
         Self {
+            rounds: None,
             proposals: Arc::new(crate::proposal::Proposals::default()),
             approval_lock: Arc::default(),
             bodies,
@@ -125,6 +127,7 @@ impl LatticeService {
             + CommandQueue
             + AuditSink
             + crate::ProposalRepository
+            + crate::RoundRepository
             + 'static,
     {
         Self::new(
@@ -136,7 +139,14 @@ impl LatticeService {
             self.clock.clone(),
             self.config.clone(),
         )
-        .with_proposals(unit)
+        .with_proposals(unit.clone())
+        .with_rounds(unit)
+    }
+
+    /// Installs the transaction-scoped round store.
+    pub fn with_rounds(mut self, rounds: Arc<dyn crate::RoundRepository>) -> Self {
+        self.rounds = Some(rounds);
+        self
     }
 
     /// Registers or updates a body identity.
@@ -281,6 +291,7 @@ impl LatticeService {
                 mission.require_recovery(now);
                 mission.status_detail =
                     Some("Command expired before delivery. Review a recovery proposal.".into());
+                self.hold_round(&mission).await?;
                 self.missions.save(mission).await?;
                 self.audit_rejection("command.expired", &command.envelope.command_id, body_id)
                     .await?;
@@ -437,6 +448,7 @@ impl LatticeService {
             })
             .await?;
 
+        self.advance_round(&mission).await?;
         Ok(mission)
     }
 

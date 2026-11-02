@@ -3,7 +3,7 @@ FROM rust:${RUST_VERSION}-bookworm AS build
 ARG PACKAGE
 WORKDIR /workspace
 COPY . .
-RUN cargo build --release --package "${PACKAGE}"
+RUN cargo build --locked --release --package "${PACKAGE}"
 
 FROM debian:bookworm-slim
 ARG PACKAGE

@@ -48,7 +48,6 @@ fn response_epoch(response: &reqwest::Response) -> Result<&str, Error> {
 async fn report(
     client: &Client,
     url: &str,
-    key: &str,
     command: &SignedCommand,
     status: CommandResultStatus,
     state: &GatewayState,
@@ -68,7 +67,6 @@ async fn report(
             "{url}/v1/missions/{}/commands/{}/result",
             command.envelope.mission_id, command.envelope.command_id
         ))
-        .header("x-lattice-api-key", key)
         .json(&result)
         .send()
         .await?
@@ -139,9 +137,34 @@ async fn inspect(socket: String, command: SignedCommand) -> Result<InspectionEvi
 async fn main() -> Result<(), Error> {
     tracing_subscriber::fmt().with_env_filter("info").init();
     let url = env::var("LATTICE_CORE_URL").unwrap_or_else(|_| "http://localhost:8000".into());
-    let api_key = env::var("LATTICE_DEV_API_KEY")?;
-    if api_key.len() < 32 {
-        return Err("development key must have at least 32 characters".into());
+    let device_token = match env::var("LATTICE_DEVICE_TOKEN_FILE") {
+        Ok(path) => Some(fs::read_to_string(path)?.trim().to_owned()),
+        Err(_) => env::var("LATTICE_DEVICE_TOKEN").ok(),
+    };
+    let mut headers = reqwest::header::HeaderMap::new();
+    if let Some(token) = device_token {
+        if !token.starts_with("lattice_device_") {
+            return Err("invalid device credential".into());
+        }
+        headers.insert(
+            reqwest::header::AUTHORIZATION,
+            format!("Bearer {token}").parse()?,
+        );
+    } else {
+        let api_key = env::var("LATTICE_DEV_API_KEY")?;
+        if api_key.len() < 32 {
+            return Err("development key must have at least 32 characters".into());
+        }
+        headers.insert("x-lattice-api-key", api_key.parse()?);
+    }
+    let endpoint = reqwest::Url::parse(&url)?;
+    if endpoint.scheme() != "https"
+        && !matches!(
+            endpoint.host_str(),
+            Some("127.0.0.1" | "localhost" | "[::1]")
+        )
+    {
+        return Err("remote core requires HTTPS".into());
     }
     let body_id =
         BodyId::new(env::var("LATTICE_BODY_ID").unwrap_or_else(|_| "gazebo-rover".into()))?;
@@ -150,11 +173,12 @@ async fn main() -> Result<(), Error> {
     let state_path = env::var("LATTICE_SEQUENCE_FILE")
         .unwrap_or_else(|_| "/var/lib/lattice/sequence.json".into());
     let client = Client::builder()
+        .default_headers(headers)
+        .redirect(reqwest::redirect::Policy::none())
         .timeout(Duration::from_millis(700))
         .build()?;
     let key_response = client
         .get(format!("{url}/v1/security/verification-key"))
-        .header("x-lattice-api-key", &api_key)
         .send()
         .await?
         .error_for_status()?;
@@ -176,7 +200,6 @@ async fn main() -> Result<(), Error> {
     local(&socket, &json!({"op":"stop"})).await?;
     client
         .post(format!("{url}/v1/bodies/register"))
-        .header("x-lattice-api-key", &api_key)
         .json(&RegisterBodyRequest {
             id: body_id.clone(),
             display_name: "Gazebo Rover".into(),
@@ -209,7 +232,6 @@ async fn main() -> Result<(), Error> {
         // Only a successful authenticated round trip renews the local motion lease.
         let heartbeat_result = client
             .post(format!("{url}/v1/bodies/{body_id}/heartbeat"))
-            .header("x-lattice-api-key", &api_key)
             .json(&heartbeat)
             .send()
             .await
@@ -236,17 +258,7 @@ async fn main() -> Result<(), Error> {
         }
         local(&socket, &json!({"op":"lease"})).await?;
         if let (Some(command), Some((status, old_state, evidence))) = (&active, &pending_report) {
-            match report(
-                &client,
-                &url,
-                &api_key,
-                command,
-                *status,
-                old_state,
-                evidence.clone(),
-            )
-            .await
-            {
+            match report(&client, &url, command, *status, old_state, evidence.clone()).await {
                 Ok(()) => {
                     active = None;
                     pending_report = None;
@@ -300,16 +312,8 @@ async fn main() -> Result<(), Error> {
                     state.detail = "capturing and classifying inspection image".into();
                 }
             }
-            if let Err(error) = report(
-                &client,
-                &url,
-                &api_key,
-                command,
-                status,
-                &state,
-                evidence.clone(),
-            )
-            .await
+            if let Err(error) =
+                report(&client, &url, command, status, &state, evidence.clone()).await
             {
                 local(&socket, &json!({"op":"stop"})).await?;
                 if status != CommandResultStatus::Running {
@@ -325,7 +329,6 @@ async fn main() -> Result<(), Error> {
         } else {
             let response = client
                 .get(format!("{url}/v1/bodies/{body_id}/commands/next"))
-                .header("x-lattice-api-key", &api_key)
                 .send()
                 .await
                 .and_then(reqwest::Response::error_for_status);
@@ -372,7 +375,6 @@ async fn main() -> Result<(), Error> {
                     report(
                         &client,
                         &url,
-                        &api_key,
                         &command,
                         CommandResultStatus::Rejected,
                         &state,
