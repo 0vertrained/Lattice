@@ -74,6 +74,10 @@ jobs:
             -Iservices/lattice-ros2-gateway/include \
             services/lattice-ros2-gateway/test/motion_gate_test.cpp -o /tmp/motion-gate-test
           /tmp/motion-gate-test
+          g++ -std=c++20 -Wall -Wextra -Wpedantic -Werror \
+            -Iservices/lattice-ros2-gateway/include \
+            services/lattice-ros2-gateway/test/route_geometry_test.cpp -o /tmp/route-geometry-test
+          /tmp/route-geometry-test
       - name: Check rover geometry and drive configuration
         run: python3 -m unittest discover -s simulation -p 'test_*.py' -v
 
@@ -104,8 +108,10 @@ jobs:
         run: |
           docker exec ${{ job.services.postgres.id }} createdb -U postgres lattice_observations
           docker exec ${{ job.services.postgres.id }} createdb -U postgres lattice_handoffs
+          docker exec ${{ job.services.postgres.id }} createdb -U postgres lattice_routes
           LATTICE_TEST_DATABASE_URL=postgres://postgres:integration-only@127.0.0.1:5432/lattice_observations cargo test --locked -p lattice-infrastructure --test observations -- --ignored
           LATTICE_TEST_DATABASE_URL=postgres://postgres:integration-only@127.0.0.1:5432/lattice_handoffs cargo test --locked -p lattice-infrastructure --test handoffs -- --ignored
+          LATTICE_TEST_DATABASE_URL=postgres://postgres:integration-only@127.0.0.1:5432/lattice_routes cargo test --locked -p lattice-infrastructure --test routes -- --ignored
       - name: Build core and create separate process-test database
         run: |
           cargo build --locked -p lattice-core-api
@@ -115,6 +121,24 @@ jobs:
         env:
           LATTICE_TEST_DATABASE_URL: postgres://postgres:integration-only@127.0.0.1:5432/lattice_api
 
+  quadruped:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+      - run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1-mesa-dri
+      - run: scripts/install-quadruped.sh
+      - run: target/quadruped-venv/bin/python simulation/quadruped/prove.py --assets target/quadruped-assets --map simulation/routes/warehouse-stairs.json --output target/quadruped-proof.json
+        env:
+          OPENBLAS_NUM_THREADS: '1'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quadruped-physics-proof
+          path: target/quadruped-proof.json
   hosted-identities:
     runs-on: ubuntu-latest
     steps:

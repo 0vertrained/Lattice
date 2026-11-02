@@ -32,7 +32,9 @@ with tempfile.TemporaryDirectory(prefix='lattice-handoff-db-') as directory:
             '-p', '127.0.0.1::5432', 'postgres:18.4-alpine'], env=env, check=True, stdout=subprocess.DEVNULL)
         port = subprocess.check_output(docker + ['port', name, '5432/tcp'], env=env, text=True).strip().rsplit(':', 1)[1]
         for _ in range(45):
-            if subprocess.run(docker + ['exec', name, 'pg_isready', '-U', 'postgres'], env=env,
+            # The bootstrap server accepts Unix sockets before the final TCP
+            # listener starts; only TCP readiness matches the core's connection.
+            if subprocess.run(docker + ['exec', name, 'pg_isready', '-h', '127.0.0.1', '-U', 'postgres'], env=env,
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0:
                 break
             time.sleep(1)

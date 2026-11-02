@@ -73,6 +73,11 @@ with tempfile.TemporaryDirectory(prefix='lattice-identity-') as directory:
   req('/v1/bodies/robot-beta/commands/next',credential=robot,expected=403)
   req('/v1/proposals',{'title':'Forbidden robot task','command':{'type':'inspect','location':'inspection_bay'}},robot,403)
   req('/v1/devices',credential=robot,expected=403)
+  for path in ['/v1/navigation/map','/v1/navigation/plans','/v1/rounds/unknown/transfer-options']:
+   req(path,credential=robot,expected=403)
+  for path in ['/v1/navigation/plans','/v1/navigation/plans/unknown/approve','/v1/rounds/unknown/abandon']:
+   req(path,{'digest':'0'*64},viewer,403)
+   req(path,{'digest':'0'*64},robot,403)
   req('/v1/devices/'+device['credential']['id']+'/revoke',{},admin,204)
   req('/v1/security/verification-key',credential=robot,expected=401)
   robot=req('/v1/devices',{'body_id':'robot-alpha','label':'Rotated device','expires_in_days':1},admin,201)['token']
