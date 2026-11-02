@@ -9,13 +9,14 @@ bounded capabilities through reviewed adapters.
 The product is not one robot. It is the durable software layer that allows one
 intelligence to select, inhabit, and hand work between many bodies.
 
-The validated baseline covers approved warehouse rounds, camera evidence and
-restart recovery on one Gazebo rover. The current increment adds durable station
-observation memory and a recorded live continuation between two rover instances:
-A completed the first inspection, and B verified A's evidence before completing
-the remaining three steps. This advances shared context and mission continuity,
-but does not complete autonomous planning, a general world model or heterogeneous
-embodiment. [Validation](VALIDATION.md) separates confirmed results from open gates.
+The validated baseline covers approved warehouse rounds, camera evidence,
+restart recovery, shared observation memory and a rover-to-quadruped mission.
+The adaptive increment adds authenticated route-condition observations, automatic
+holds when an active body becomes unavailable, and reviewed replanning of the
+unfinished work. Completed inspections and original evidence survive the changed
+route. This advances bounded mission continuity; a general world model, SLAM,
+conversational continuity and autonomous reasoning remain open milestones.
+[Validation](VALIDATION.md) separates confirmed results from open gates.
 
 ## Technology decisions
 
@@ -186,6 +187,15 @@ tracking and a shared geometric world model remain future work. Reviewed semanti
 places, transfer points and mobility edges now support bounded capability routes.
 Known-map body poses and recorded mission replay already appear in
 the digital twin; these do not satisfy the mapping and general replay exit tests.
+
+Revisioned route conditions now overlay the trusted semantic map without editing
+its geometry. Body reports bind a live laser observation to an authenticated
+body, active command, map digest, segment and fresh pose. Operators can explicitly
+clear a condition against its current revision. A frozen remaining-work review
+retains the completed prefix and evidence, then rechecks the stop fence, source
+position, condition revision and body readiness before approval. It cannot create
+a route anchor for a robot stopped between known places. See
+[adaptive mission continuity](ADAPTIVE_DEMO.md).
 
 Build three distinct representations:
 
@@ -424,8 +434,11 @@ Exit test:
 
 OIDC authorization-code/PKCE sign-in, viewer/operator/admin roles, server-enforced
 permissions and revocable body-scoped credentials are implemented and were tested
-against a local identity provider in the prior release. Hosted deployment and its
-external issuer remain unverified. The remaining productization scope includes:
+against a local identity provider in the prior release. The
+[hosting quickstart](HOSTING_QUICKSTART.md) covers Netlify, a dedicated Cloud Run /
+Cloud SQL project, managed Keycloak and separate credentials for the paired
+simulators. Deployment helpers have offline validation; actual hosted deployment
+and its external issuer remain unverified. The remaining productization scope includes:
 
 - finer-grained resource and organization authorization beyond the current roles
 - body/service mTLS and certificate revocation

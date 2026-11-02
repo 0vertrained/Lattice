@@ -1,3 +1,107 @@
+# Adaptive mission continuity — November 2, 2026
+
+The adaptive increment retains observed route closures separately from trusted
+map geometry. A frozen review replans only unfinished work in the same round,
+keeping the completed inspection, original objective and source evidence. Approval
+rechecks condition revision, stop fence, fresh source location and body readiness;
+a later change of body retains the explicit handoff and context-receipt contract.
+
+The [public adaptive recording](../apps/control-center/public/demo/adaptive-route.json)
+completed in **113.166 seconds**, with 117.307 seconds recorded including a final
+physical standing interval. A real Gazebo barrier produced 45 laser returns in
+the reviewed corridor, with the nearest return at 0.677 m. Its exact retained
+scan bytes match the authenticated report's SHA-256 hash. The remaining-work
+proposal took 35.020 ms over the local HTTP service; approval waited 46.758 seconds
+after the observed block to respect the previous signed command's full fence.
+Planner preparation and deliberate approval waiting are separate measurements.
+
+The same round retained its original bay inspection without repeating it, executed
+both west-aisle legs and separately approved the Go1 handoff. The target verified
+the original JPEG before local actuation, contacted all three physical 5 cm steps
+and retained its upper inspection. The recording contains 814 poses; its private
+proof contains 2,341 physics states. Reported paths were 6.86 m for the rover and
+3.57 m for Go1. Sampled source drift during the hold and after transfer rounded to
+0.0000 m; that measured resolution does not establish a general zero-drift guarantee.
+
+The 15.72-second adaptive Go1 video renders recorded joint states from this exact
+successful round. Its provenance binds the full source proof, map, pinned model
+and policy, sampled frame interval and MP4 hash. It uses a different camera view
+of measured states; the clip is not an additional physical trial.
+
+The [mission evaluation](../evaluation/adaptive-missions-2026-11-02.json) ran three
+fresh physics scenes against the retained durable core:
+
+| Scenario | Completed objective | Reviewed replan | Repeated completed inspections |
+| --- | ---: | --- | ---: |
+| Clear direct route | 49.441 s | None required | 0 |
+| Central barrier | 113.166 s | West-aisle detour | 0 |
+| Offset barrier | 112.077 s | West-aisle detour | 0 |
+
+All three expected outcomes passed; these bounded cases do not establish a
+general success rate. The report records each source proof hash and separately
+retains the earlier failed transform-timing attempt. The final offset condition
+remains closed in the local database; starting a new scene does not silently
+clear sensor history. Each runner removed only its owned processes and simulator
+container, retaining PostgreSQL, signing identity and original observations.
+
+Verified software checks:
+
+- Rust workspace tests, formatting and all-target/all-feature Clippy passed.
+- The expanded [pure planner evaluation](../evaluation/adaptive-planner-2026-11-02.json)
+  matched all 30 expectations: ten plans and twenty refusals. Each scenario was
+  repeated 100 times deterministically. Timings measure synthetic planner work.
+- The isolated adaptive PostgreSQL acceptance covers revisioned conditions,
+  completed-prefix and evidence retention, command expiry fencing, fresh source
+  eligibility, reviewed suffix replacement, failed local navigation and restart
+  invalidation. Existing recovery, observations, handoffs and routes integration
+  suites each passed against a separate fresh database.
+- The new real HTTP/core/PostgreSQL suite passed body-scoped sensor evidence,
+  stale-clear revision rejection, idempotent late retries, immutable replan
+  approval, complete stop fences, original-image retention, explicit later Go1
+  transfer and restart checks. It also verified automatic holding after body loss
+  without a UI read or reassignment request. These fixtures do not drive physics.
+- The updated identity HTTP suite passed JWT and role enforcement, revocation,
+  cross-body evidence rejection and the new route-condition/replan endpoints.
+- The pinned ROS gateway compiled and all three CTests passed. A development
+  integration failure exposed callback ordering between a scan and its exact-time
+  transform. The corrected gateway withholds motion while waiting up to 500 ms;
+  a persistent transform failure still stops the route. It never substitutes a
+  transform from a different timestamp. The failed attempt remains in history.
+- Operator browser fixtures passed condition provenance, frozen suffix review,
+  stale revisions, approval fences, viewer restrictions and mobile layout.
+- Frontend TypeScript, lint, six unit tests and production build budgets passed.
+  Initial JavaScript measured 217,431 B for the public tour and 396,150 B for the
+  operator interface, each under 400,000 B. Public CSS measured 18,638 B against
+  a 20,000 B budget. The adaptive story becomes the default only after validating
+  its completed recording; the earlier stories retain explicit entrypoints.
+- The exported adaptive walkthrough passed actual scan/JPEG/video hash checks,
+  same-round video binding, playback, all four chapters, 320/390/768/1440 px widths
+  and zero robot API requests. The default entrypoint and missing-recording
+  fallback passed. Earlier capability, handoff/3D and single-rover recovery
+  stories also passed their regressions.
+- The main portfolio passed local media/link checks and 1440/390 px light/dark
+  and JavaScript-disabled checks. Its existing CSS, JavaScript and every byte
+  outside the Lattice article remain unchanged. The generated public export
+  loads 217,401 B of initial JavaScript. Known local credentials were absent
+  from the 114 checked public and exported files, without printing their values.
+- Thirteen offline hosting tests passed, covering manifest restrictions, pinned
+  images, map selection, OIDC import and deployment configuration helpers. Python
+  compilation, shell syntax and local documentation-link checks passed.
+
+The simulators retain separate aligned physics worlds. This increment does not
+establish a shared collision world, SLAM, physical-hardware operation, autonomous
+LLM reasoning or general obstacle understanding. Route closure is a conservative
+corridor decision from authenticated laser returns; the core validates provenance
+and policy rather than independently classifying a physical obstacle.
+
+Actual Cloud Run/Netlify deployment, managed-issuer sign-in and the paired remote
+simulator runner remain unverified. Follow the
+[hosting quickstart](HOSTING_QUICKSTART.md) using the actual available Netlify URL,
+a dedicated billed Google Cloud project and a managed Keycloak issuer. CI is
+configured; hosted CI results and the GitHub Pages rollout need separate checks.
+
+---
+
 # Capability routes and heterogeneous continuation — November 2, 2026
 
 The [recorded capability route](../apps/control-center/public/demo/capability-route.json)

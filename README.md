@@ -4,7 +4,7 @@
 
 Lattice is a simulation-first, security-first embodiment control plane. Its goal is to keep identity, memory, planning and mission continuity centralized while interchangeable simulated or physical bodies execute bounded capabilities.
 
-The current demo completes one approved inspection objective across a Gazebo rover and a MuJoCo quadruped. The rover inspects the bay and approaches a transfer point; a staged Go1 verifies its retained image, climbs three physical steps and inspects the upper landing after a reviewed handoff. The measured objective completed in 37.369 seconds. The simulators share semantic coordinates but have separate physics worlds. Earlier recordings retain the two-rover handoff and single-rover restart stories. See [validation](docs/VALIDATION.md) for the evidence behind each release.
+The current demo keeps one inspection objective intact when a real simulated barrier blocks its route. A Gazebo rover detects the obstruction, retains its completed inspection and follows a reviewed detour. A staged MuJoCo Go1 then verifies that original image, climbs three physical steps and inspects the upper landing after a separate approved handoff. The recorded objective completed in 113.166 seconds, including the full authorization wait before approving the replacement route. The simulators share semantic coordinates but have separate physics worlds. Earlier capability-route, two-rover handoff and restart stories remain available. See [validation](docs/VALIDATION.md) for the evidence behind each release.
 
 - **Rust modular monolith** for the trusted control plane
 - **React + TypeScript + Vite** for the operator product
@@ -122,7 +122,9 @@ and the local watchdog/stop behavior. Follow the [language and inspection walkth
 
 ## Guided showcase
 
-Open `http://localhost:5173/` for the public walkthroughs or `/operator.html` for the live operator UI. The capability route story replays the [rover-to-Go1 recording](apps/control-center/public/demo/capability-route.json), with measured paths, original camera evidence and recorded joint-state footage. Install the Go1 runtime with `./scripts/install-quadruped.sh`, then record a fresh run with `LATTICE_CAPABILITY_SHOWCASE=1 ./scripts/run-durable-heterogeneous-warehouse.sh`; see the [capability route guide](docs/CAPABILITY_ROUTES.md).
+Open `http://localhost:5173/` for the public walkthroughs or `/operator.html` for the live operator UI. The adaptive story opens first and replays the [completed barrier-and-detour recording](apps/control-center/public/demo/adaptive-route.json), with the verified laser scan, retained image, reviewed remainder and measured robot paths. Install the Go1 runtime with `./scripts/install-quadruped.sh`, then record a fresh adaptive run with `LATTICE_ADAPTIVE_SHOWCASE=1 ./scripts/run-durable-adaptive-warehouse.sh`; see the [adaptive guide](docs/ADAPTIVE_DEMO.md).
+
+The earlier capability story at `#capability` replays the [direct rover-to-Go1 route](apps/control-center/public/demo/capability-route.json). Record that case with `LATTICE_CAPABILITY_SHOWCASE=1 ./scripts/run-durable-heterogeneous-warehouse.sh`; see the [capability route guide](docs/CAPABILITY_ROUTES.md).
 
 The earlier two-rover story replays the [recorded handoff](apps/control-center/public/demo/handoff.json). Record that scenario with `LATTICE_HANDOFF_SHOWCASE=1 ./scripts/run-durable-multi-warehouse.sh`; see the [multi-rover guide](docs/MULTI_ROBOT_SIM.md).
 
@@ -152,6 +154,24 @@ Walk These Ways policy, CPU inference, physical contact checks and measured
 stopping behavior. Shared collision geometry, general autonomous reasoning and
 physical hardware remain future work.
 
+## Adaptive mission continuity
+
+An authenticated laser observation can close a semantic route segment while
+preserving the trusted map geometry. Lattice holds the affected round and offers
+a frozen review of the unfinished work: the completed inspection and original
+image remain, while an alternate route replaces the blocked remainder. Approval
+waits for the old command's complete authorization window and rechecks the source
+position, current conditions and body readiness. A later body change still needs
+its own reviewed handoff and evidence acknowledgment.
+
+The [adaptive demo guide](docs/ADAPTIVE_DEMO.md) explains the physical barrier,
+west-aisle detour and repeatable mission evaluator. The
+[expanded planner evaluation](evaluation/adaptive-planner-2026-11-02.json) covers
+30 explicit plan/refusal scenarios. HTTP and PostgreSQL tests separately cover
+scoped sensor reports, stale reviews, complete stop fences, retained evidence,
+automatic body-loss holds and restart behavior. A body stopped between known
+places remains held until its position supports a valid reviewed route.
+
 ## Current milestone
 
 The executable foundation provides:
@@ -176,8 +196,11 @@ The executable foundation provides:
 - frozen handoff reviews and signed, acknowledged continuation context
 - reviewed semantic routes with staged capability transitions and safe retirement
 - heterogeneous rover-to-quadruped execution with measured stair contacts
+- revisioned route conditions from authenticated laser observations
+- reviewed remaining-work replans that retain completed steps and source evidence
+- automatic holds when the active route body becomes unavailable
 
-Run `./scripts/run-durable-heterogeneous-warehouse.sh` for the current capability demo, or `./scripts/run-durable-warehouse.sh` for operator-reviewed restart recovery; see the [recovery guide](docs/RECOVERY_DEMO.md). OIDC viewer/operator/admin roles, body-scoped revocable credentials, immutable multi-step rounds and revision fencing are implemented. Netlify and Cloud Run deployment configuration is in [HOSTED_DEMO.md](docs/HOSTED_DEMO.md); an authenticated cloud deployment still needs provisioning. The [implementation plan](docs/IMPLEMENTATION_PLAN.md) tracks the remaining world-model, broader heterogeneous-body, general LLM/VLM planning, SLAM and physical hardware milestones.
+Run `./scripts/run-durable-adaptive-warehouse.sh` for the route-condition and replan workflow, or `./scripts/run-durable-warehouse.sh` for operator-reviewed restart recovery; see the [recovery guide](docs/RECOVERY_DEMO.md). OIDC viewer/operator/admin roles, body-scoped revocable credentials, immutable multi-step rounds and revision fencing are implemented. Start with the [Netlify and Cloud Run quickstart](docs/HOSTING_QUICKSTART.md) to put the demo online; [HOSTED_DEMO.md](docs/HOSTED_DEMO.md) explains the deployment contract. An authenticated cloud deployment still needs provisioning. The [implementation plan](docs/IMPLEMENTATION_PLAN.md) tracks the remaining world-model, broader heterogeneous-body, general LLM/VLM planning, SLAM and physical hardware milestones.
 
 ## Safety status
 
