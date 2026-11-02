@@ -1,0 +1,151 @@
+{
+  "schema": "lattice.quadruped-evaluation.v1",
+  "engine": "MuJoCo",
+  "test_clock": "controlled 20ms; production is wall-clock paced",
+  "map_digest": "1d93cd8e5a022db88ed3f9569579ef6365e5645b4d1a98e618a6fa6dd5de56c4",
+  "raw_proof_sha256": "8f9d3ba5f85e6a15a8de129c1adab4ad32e3e3733345520aec46762fd8b9c830",
+  "scope": "Six bounded simulation cases; separate from the authenticated full mission recording.",
+  "runs": [
+    {
+      "initial_yaw_rad": 0.0,
+      "friction": 0.8,
+      "case": "arrival",
+      "expected_state": "succeeded",
+      "observed_state": "succeeded",
+      "detail": "physical arrival verified; stationary support brake applied",
+      "final_pose": {
+        "x": 4.3936595419712265,
+        "y": -1.994303640063383,
+        "z": 0.17660340871273789,
+        "yaw": 0.02495494521399579
+      },
+      "post_stop_drift_m": 0.002226416269798277,
+      "contact_steps": [
+        "step0",
+        "step1",
+        "step2"
+      ],
+      "max_tilt_rad": 0.19527233826904086,
+      "max_motor_torque_nm": 33.5,
+      "torso_contact": false,
+      "trace_sample_count": 152
+    },
+    {
+      "initial_yaw_rad": -0.04,
+      "friction": 0.7,
+      "case": "arrival",
+      "expected_state": "succeeded",
+      "observed_state": "succeeded",
+      "detail": "physical arrival verified; stationary support brake applied",
+      "final_pose": {
+        "x": 4.395551048026711,
+        "y": -2.0033718497664847,
+        "z": 0.17754459015326807,
+        "yaw": -0.0468935570498001
+      },
+      "post_stop_drift_m": 0.0028347922018231364,
+      "contact_steps": [
+        "step0",
+        "step1",
+        "step2"
+      ],
+      "max_tilt_rad": 0.19485552974861678,
+      "max_motor_torque_nm": 21.421869105477782,
+      "torso_contact": false,
+      "trace_sample_count": 152
+    },
+    {
+      "initial_yaw_rad": 0.04,
+      "friction": 0.9,
+      "case": "arrival",
+      "expected_state": "succeeded",
+      "observed_state": "succeeded",
+      "detail": "physical arrival verified; stationary support brake applied",
+      "final_pose": {
+        "x": 4.391326675280023,
+        "y": -2.0013574169766724,
+        "z": 0.17884051870832507,
+        "yaw": -0.01170821258025806
+      },
+      "post_stop_drift_m": 0.0012324331477908974,
+      "contact_steps": [
+        "step0",
+        "step1",
+        "step2"
+      ],
+      "max_tilt_rad": 0.19563785792461094,
+      "max_motor_torque_nm": 22.78312149730456,
+      "torso_contact": false,
+      "trace_sample_count": 155
+    },
+    {
+      "initial_yaw_rad": 0.0,
+      "friction": 0.8,
+      "case": "lease",
+      "expected_state": "failed",
+      "observed_state": "failed",
+      "detail": "core/body connection watchdog",
+      "final_pose": {
+        "x": 2.9474689806255934,
+        "y": -2.0056637446093846,
+        "z": 0.14794195800717552,
+        "yaw": 0.0023006615736560296
+      },
+      "post_stop_drift_m": 0.027737657275261483,
+      "contact_steps": [
+        "step0",
+        "step1",
+        "step2"
+      ],
+      "max_tilt_rad": 0.19527233826904086,
+      "max_motor_torque_nm": 21.56898155880662,
+      "torso_contact": false,
+      "trace_sample_count": 103
+    },
+    {
+      "initial_yaw_rad": 0.0,
+      "friction": 0.8,
+      "case": "stop",
+      "expected_state": "failed",
+      "observed_state": "failed",
+      "detail": "body agent stopped",
+      "final_pose": {
+        "x": 2.281720835546266,
+        "y": -1.9699277982935421,
+        "z": 0.09715041901102933,
+        "yaw": 0.11025293274500483
+      },
+      "post_stop_drift_m": 0.04106336241592655,
+      "contact_steps": [
+        "step0",
+        "step1"
+      ],
+      "max_tilt_rad": 0.19527233826904086,
+      "max_motor_torque_nm": 21.56898155880662,
+      "torso_contact": false,
+      "trace_sample_count": 88
+    },
+    {
+      "initial_yaw_rad": 0.0,
+      "friction": 0.8,
+      "case": "unsupported",
+      "expected_state": "failed",
+      "observed_state": "failed",
+      "detail": "physical stability/contact fault",
+      "final_pose": {
+        "x": 1.7371954262651703,
+        "y": -1.991443224954442,
+        "z": 0.027114062376215997,
+        "yaw": -0.020940022124457964
+      },
+      "post_stop_drift_m": 0.006763848141674421,
+      "contact_steps": [
+        "step0"
+      ],
+      "max_tilt_rad": 0.19527233826904086,
+      "max_motor_torque_nm": 21.56898155880662,
+      "torso_contact": true,
+      "trace_sample_count": 73
+    }
+  ]
+}

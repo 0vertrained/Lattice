@@ -206,6 +206,9 @@ class Controller:
                 foot_contacts.append({"foot": next(iter(feet)), "surfaces": names,
                                       "normal_force_n": float(force[0])})
         return {"simulation_time": float(self.data.time), "mode": self.mode,
+                # Read-only complete generalized state supports faithful visual
+                # replay of the measured signed run, including all 12 joints.
+                "qpos": self.data.qpos.tolist(), "qvel": self.data.qvel.tolist(),
                 "local_position": self.data.qpos[:3].tolist(), "pose": self.pose,
                 "base_z": float(self.data.qpos[2]), "nominal_base_height": self.NOMINAL_BASE_HEIGHT,
                 "frame_translation": self.offset.tolist(), "quaternion_wxyz": self.data.qpos[3:7].tolist(),

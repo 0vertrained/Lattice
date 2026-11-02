@@ -57,7 +57,8 @@ renderer available (`libegl1`/Mesa on Debian-family Linux):
 target/quadruped-venv/bin/python simulation/quadruped/prove.py \
   --assets target/quadruped-assets \
   --map simulation/routes/warehouse-stairs.json \
-  --output target/quadruped-proof.json
+  --output target/quadruped-proof.json \
+  --summary-output evaluation/quadruped-2026-11-02.json
 target/quadruped-venv/bin/python simulation/quadruped/smoke.py \
   --assets target/quadruped-assets \
   --map simulation/routes/warehouse-stairs.json \
@@ -74,6 +75,9 @@ variants, lease expiry and explicit stopping on stairs. `smoke.py` starts the
 production gateway, runs physics in wall time, communicates over its private
 Unix socket, and checks either camera evidence or lease-loss stopping. It owns
 and cleans up only the gateway subprocess it starts.
+The optional summary output retains compact metrics and the source trace hash;
+the checked-in [six-case report](../evaluation/quadruped-2026-11-02.json) records
+the measured validation run without committing the large per-tick trace.
 
 Initial regression results on this CPU environment: all three closed-loop runs
 contacted all three steps and arrived within the 25 cm destination region;
@@ -99,7 +103,7 @@ authorization.
 A separate wall-clock watchdog enforces a **1.5 second** core/body lease. Signed
 UTC expiry and a monotonic lifetime bound both apply. Lease loss, expiry,
 emergency stop, physical instability, torso collision, stale localization,
-leaving the certified corridor or six seconds without progress fail the goal
+leaving the reviewed corridor or six seconds without progress fail the goal
 and apply support control. Failure checks precede arrival checks. A goal
 completes only inside its measured 3D region after at least 0.5 seconds below
 the stationary speed threshold.
@@ -118,3 +122,35 @@ The locomotion controller supports this one forward stair corridor and standing
 brake. It does not establish stair descent, arbitrary obstacles, hardware
 actuation, payload capacity, or robust operation outside the tested surface
 and starting-pose conditions.
+
+## Recorded external-camera video
+
+The gateway exposes read-only complete `qpos`/`qvel` arrays so the mission
+recorder can retain all measured joint positions at 20 Hz. The renderer uses
+those states in an isolated MuJoCo model, with a side camera that follows the
+robot. It does not infer leg poses from map positions, alter the live simulator,
+or invent intermediate joint configurations. Camera and lighting settings are
+presentation changes; source physics stays unchanged.
+
+```bash
+OPENBLAS_NUM_THREADS=1 target/quadruped-venv/bin/python \
+  simulation/quadruped/render_demo.py \
+  --assets target/quadruped-assets \
+  --map simulation/routes/warehouse-stairs.json \
+  --trace target/<run>/capability-route-result.json \
+  --output target/capability-quadruped.mp4
+```
+
+The input must include the recorder's verified `physics_provenance`. Older
+recordings can supply a separately verified, source-SHA-bound sidecar through
+`--provenance <sidecar.json>`. The renderer validates the map, model/policy pins,
+frame transform, monotonically recorded simulator time, complete normalized
+states, three step contacts, completed mission, and a supported standing tail.
+It rejects mixed runs and incomplete recordings.
+
+Output includes a 960×540 H.264 MP4 below 3 MB, a real video-frame PNG poster,
+and a provenance JSON containing the source round/mission IDs, source SHA-256,
+video SHA-256, asset pins, timestamps, camera settings and measured metrics.
+Without `--trace`, the script runs an independent physical gateway probe and
+explicitly labels it `independent_gateway_controller_probe`; that output must
+not be described as the authenticated mission recording.

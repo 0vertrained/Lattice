@@ -6,6 +6,7 @@ gateway.py uses monotonic wall time and a separately checked socket watchdog.
 No root pose is changed after Controller's initial scene reset.
 """
 import argparse
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -13,6 +14,24 @@ import tempfile
 
 from controller import Controller
 from gateway import Gateway, endpoint, map_digest
+
+
+def summary(report, proof_bytes):
+    """Compact measured results; failures are expected refusal cases, not arrivals."""
+    return {"schema": "lattice.quadruped-evaluation.v1", "engine": report["engine"],
+            "test_clock": report["test_clock"], "map_digest": report["map_digest"],
+            "raw_proof_sha256": hashlib.sha256(proof_bytes).hexdigest(),
+            "scope": "Six bounded simulation cases; separate from the authenticated full mission recording.",
+            "runs": [{"initial_yaw_rad": run["initial_yaw"], "friction": run["friction"],
+                      "case": run["interrupt"] or "arrival",
+                      "expected_state": "failed" if run["interrupt"] else "succeeded",
+                      "observed_state": run["state"], "detail": run["detail"],
+                      "final_pose": run["pose"], "post_stop_drift_m": run["post_stop_drift_m"],
+                      "contact_steps": run["physics"]["contact_steps"],
+                      "max_tilt_rad": run["physics"]["max_tilt"],
+                      "max_motor_torque_nm": run["physics"]["max_motor_torque"],
+                      "torso_contact": run["physics"]["torso_contact"],
+                      "trace_sample_count": len(run["trace"])} for run in report["runs"]]}
 
 
 class Clock:
@@ -89,6 +108,7 @@ def main():
     p.add_argument("--assets", required=True, type=Path)
     p.add_argument("--map", required=True, type=Path)
     p.add_argument("--output", required=True, type=Path)
+    p.add_argument("--summary-output", type=Path, help="optional compact measured evaluation report")
     args = p.parse_args()
     semantic_map = json.loads(args.map.read_text())
     results = []
@@ -101,8 +121,13 @@ def main():
         results.append(result)
         print(json.dumps({k: v for k, v in result.items() if k != "trace"}), flush=True)
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps({"engine": "MuJoCo", "test_clock": "controlled 20ms; production is wall-clock paced",
-                                       "map_digest": map_digest(semantic_map), "runs": results}, indent=2))
+    report = {"engine": "MuJoCo", "test_clock": "controlled 20ms; production is wall-clock paced",
+              "map_digest": map_digest(semantic_map), "runs": results}
+    proof_bytes = json.dumps(report, indent=2).encode()
+    args.output.write_bytes(proof_bytes)
+    if args.summary_output:
+        args.summary_output.parent.mkdir(parents=True, exist_ok=True)
+        args.summary_output.write_text(json.dumps(summary(report, proof_bytes), indent=2) + "\n")
 
 
 if __name__ == "__main__":
