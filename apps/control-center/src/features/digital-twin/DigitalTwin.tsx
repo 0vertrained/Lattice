@@ -112,7 +112,7 @@ export function DigitalTwin({ bodies }: DigitalTwinProps) {
               <BodyMesh
                 key={body.id}
                 body={body}
-                position={[body.pose?.x ?? 0, 0.25, -(body.pose?.y ?? 0)]}
+                position={[body.pose?.x ?? 0, (body.pose?.z ?? 0) + 0.25, -(body.pose?.y ?? 0)]}
               />
             ))}
           <mesh position={[2, 0.5, 0]}>
@@ -141,6 +141,7 @@ export function DigitalTwin({ bodies }: DigitalTwinProps) {
             <i className={body.status === 'online' ? 'online-dot' : 'offline-dot'} />
             {body.display_name}
             {body.pose == null ? ' · no localization' : ''}
+            {body.pose?.z != null ? ` · z ${body.pose.z.toFixed(2)} m` : ''}
           </span>
         ))}
         {bodies.length === 0 && <span>Start a body adapter to populate the scene.</span>}

@@ -19,6 +19,7 @@ const roundSchema = z.object({
   current_mission_id: z.string().nullable(),
   mission_ids: z.array(z.string()),
   anomaly_count: z.number(),
+  route_plan_id: z.string().nullable().optional(),
 });
 type Round = z.infer<typeof roundSchema>;
 const steps = [
@@ -41,6 +42,8 @@ const steps = [
 export function InspectionRound({ canOperate }: { readonly canOperate: boolean }) {
   const client = useQueryClient();
   const [review, setReview] = useState<Round | null>(null);
+  const [abandonReview, setAbandonReview] = useState<Round | null>(null);
+  const [abandoned, setAbandoned] = useState(false);
   const rounds = useQuery({
     queryKey: ['rounds'],
     queryFn: async () => z.array(roundSchema).parse(await apiClient.request('/rounds')),
@@ -70,23 +73,47 @@ export function InspectionRound({ canOperate }: { readonly canOperate: boolean }
       await refresh();
     },
   });
+  const abandon = useMutation({
+    mutationFn: async (round: Round) =>
+      roundSchema.parse(
+        await apiClient.request(`/rounds/${encodeURIComponent(round.id)}/abandon`, {
+          method: 'POST',
+          body: JSON.stringify({ digest: round.digest }),
+        }),
+      ),
+    onSuccess: async () => {
+      setAbandonReview(null);
+      setAbandoned(true);
+      await refresh();
+      await client.invalidateQueries({ queryKey: ['handoffs'] });
+      await client.invalidateQueries({ queryKey: ['route-plans'] });
+      await client.invalidateQueries({ queryKey: ['route-transfer-options'] });
+    },
+    onError: refresh,
+  });
+  const currentAbandon = rounds.data?.find((round) => round.id === abandonReview?.id);
   const active = rounds.data?.find((r) => ['active', 'recovery_required'].includes(r.status));
+  const displayedSteps = review?.steps ?? active?.steps ?? steps;
   return (
     <section className="panel inspection-round" aria-labelledby="round-heading">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">A complete warehouse objective</p>
+          <p className="eyebrow">
+            {active?.route_plan_id
+              ? 'Follow the reviewed route objective'
+              : 'A complete warehouse objective'}
+          </p>
           <h2 id="round-heading">Inspection round</h2>
         </div>
-        <span className="status-pill">3 reviewed steps</span>
+        <span className="status-pill">{displayedSteps.length} reviewed steps</span>
       </div>
       <p>
-        Inspect two stations, retain the camera evidence, and return to charge. A validated image
-        with no marker at the dock records an anomaly and continues. Navigation or capture failures
-        stop the round.
+        {active?.route_plan_id
+          ? 'Execute the approved route assignments and retain inspection evidence. The round holds at each body change for an explicit handoff review.'
+          : 'Inspect two stations, retain the camera evidence, and return to charge. A validated image with no marker at the dock records an anomaly and continues. Navigation or capture failures stop the round.'}
       </p>
       <ol className="round-steps">
-        {(review?.steps ?? steps).map((step, i) => (
+        {displayedSteps.map((step, i) => (
           <li key={step.title}>
             <strong>
               {i + 1}. {step.title}
@@ -138,16 +165,72 @@ export function InspectionRound({ canOperate }: { readonly canOperate: boolean }
               {r.mission_ids.length} mission attempts
             </span>
             {r.status === 'recovery_required' && (
-              <p>
-                Execution is held. Review the recovery on the current mission below; approval
-                resumes this round.
-              </p>
+              <>
+                <p>
+                  {r.route_plan_id
+                    ? 'Execution is held. Review the planned transfer or recovery below. If this route can no longer continue, retire the held round before planning a new objective.'
+                    : 'Execution is held. Review the recovery on the current mission below; approval resumes this round.'}
+                </p>
+                {canOperate && !abandonReview && (
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() => {
+                      setAbandonReview(r);
+                      setAbandoned(false);
+                      abandon.reset();
+                    }}
+                  >
+                    Abandon held round
+                  </button>
+                )}
+              </>
             )}
           </div>
         ))}
-      {(prepare.error || approve.error || rounds.error) && (
+      {canOperate && abandonReview && (
+        <div className="review-box">
+          <h3>Retire this held objective?</h3>
+          <p>
+            Round {abandonReview.id.slice(-8)} will end without completing its remaining steps.
+            Recorded observations and approval history are preserved. The source stop fence remains
+            in force; abandoning does not authorize new motion or create a replacement plan.
+          </p>
+          <div className="actions">
+            <button
+              type="button"
+              className="secondary"
+              disabled={abandon.isPending}
+              onClick={() => {
+                setAbandonReview(null);
+                abandon.reset();
+              }}
+            >
+              Keep held round
+            </button>
+            <button
+              type="button"
+              disabled={
+                abandon.isPending ||
+                currentAbandon?.status !== 'recovery_required' ||
+                currentAbandon.digest !== abandonReview.digest
+              }
+              onClick={() => abandon.mutate(abandonReview)}
+            >
+              {abandon.isPending ? 'Abandoning round…' : 'Confirm abandon round'}
+            </button>
+          </div>
+        </div>
+      )}
+      {abandoned && (
+        <p className="notice" role="status">
+          Held round abandoned. Its evidence is retained and the source stop fence remains. Prepare
+          and review a new objective separately.
+        </p>
+      )}
+      {(prepare.error || approve.error || abandon.error || rounds.error) && (
         <p className="notice error" role="alert">
-          {(prepare.error || approve.error || rounds.error)?.message}
+          {(prepare.error || approve.error || abandon.error || rounds.error)?.message}
         </p>
       )}
     </section>

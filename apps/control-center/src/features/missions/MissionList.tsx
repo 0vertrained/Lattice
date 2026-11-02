@@ -38,6 +38,14 @@ export function MissionList({ missions, bodies, canOperate }: MissionListProps) 
               <code>{mission.command.type}</code>
               <span>{mission.active_command_id ?? 'No active command'}</span>
             </div>
+            {mission.command.type === 'traverse_route' && (
+              <p className="mission-detail">
+                {mission.command.traversal.from.id.replaceAll('_', ' ')} →{' '}
+                {mission.command.traversal.to.id.replaceAll('_', ' ')} ·{' '}
+                {mission.command.traversal.required_capabilities.join(', ')} required ·{' '}
+                {mission.command.traversal.max_speed_mps} m/s maximum
+              </p>
+            )}
             <progress value={mission.progress_pct} max={100} />
             {mission.evidence && (
               <figure className="inspection-evidence">

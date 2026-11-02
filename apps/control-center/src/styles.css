@@ -729,6 +729,217 @@ textarea:focus-visible {
   font-size: 0.8rem;
   color: #8297a8;
 }
+.route-planner {
+  margin-top: 20px;
+  overflow-wrap: anywhere;
+}
+.route-planner .section-heading,
+.route-planner .card-title-row {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.route-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr);
+  align-items: start;
+  gap: 22px;
+  margin: 20px 0;
+}
+.route-map-pane,
+.route-form-pane {
+  min-width: 0;
+}
+.route-note,
+.route-graph figcaption {
+  color: #a5bbca;
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+.route-map-heading {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 0.85rem;
+}
+.route-map-heading span {
+  color: #8197a9;
+}
+.route-graph {
+  margin: 0;
+}
+.route-graph svg {
+  width: 100%;
+  display: block;
+  border: 1px solid #263b4d;
+  border-radius: 13px;
+  background: #071019;
+}
+.route-graph figcaption {
+  margin-top: 10px;
+  font-size: 0.75rem;
+}
+.route-edge {
+  stroke: #70889a;
+  stroke-width: 3;
+}
+.route-edge.stairs {
+  stroke: #e7bd73;
+}
+.route-edge.selected {
+  stroke: #55c4ff;
+  stroke-width: 5;
+}
+.route-edge.closed {
+  stroke: #d47b83;
+  stroke-dasharray: 8 7;
+}
+.route-direction {
+  fill: #c5d5e2;
+}
+.route-place > circle {
+  fill: #10364b;
+  stroke: #96c4de;
+  stroke-width: 2;
+}
+.route-place .route-transfer-ring {
+  fill: none;
+  stroke: #78cfad;
+}
+.route-place text {
+  fill: #c0d5e3;
+  font-size: 14px;
+}
+.route-place .route-elevation {
+  fill: #8197a9;
+  font-size: 12px;
+}
+.route-map-legend {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  color: #a5bbca;
+  font-size: 0.75rem;
+}
+.route-map-legend .stairs {
+  color: #e7bd73;
+}
+.route-map-legend .selected {
+  color: #55c4ff;
+}
+.route-controls {
+  display: grid;
+  gap: 12px;
+}
+.route-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.route-checkbox input {
+  width: 18px;
+  height: 18px;
+  accent-color: #55c4ff;
+}
+.route-review,
+.route-transfer-recommendation {
+  border: 1px solid #33546b;
+  border-radius: 13px;
+  background: #0a1b29;
+  padding: 16px;
+  margin: 16px 0;
+  min-width: 0;
+}
+.route-review h3,
+.route-review h4,
+.route-plan-history h3 {
+  margin: 0 0 12px;
+  font-size: 0.96rem;
+}
+.route-review h4 {
+  margin-top: 20px;
+}
+.route-explanation,
+.route-assignments,
+.route-candidates ul {
+  padding-left: 22px;
+  color: #bbcad7;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.route-assignments li {
+  margin: 10px 0;
+}
+.route-assignments span,
+.route-assignments small,
+.route-plan-history small {
+  display: block;
+  margin-top: 4px;
+  color: #a5bbca;
+}
+.route-transfer-list,
+.route-candidate-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.route-transfer-list article,
+.route-candidates article {
+  background: #0a141f;
+  border: 1px solid #263b4d;
+  border-radius: 10px;
+  padding: 14px;
+  min-width: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.route-candidates article p,
+.route-transfer-list article p {
+  margin: 8px 0;
+}
+.route-candidates article small,
+.route-transfer-list article small {
+  color: #8197a9;
+}
+.route-candidates,
+.route-binding {
+  margin: 16px 0;
+}
+.route-candidates summary,
+.route-binding summary {
+  color: #a9cbe0;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.route-plan-history {
+  border-top: 1px solid #263b4d;
+  padding-top: 18px;
+  margin-top: 20px;
+}
+.route-plan-history article {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #192c3c;
+  font-size: 0.85rem;
+}
+@media (max-width: 900px) {
+  .route-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 480px) {
+  .route-plan-history article,
+  .route-review .actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
 @media (max-width: 1000px) {
   .continuity-grid {
     grid-template-columns: minmax(0, 1fr);

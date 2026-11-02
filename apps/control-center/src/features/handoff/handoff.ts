@@ -14,6 +14,7 @@ export const handoffRoundSchema = z.object({
   current_step: z.number(),
   current_mission_id: z.string().nullable(),
   assigned_body_id: z.string().nullable().optional(),
+  route_plan_id: z.string().nullable().optional(),
 });
 
 export const handoffSchema = z.object({
@@ -46,3 +47,17 @@ export const handoffSchema = z.object({
 
 export type Handoff = z.infer<typeof handoffSchema>;
 export type HandoffStep = z.infer<typeof stepSchema>;
+
+export const transferOptionsSchema = z.object({
+  round_id: z.string(),
+  route_plan_id: z.string().nullable(),
+  current_step: z.number(),
+  required: z.boolean(),
+  source_body_id: z.string().nullable(),
+  recommended_target_body_id: z.string().nullable(),
+  transfer_place_id: z.string().nullable(),
+  reason: z.string(),
+  ready: z.boolean(),
+  blocking_reasons: z.array(z.string()),
+  map_digest: z.string().nullable(),
+});

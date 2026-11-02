@@ -40,6 +40,7 @@ export const bodySchema = z.object({
       x: z.number().finite().min(-10000).max(10000),
       y: z.number().finite().min(-10000).max(10000),
       yaw: z.number().finite().min(-Math.PI).max(Math.PI),
+      z: z.number().finite().min(-10000).max(10000).nullable().optional(),
     })
     .nullable()
     .optional(),
@@ -49,6 +50,27 @@ export const bodySchema = z.object({
 });
 
 export const skillCommandSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('traverse_route'),
+    traversal: z.object({
+      map_id: z.string(),
+      map_revision: z.number().int().positive(),
+      map_digest: z.string(),
+      segment_id: z.string(),
+      from: z.object({
+        id: z.string(),
+        pose: z.object({ x: z.number().finite(), y: z.number().finite(), z: z.number().finite() }),
+        arrival_radius_m: z.number().positive(),
+      }),
+      to: z.object({
+        id: z.string(),
+        pose: z.object({ x: z.number().finite(), y: z.number().finite(), z: z.number().finite() }),
+        arrival_radius_m: z.number().positive(),
+      }),
+      required_capabilities: z.array(capabilitySchema),
+      max_speed_mps: z.number().positive(),
+    }),
+  }),
   z.object({
     type: z.literal('navigate'),
     destination: z.string().min(1).max(100),

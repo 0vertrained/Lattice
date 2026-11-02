@@ -23,6 +23,11 @@ const DigitalTwin = lazy(() =>
     default: module.DigitalTwin,
   })),
 );
+const RoutePlanner = lazy(() =>
+  import('../features/navigation/RoutePlanner').then((module) => ({
+    default: module.RoutePlanner,
+  })),
+);
 
 export function App() {
   const queryClient = useQueryClient();
@@ -124,6 +129,9 @@ export function App() {
     queryClient.removeQueries({ queryKey: ['last-seen'] });
     queryClient.removeQueries({ queryKey: ['observation-evidence'] });
     queryClient.removeQueries({ queryKey: ['handoffs'] });
+    queryClient.removeQueries({ queryKey: ['navigation-map'] });
+    queryClient.removeQueries({ queryKey: ['route-plans'] });
+    queryClient.removeQueries({ queryKey: ['route-transfer-options'] });
   }
 
   if (!connected) {
@@ -254,6 +262,11 @@ export function App() {
       </section>
 
       {auth?.durable && <InspectionRound canOperate={canOperate} />}
+      {auth?.durable && (
+        <Suspense fallback={<section className="panel">Loading capability route planner…</section>}>
+          <RoutePlanner bodies={bodies} canOperate={canOperate} />
+        </Suspense>
+      )}
       {auth?.durable && (
         <div className="continuity-grid">
           <ObservationMemory bodies={bodies} />

@@ -4,7 +4,13 @@ import { z } from 'zod';
 import { apiClient } from '../../core/api/apiClient';
 import type { Body, Mission } from '../../core/api/schemas';
 import { observationTime } from '../memory/observation';
-import { type Handoff, type HandoffStep, handoffRoundSchema, handoffSchema } from './handoff';
+import {
+  type Handoff,
+  type HandoffStep,
+  handoffRoundSchema,
+  handoffSchema,
+  transferOptionsSchema,
+} from './handoff';
 import { RetainedEvidence } from './RetainedEvidence';
 
 export function HandoffPanel({
@@ -43,6 +49,7 @@ export function HandoffPanel({
       client.invalidateQueries({ queryKey: ['handoffs'] }),
       client.invalidateQueries({ queryKey: ['audit'] }),
       client.invalidateQueries({ queryKey: ['bodies'] }),
+      client.invalidateQueries({ queryKey: ['route-transfer-options'] }),
     ]);
   };
   const prepare = useMutation({
@@ -82,8 +89,27 @@ export function HandoffPanel({
   const sourceId =
     selectedRound?.assigned_body_id ??
     missions.find((mission) => mission.id === selectedRound?.current_mission_id)?.assigned_body_id;
-  const targets = bodies.filter((body) => body.id !== sourceId);
-  const selectedTarget = targets.find((body) => body.id === targetId);
+  const plannedTransfer = useQuery({
+    queryKey: ['route-transfer-options', selectedRound?.id],
+    queryFn: async () =>
+      transferOptionsSchema.parse(
+        await apiClient.request(
+          `/rounds/${encodeURIComponent(selectedRound?.id ?? '')}/transfer-options`,
+        ),
+      ),
+    enabled: Boolean(selectedRound?.route_plan_id),
+    refetchInterval: 2000,
+  });
+  const routeBound = Boolean(selectedRound?.route_plan_id);
+  const recommendation = plannedTransfer.data;
+  const targets = bodies.filter(
+    (body) =>
+      body.id !== sourceId &&
+      (!routeBound ||
+        (recommendation?.required && body.id === recommendation.recommended_target_body_id)),
+  );
+  const selectedTarget =
+    targets.find((body) => body.id === targetId) ?? (routeBound ? targets[0] : undefined);
   const bodyName = (id: string) => bodies.find((body) => body.id === id)?.display_name ?? id;
   const expired = review !== null && now >= Date.parse(review.expires_at);
   const waitSeconds = review
@@ -92,7 +118,8 @@ export function HandoffPanel({
   const currentReview = history.data?.find((entry) => entry.id === review?.id);
   const invalidated =
     review !== null && currentReview !== undefined && currentReview.status !== 'pending';
-  const error = prepare.error ?? approve.error ?? rounds.error ?? history.error;
+  const error =
+    prepare.error ?? approve.error ?? rounds.error ?? history.error ?? plannedTransfer.error;
   return (
     <section className="panel handoff-panel" aria-labelledby="handoff-heading">
       <div className="section-heading">
@@ -103,7 +130,7 @@ export function HandoffPanel({
         <span className="status-pill">Operator approval required</span>
       </div>
       <p className="handoff-note">
-        Transfer the remaining inspection round to another rover while retaining completed steps and
+        Transfer the remaining inspection round to another body while retaining completed steps and
         camera evidence. The receiving body must acknowledge the reviewed context.
       </p>
       {!canOperate && (
@@ -111,6 +138,37 @@ export function HandoffPanel({
           Viewer access: inspect handoff history and retained evidence. An operator prepares and
           approves transfers.
         </p>
+      )}
+      {routeBound && recommendation && (
+        <div className="route-transfer-recommendation" role="status">
+          <h3>
+            {recommendation.required ? 'Recommended capability transfer' : 'Route transfer status'}
+          </h3>
+          <p>{recommendation.reason}</p>
+          {recommendation.transfer_place_id && (
+            <p>
+              Transfer point:{' '}
+              <strong>{recommendation.transfer_place_id.replaceAll('_', ' ')}</strong>
+            </p>
+          )}
+          {recommendation.recommended_target_body_id && (
+            <p>
+              Planned receiving body:{' '}
+              <strong>{bodyName(recommendation.recommended_target_body_id)}</strong>
+            </p>
+          )}
+          {recommendation.blocking_reasons.length > 0 && (
+            <ul>
+              {recommendation.blocking_reasons.map((reason) => (
+                <li key={reason}>{reason}</li>
+              ))}
+            </ul>
+          )}
+          <p className="handoff-note">
+            This recommendation does not pause a body or authorize motion. An operator must prepare
+            and approve the exact transfer.
+          </p>
+        </div>
       )}
       {canOperate &&
         !review &&
@@ -148,7 +206,9 @@ export function HandoffPanel({
                   approve.reset();
                 }}
               >
-                <option value="">Select another rover</option>
+                <option value="">
+                  {routeBound ? 'Awaiting planned transfer' : 'Select another body'}
+                </option>
                 {targets.map((body) => (
                   <option key={body.id} value={body.id}>
                     {body.display_name} · {body.status.replaceAll('_', ' ')} · {body.battery}%
@@ -164,7 +224,13 @@ export function HandoffPanel({
             </p>
             <button
               type="button"
-              disabled={prepare.isPending || !selectedRound || !sourceId || !selectedTarget}
+              disabled={
+                prepare.isPending ||
+                !selectedRound ||
+                !sourceId ||
+                !selectedTarget ||
+                (routeBound && !recommendation?.ready)
+              }
               onClick={() => {
                 if (selectedRound && selectedTarget) {
                   approve.reset();
@@ -415,7 +481,11 @@ function StepList({
         <li key={`${start + index}-${step.title}`}>
           <strong>{step.title}</strong>
           <small>
-            <code>{JSON.stringify(step.command)}</code>
+            {step.command.type === 'traverse_route' ? (
+              `${step.command.traversal.from.id.replaceAll('_', ' ')} → ${step.command.traversal.to.id.replaceAll('_', ' ')} · ${step.command.traversal.required_capabilities.join(', ')} required · maximum ${step.command.traversal.max_speed_mps} m/s`
+            ) : (
+              <code>{JSON.stringify(step.command)}</code>
+            )}
           </small>
           <small>
             {step.continue_on_missing_marker
