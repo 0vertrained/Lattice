@@ -9,13 +9,41 @@ use rand_core::OsRng;
 /// Ed25519 command signer.
 ///
 /// Physical deployments must load the private key from a hardware-backed key
-/// store. This development implementation generates an ephemeral key at startup.
+/// store. Local demos either load a private seed file or generate an ephemeral key.
 pub struct Ed25519CommandSigner {
     key_id: String,
     signing_key: SigningKey,
 }
 
 impl Ed25519CommandSigner {
+    /// Loads a stable 32-byte Ed25519 seed from a private local file.
+    /// Missing keys are never silently regenerated against an existing database.
+    pub fn load_file(path: &std::path::Path) -> Result<Self, ApplicationError> {
+        use std::io::Read;
+        let meta = std::fs::symlink_metadata(path).map_err(|_| ApplicationError::Security)?;
+        if !meta.is_file() {
+            return Err(ApplicationError::Security);
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            if meta.permissions().mode() & 0o077 != 0 {
+                return Err(ApplicationError::Security);
+            }
+        }
+        let mut seed = Vec::new();
+        std::fs::File::open(path)
+            .map_err(|_| ApplicationError::Security)?
+            .take(33)
+            .read_to_end(&mut seed)
+            .map_err(|_| ApplicationError::Security)?;
+        let bytes: [u8; 32] = seed.try_into().map_err(|_| ApplicationError::Security)?;
+        Ok(Self {
+            key_id: "lattice-local-persistent-v1".into(),
+            signing_key: SigningKey::from_bytes(&bytes),
+        })
+    }
+
     /// Generates a process-local development key.
     pub fn generate_ephemeral(key_id: impl Into<String>) -> Self {
         Self {

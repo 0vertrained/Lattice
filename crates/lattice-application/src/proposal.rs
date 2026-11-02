@@ -1,5 +1,7 @@
 //! Immutable, expiring proposals and an atomic approval reservation.
+use crate::ProposalRepository;
 use crate::{ApplicationError, CreateMissionRequest, LatticeService};
+use async_trait::async_trait;
 use chrono::{DateTime, Duration, Utc};
 use lattice_domain::{AuditActor, AuditRecord, Mission, MissionId, SkillCommand};
 use serde::{Deserialize, Serialize};
@@ -29,7 +31,7 @@ pub struct ProposalInput {
 }
 
 /// Frozen review snapshot. Approval never accepts replacement command fields.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Proposal {
     /// Unique proposal identity.
     pub id: String,
@@ -41,17 +43,37 @@ pub struct Proposal {
     pub expires_at: DateTime<Utc>,
     /// Immutable proposal content and provenance.
     pub input: ProposalInput,
-    /// pending, approving, approved, failed; abstentions cannot be approved.
+    /// pending, approving, approved, failed, invalidated; abstentions cannot be approved.
     pub status: String,
     /// Trace link to execution.
     pub mission_id: Option<MissionId>,
     /// Approval timestamp.
     pub approved_at: Option<DateTime<Utc>>,
+    /// Original held mission; included in the immutable digest.
+    #[serde(default)]
+    pub recovery_of: Option<MissionId>,
 }
 
 /// In-memory demo store; deliberately lost with the ephemeral core signing key.
 #[derive(Default)]
-pub(crate) struct Proposals(pub BTreeMap<String, Proposal>);
+pub(crate) struct Proposals(tokio::sync::Mutex<BTreeMap<String, Proposal>>);
+#[async_trait]
+impl ProposalRepository for Proposals {
+    async fn save(&self, proposal: Proposal) -> Result<(), ApplicationError> {
+        let mut records = self.0.lock().await;
+        if records.len() >= 2000 && !records.contains_key(&proposal.id) {
+            return Err(conflict("disposable proposal capacity reached"));
+        }
+        records.insert(proposal.id.clone(), proposal);
+        Ok(())
+    }
+    async fn get(&self, id: &str) -> Result<Option<Proposal>, ApplicationError> {
+        Ok(self.0.lock().await.get(id).cloned())
+    }
+    async fn list(&self) -> Result<Vec<Proposal>, ApplicationError> {
+        Ok(self.0.lock().await.values().cloned().collect())
+    }
+}
 
 fn conflict(message: &str) -> ApplicationError {
     ApplicationError::Conflict(message.into())
@@ -80,6 +102,32 @@ pub fn validate_warehouse_command(command: &SkillCommand) -> Result<(), Applicat
 impl LatticeService {
     /// Validates and freezes a proposal without creating or dispatching a mission.
     pub async fn propose(&self, input: ProposalInput) -> Result<Proposal, ApplicationError> {
+        self.propose_inner(input, None).await
+    }
+
+    /// Creates a fresh review snapshot for held work. It grants no execution authority.
+    pub async fn propose_recovery(&self, id: &MissionId) -> Result<Proposal, ApplicationError> {
+        let mission = self
+            .missions
+            .get(id)
+            .await?
+            .ok_or(ApplicationError::NotFound { entity: "mission" })?;
+        if mission.status != lattice_domain::MissionStatus::RecoveryRequired {
+            return Err(conflict("mission does not require recovery"));
+        }
+        self.propose_inner(ProposalInput {
+            user_intent: mission.title,
+            decision: "ready".into(), command: Some(mission.command), model_id: "operator-recovery-v1".into(),
+            policy_version: "warehouse-v1".into(), confidence: 1.0,
+            rationale: "Review the current robot position and surroundings. Approval creates a new command; previous execution will not resume.".into(),
+        }, Some(id.clone())).await
+    }
+
+    async fn propose_inner(
+        &self,
+        input: ProposalInput,
+        recovery_of: Option<MissionId>,
+    ) -> Result<Proposal, ApplicationError> {
         if !(3..=500).contains(&input.user_intent.len())
             || input.user_intent.chars().any(char::is_control)
             || !input.confidence.is_finite()
@@ -100,7 +148,7 @@ impl LatticeService {
         let now = self.clock.now();
         let id = format!("proposal-{}", Uuid::new_v4().simple());
         let expires_at = now + Duration::minutes(5);
-        let bytes = serde_json::to_vec(&(&id, now, expires_at, &input))
+        let bytes = serde_json::to_vec(&(&id, now, expires_at, &input, &recovery_of))
             .map_err(|_| ApplicationError::Infrastructure)?;
         let proposal = Proposal {
             id,
@@ -111,26 +159,20 @@ impl LatticeService {
             status: "pending".into(),
             mission_id: None,
             approved_at: None,
+            recovery_of,
         };
-        let mut proposals = self.proposals.lock().await;
-        // Bounded demo memory. Never silently evict approval/idempotency records.
-        if proposals.0.len() >= 2000 {
-            return Err(conflict(
-                "proposal capacity reached; restart the disposable demo",
-            ));
-        }
         self.audit.append(AuditRecord { occurred_at: now, actor: AuditActor::Service("proposal-api".into()),
             event_type: "proposal.created".into(), object_id: proposal.id.clone(),
-            metadata: json!({"digest":proposal.digest,"model_id":proposal.input.model_id,"decision":proposal.input.decision}) }).await?;
-        proposals.0.insert(proposal.id.clone(), proposal.clone());
+            metadata: json!({"digest":proposal.digest,"model_id":proposal.input.model_id,"decision":proposal.input.decision,"recovery_of":proposal.recovery_of}) }).await?;
+        self.proposals.save(proposal.clone()).await?;
         Ok(proposal)
     }
 
     /// Lists review snapshots, including model abstentions and execution links.
-    pub async fn list_proposals(&self) -> Vec<Proposal> {
-        let mut proposals: Vec<_> = self.proposals.lock().await.0.values().cloned().collect();
+    pub async fn list_proposals(&self) -> Result<Vec<Proposal>, ApplicationError> {
+        let mut proposals = self.proposals.list().await?;
         proposals.sort_by_key(|p| std::cmp::Reverse(p.created_at));
-        proposals
+        Ok(proposals)
     }
 
     /// Atomically reserves one exact snapshot before dispatch. Repeated completed
@@ -141,32 +183,44 @@ impl LatticeService {
         digest: &str,
         actor: AuditActor,
     ) -> Result<Mission, ApplicationError> {
-        let input = {
-            let mut proposals = self.proposals.lock().await;
-            let p = proposals
-                .0
-                .get_mut(id)
-                .ok_or(ApplicationError::NotFound { entity: "proposal" })?;
-            if p.digest != digest {
-                return Err(conflict("approval digest mismatch"));
-            }
-            if let Some(mission_id) = &p.mission_id {
-                return self
+        let _reservation = self.approval_lock.lock().await;
+        let mut p = self
+            .proposals
+            .get(id)
+            .await?
+            .ok_or(ApplicationError::NotFound { entity: "proposal" })?;
+        if p.digest != digest {
+            return Err(conflict("approval digest mismatch"));
+        }
+        if let Some(mission_id) = &p.mission_id {
+            return self
+                .missions
+                .get(mission_id)
+                .await?
+                .ok_or(ApplicationError::NotFound { entity: "mission" });
+        }
+        if p.status != "pending" || p.input.decision != "ready" || self.clock.now() >= p.expires_at
+        {
+            return Err(conflict("proposal is not pending, executable, or current"));
+        }
+        let mut original = match &p.recovery_of {
+            Some(id) => {
+                let m = self
                     .missions
-                    .get(mission_id)
+                    .get(id)
                     .await?
-                    .ok_or(ApplicationError::NotFound { entity: "mission" });
+                    .ok_or(ApplicationError::NotFound { entity: "mission" })?;
+                if m.status != lattice_domain::MissionStatus::RecoveryRequired {
+                    return Err(conflict("mission recovery was already approved"));
+                }
+                Some(m)
             }
-            if p.status != "pending"
-                || p.input.decision != "ready"
-                || self.clock.now() >= p.expires_at
-            {
-                return Err(conflict("proposal is not pending, executable, or current"));
-            }
-            p.status = "approving".into();
-            p.approved_at = Some(self.clock.now());
-            p.input.clone()
+            None => None,
         };
+        p.status = "approving".into();
+        p.approved_at = Some(self.clock.now());
+        self.proposals.save(p.clone()).await?;
+        let input = p.input.clone();
         let command = input.command.ok_or_else(|| conflict("missing command"))?;
         validate_warehouse_command(&command)?;
         self.audit
@@ -175,7 +229,7 @@ impl LatticeService {
                 actor: actor.clone(),
                 event_type: "proposal.approved".into(),
                 object_id: id.into(),
-                metadata: json!({"digest":digest}),
+                metadata: json!({"digest":digest,"recovery_of":p.recovery_of}),
             })
             .await?;
         let result = self
@@ -193,16 +247,21 @@ impl LatticeService {
                 actor,
             )
             .await;
-        let mut proposals = self.proposals.lock().await;
-        if let Some(p) = proposals.0.get_mut(id) {
-            match &result {
-                Ok(m) => {
-                    p.status = "approved".into();
-                    p.mission_id = Some(m.id.clone());
+        match &result {
+            Ok(m) => {
+                p.status = "approved".into();
+                p.mission_id = Some(m.id.clone());
+                if let Some(old) = &mut original {
+                    old.status = lattice_domain::MissionStatus::Cancelled;
+                    old.updated_at = self.clock.now();
+                    old.status_detail =
+                        Some(format!("Continued after operator review as {}", m.id));
+                    self.missions.save(old.clone()).await?;
                 }
-                Err(_) => p.status = "failed".into(),
             }
+            Err(_) => p.status = "failed".into(),
         }
+        self.proposals.save(p).await?;
         result
     }
 }

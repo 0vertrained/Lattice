@@ -40,6 +40,17 @@ pub trait CommandQueue: Send + Sync {
     async fn dequeue(&self, body_id: &BodyId) -> Result<Option<SignedCommand>, ApplicationError>;
 }
 
+/// Proposal storage; callers serialize approval use cases in a transaction.
+#[async_trait]
+pub trait ProposalRepository: Send + Sync {
+    /// Stores the frozen snapshot and approval outcome.
+    async fn save(&self, proposal: crate::Proposal) -> Result<(), ApplicationError>;
+    /// Looks up a review snapshot.
+    async fn get(&self, id: &str) -> Result<Option<crate::Proposal>, ApplicationError>;
+    /// Lists review history.
+    async fn list(&self) -> Result<Vec<crate::Proposal>, ApplicationError>;
+}
+
 /// Cryptographic command-signing boundary.
 #[async_trait]
 pub trait CommandSigner: Send + Sync {

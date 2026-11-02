@@ -46,7 +46,7 @@ PY
 AI_PYTHON="$ROOT_DIR/services/lattice-ai-gateway/.venv/bin/python"
 [[ -x "$AI_PYTHON" ]] || { echo 'Install services/lattice-ai-gateway/requirements.txt into its .venv first.' >&2; exit 1; }
 # Inference is loopback-only and receives no body/control credentials.
-env -u LATTICE_DEV_API_KEY -u GH_TOKEN -u AZURE_FEDERATED_TOKEN_FILE -u AZURE_TOKEN_CREDENTIALS \
+env -u LATTICE_DEV_API_KEY -u LATTICE_DATABASE_URL -u LATTICE_SIGNING_KEY_FILE -u GH_TOKEN -u AZURE_FEDERATED_TOKEN_FILE -u AZURE_TOKEN_CREDENTIALS \
   OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 "$AI_PYTHON" -m uvicorn app.main:app \
   --app-dir services/lattice-ai-gateway --host 127.0.0.1 --port 8001 > "$run_dir/ai.log" 2>&1 & owned_pids+=("$!")
 python3 - <<'PYREADY'
@@ -77,9 +77,12 @@ PY
 target/debug/lattice-ros2-body > "$run_dir/body.log" 2>&1 & owned_pids+=("$!")
 node apps/control-center/node_modules/vite/bin/vite.js apps/control-center --host 127.0.0.1 > "$run_dir/frontend.log" 2>&1 & owned_pids+=("$!")
 export LATTICE_BODY_PID="${owned_pids[2]}"
+export LATTICE_CORE_PID="${owned_pids[1]}"
 echo "Warehouse started. Logs: $run_dir; ROS logs: docker logs $container"
 echo 'Use the API key from your existing .env in Control Center. Ctrl-C stops this run.'
-if [[ "${LATTICE_SMOKE:-0}" == 1 ]]; then
+if [[ "${LATTICE_RECOVERY_SMOKE:-0}" == 1 ]]; then
+  python3 scripts/smoke-recovery-robot.py
+elif [[ "${LATTICE_SMOKE:-0}" == 1 ]]; then
   python3 scripts/smoke-navigation.py
   python3 scripts/smoke-watchdog.py
   python3 scripts/smoke-intelligence.py

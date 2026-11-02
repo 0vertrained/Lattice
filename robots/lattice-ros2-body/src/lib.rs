@@ -7,7 +7,7 @@ use lattice_domain::{BodyId, BodyPose, SignedCommand, SkillCommand, Verification
 use serde::{Deserialize, Serialize};
 
 /// Local gateway response. The gateway owns ROS action state and localization.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct GatewayState {
     /// False when the local request was rejected.
     pub ok: bool,

@@ -92,7 +92,7 @@ async fn immutable_approval_is_required_and_concurrent_retries_do_not_duplicate_
     assert_eq!(command.envelope.command, p.input.command.unwrap());
     assert!(service.next_command(&body).await.unwrap().is_none());
     assert_eq!(
-        service.list_proposals().await[0].mission_id,
+        service.list_proposals().await.unwrap()[0].mission_id,
         Some(mission.id)
     );
 }

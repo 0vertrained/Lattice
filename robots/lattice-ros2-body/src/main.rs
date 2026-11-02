@@ -33,6 +33,18 @@ async fn local(socket: &str, request: &impl serde::Serialize) -> Result<GatewayS
     .await?
 }
 
+fn response_epoch(response: &reqwest::Response) -> Result<&str, Error> {
+    let epoch = response
+        .headers()
+        .get("x-lattice-core-epoch")
+        .ok_or("core epoch missing; refusing motion lease")?
+        .to_str()?;
+    if epoch.is_empty() || epoch.len() > 64 {
+        return Err("invalid core epoch".into());
+    }
+    Ok(epoch)
+}
+
 async fn report(
     client: &Client,
     url: &str,
@@ -140,14 +152,14 @@ async fn main() -> Result<(), Error> {
     let client = Client::builder()
         .timeout(Duration::from_millis(700))
         .build()?;
-    let key: VerificationKey = client
+    let key_response = client
         .get(format!("{url}/v1/security/verification-key"))
         .header("x-lattice-api-key", &api_key)
         .send()
         .await?
-        .error_for_status()?
-        .json()
-        .await?;
+        .error_for_status()?;
+    let mut core_epoch = response_epoch(&key_response)?.to_owned();
+    let key: VerificationKey = key_response.json().await?;
     let mut highest = match fs::read_to_string(&state_path) {
         Ok(raw) => {
             let saved: Value = serde_json::from_str(&raw)?;
@@ -176,6 +188,11 @@ async fn main() -> Result<(), Error> {
         .await?
         .error_for_status()?;
     let mut active: Option<SignedCommand> = None;
+    let mut pending_report: Option<(
+        CommandResultStatus,
+        GatewayState,
+        Option<InspectionEvidence>,
+    )> = None;
     let mut inspection: Option<tokio::task::JoinHandle<Result<InspectionEvidence, Error>>> = None;
     loop {
         let mut state = local(&socket, &json!({"op":"status"})).await?;
@@ -197,12 +214,51 @@ async fn main() -> Result<(), Error> {
             .send()
             .await
             .and_then(reqwest::Response::error_for_status);
-        if let Err(error) = heartbeat_result {
-            tracing::warn!(%error, "core unavailable; withholding motion lease");
-            tokio::time::sleep(Duration::from_millis(300)).await;
-            continue;
+        let response = match heartbeat_result {
+            Ok(response) => response,
+            Err(error) => {
+                tracing::warn!(%error, "core unavailable; withholding motion lease");
+                tokio::time::sleep(Duration::from_millis(300)).await;
+                continue;
+            }
+        };
+        let observed_epoch = response_epoch(&response)?;
+        if observed_epoch != core_epoch {
+            // Even a restart shorter than the watchdog lease must invalidate motion.
+            state = local(&socket, &json!({"op":"stop"})).await?;
+            if let Some(task) = inspection.take() {
+                task.abort();
+            }
+            active = None;
+            pending_report = None;
+            core_epoch = observed_epoch.to_owned();
+            tracing::warn!("core restarted; previous motion stopped and execution cleared");
         }
         local(&socket, &json!({"op":"lease"})).await?;
+        if let (Some(command), Some((status, old_state, evidence))) = (&active, &pending_report) {
+            match report(
+                &client,
+                &url,
+                &api_key,
+                command,
+                *status,
+                old_state,
+                evidence.clone(),
+            )
+            .await
+            {
+                Ok(()) => {
+                    active = None;
+                    pending_report = None;
+                }
+                Err(error) => {
+                    local(&socket, &json!({"op":"stop"})).await?;
+                    tracing::warn!(%error, "terminal acknowledgement pending; motion held");
+                    tokio::time::sleep(Duration::from_millis(300)).await;
+                    continue;
+                }
+            }
+        }
         if let Some(command) = &active {
             if state.command_id != command.envelope.command_id.to_string() {
                 return Err("gateway lost active command; watchdog will stop motion".into());
@@ -244,7 +300,25 @@ async fn main() -> Result<(), Error> {
                     state.detail = "capturing and classifying inspection image".into();
                 }
             }
-            report(&client, &url, &api_key, command, status, &state, evidence).await?;
+            if let Err(error) = report(
+                &client,
+                &url,
+                &api_key,
+                command,
+                status,
+                &state,
+                evidence.clone(),
+            )
+            .await
+            {
+                local(&socket, &json!({"op":"stop"})).await?;
+                if status != CommandResultStatus::Running {
+                    pending_report = Some((status, state, evidence));
+                }
+                tracing::warn!(%error, "result acknowledgement failed; motion stopped");
+                tokio::time::sleep(Duration::from_millis(300)).await;
+                continue;
+            }
             if status != CommandResultStatus::Running {
                 active = None;
             }
@@ -253,8 +327,21 @@ async fn main() -> Result<(), Error> {
                 .get(format!("{url}/v1/bodies/{body_id}/commands/next"))
                 .header("x-lattice-api-key", &api_key)
                 .send()
-                .await?
-                .error_for_status()?;
+                .await
+                .and_then(reqwest::Response::error_for_status);
+            let response = match response {
+                Ok(response) => response,
+                Err(error) => {
+                    local(&socket, &json!({"op":"stop"})).await?;
+                    tracing::warn!(%error, "command polling failed; motion stopped");
+                    tokio::time::sleep(Duration::from_millis(300)).await;
+                    continue;
+                }
+            };
+            if response_epoch(&response)? != core_epoch {
+                local(&socket, &json!({"op":"stop"})).await?;
+                core_epoch = response_epoch(&response)?.to_owned();
+            }
             if response.status() != StatusCode::NO_CONTENT {
                 let command: SignedCommand = response.json().await?;
                 let goal = match verify_navigation(&command, &key, &body_id, highest, Utc::now()) {

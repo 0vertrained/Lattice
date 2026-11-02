@@ -9,6 +9,7 @@ license.workspace = true
 [dependencies]
 axum.workspace = true
 http.workspace = true
+uuid.workspace = true
 lattice-application = { path = "../../crates/lattice-application" }
 lattice-domain = { path = "../../crates/lattice-domain" }
 lattice-infrastructure = { path = "../../crates/lattice-infrastructure" }

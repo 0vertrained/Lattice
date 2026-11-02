@@ -89,6 +89,15 @@ class ApiClient {
     );
   }
 
+  async proposeRecovery(missionId: string): Promise<Proposal> {
+    return proposalSchema.parse(
+      await this.request(`/missions/${encodeURIComponent(missionId)}/recovery-proposal`, {
+        method: 'POST',
+        body: '{}',
+      }),
+    );
+  }
+
   async listProposals(): Promise<readonly Proposal[]> {
     return z.array(proposalSchema).parse(await this.request('/proposals'));
   }

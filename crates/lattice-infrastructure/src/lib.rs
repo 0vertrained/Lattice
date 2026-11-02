@@ -1,7 +1,9 @@
-#![doc = "Concrete Lattice adapters. Production database and event-bus adapters land here."]
+#![doc = "Concrete Lattice adapters for memory, local PostgreSQL, signing and time."]
 
 mod crypto;
 mod memory;
+mod postgres;
+pub use postgres::{PostgresPlatform, PostgresUnit};
 mod time;
 
 pub use crypto::Ed25519CommandSigner;

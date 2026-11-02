@@ -23,3 +23,5 @@ __pycache__/
 /simulation/warehouse/marker.obj
 /simulation/warehouse/marker.mtl
 /simulation/warehouse/marker.dae
+
+/.lattice-state/

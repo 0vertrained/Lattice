@@ -7,8 +7,10 @@ mod error;
 
 use std::sync::Arc;
 
-use lattice_application::{LatticeService, ServiceConfig};
-use lattice_infrastructure::{Ed25519CommandSigner, InMemoryPlatform, SystemClock};
+use lattice_application::{CommandSigner, LatticeService, ServiceConfig};
+use lattice_infrastructure::{
+    Ed25519CommandSigner, InMemoryPlatform, PostgresPlatform, SystemClock,
+};
 use tracing::info;
 
 use crate::config::AppConfig;
@@ -18,14 +20,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_tracing();
     let config = AppConfig::from_env()?;
 
+    let signer = Arc::new(match &config.signing_key_file {
+        Some(path) => Ed25519CommandSigner::load_file(path)?,
+        None => Ed25519CommandSigner::generate_ephemeral("lattice-dev-key-1"),
+    });
+    let epoch = uuid::Uuid::new_v4().to_string();
+    let postgres = match &config.database_url {
+        Some(url) => {
+            let db = PostgresPlatform::connect(url).await?;
+            db.recover(&signer.verification_key().await?.public_key_base64, &epoch)
+                .await?;
+            Some(db)
+        }
+        None => {
+            tracing::warn!("disposable memory mode: mission history is lost on restart");
+            None
+        }
+    };
     let platform = Arc::new(InMemoryPlatform::default());
     let service = LatticeService::new(
         platform.clone(),
         platform.clone(),
         platform.clone(),
-        Arc::new(Ed25519CommandSigner::generate_ephemeral(
-            "lattice-dev-key-1",
-        )),
+        signer,
         platform,
         Arc::new(SystemClock),
         ServiceConfig {
@@ -34,7 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         },
     );
 
-    let app = api::router(service, config.clone())?;
+    let app = api::router(service, config.clone(), postgres, epoch)?;
     let listener = tokio::net::TcpListener::bind(config.bind_address).await?;
     info!(address = %config.bind_address, "Lattice Core listening");
 

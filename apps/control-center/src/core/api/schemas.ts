@@ -88,6 +88,7 @@ export const missionStatusSchema = z.enum([
   'failed',
   'cancelled',
   'interrupted',
+  'recovery_required',
 ]);
 
 export const evidenceSchema = z.object({
@@ -113,9 +114,10 @@ export const proposalSchema = z.object({
   digest: z.string().length(64),
   created_at: z.string(),
   expires_at: z.string(),
-  status: z.enum(['pending', 'approving', 'approved', 'failed']),
+  status: z.enum(['pending', 'approving', 'approved', 'failed', 'invalidated']),
   mission_id: z.string().nullable(),
   approved_at: z.string().nullable(),
+  recovery_of: z.string().nullable().optional(),
   input: z.object({
     user_intent: z.string(),
     decision: z.enum(['ready', 'clarify', 'rejected']),

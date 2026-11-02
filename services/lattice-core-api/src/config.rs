@@ -3,8 +3,12 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 /// Validated process configuration.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct AppConfig {
+    /// Optional local PostgreSQL connection string; never log this value.
+    pub database_url: Option<String>,
+    /// Stable local development signing seed (required with PostgreSQL).
+    pub signing_key_file: Option<std::path::PathBuf>,
     /// Listener address.
     pub bind_address: SocketAddr,
     /// Development-only shared key.
@@ -43,7 +47,17 @@ impl AppConfig {
             ));
         }
 
+        let database_url = env::var("LATTICE_DATABASE_URL").ok();
+        let signing_key_file =
+            env::var_os("LATTICE_SIGNING_KEY_FILE").map(std::path::PathBuf::from);
+        if database_url.is_some() && signing_key_file.is_none() {
+            return Err(ConfigError(
+                "LATTICE_SIGNING_KEY_FILE is required with PostgreSQL".into(),
+            ));
+        }
         Ok(Self {
+            database_url,
+            signing_key_file,
             bind_address,
             dev_api_key,
             allowed_origin,

@@ -14,7 +14,7 @@ The current demo combines a local trained intent classifier, backend approval, s
 - **C++ / ROS 2** behind a local gateway
 - **Python / scikit-learn / OpenCV** for untrusted intent and marker inference
 - **Typed, signed, expiring commands** between core and bodies
-- **PostgreSQL, NATS JetStream, and OpenTelemetry** prepared for the durable platform phase
+- **PostgreSQL** for durable mission history and restart recovery; NATS and OpenTelemetry configuration for later deployment work
 
 ## Trust boundary
 
@@ -135,8 +135,10 @@ The executable foundation provides:
 - trained intent classification with held-out evaluation
 - camera evidence and a trained safety-marker detector
 - live 3D digital-twin viewport
+- transactional PostgreSQL approvals, command queues and audit/outbox records
+- persistent signing identity and explicit recovery after core restarts
 
-The implemented demo is described in `docs/INTELLIGENCE_DEMO.md`. Durable core state, per-user/device identities, general LLM/VLM planning, SLAM, and physical hardware remain future milestones.
+The implemented demo is described in `docs/INTELLIGENCE_DEMO.md`. Run `./scripts/run-durable-warehouse.sh` for persistent history and operator-reviewed restart recovery; see the [recovery guide](docs/RECOVERY_DEMO.md). Per-user/device identities, remote hosting, general LLM/VLM planning, SLAM, and physical hardware remain future milestones.
 
 ## Safety status
 

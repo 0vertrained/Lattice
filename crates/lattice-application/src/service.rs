@@ -83,7 +83,8 @@ pub struct LatticeService {
     pub(crate) audit: Arc<dyn AuditSink>,
     pub(crate) clock: Arc<dyn Clock>,
     pub(crate) config: ServiceConfig,
-    pub(crate) proposals: Arc<tokio::sync::Mutex<crate::proposal::Proposals>>,
+    pub(crate) proposals: Arc<dyn crate::ProposalRepository>,
+    pub(crate) approval_lock: Arc<tokio::sync::Mutex<()>>,
 }
 
 impl LatticeService {
@@ -98,7 +99,8 @@ impl LatticeService {
         config: ServiceConfig,
     ) -> Self {
         Self {
-            proposals: Arc::default(),
+            proposals: Arc::new(crate::proposal::Proposals::default()),
+            approval_lock: Arc::default(),
             bodies,
             missions,
             commands,
@@ -107,6 +109,34 @@ impl LatticeService {
             clock,
             config,
         }
+    }
+
+    /// Replaces the disposable proposal store with the current transaction.
+    pub fn with_proposals(mut self, proposals: Arc<dyn crate::ProposalRepository>) -> Self {
+        self.proposals = proposals;
+        self
+    }
+
+    /// Rebinds persistence ports to one database transaction, retaining policy and signer.
+    pub fn in_transaction<T>(&self, unit: Arc<T>) -> Self
+    where
+        T: BodyRepository
+            + MissionRepository
+            + CommandQueue
+            + AuditSink
+            + crate::ProposalRepository
+            + 'static,
+    {
+        Self::new(
+            unit.clone(),
+            unit.clone(),
+            unit.clone(),
+            self.signer.clone(),
+            unit.clone(),
+            self.clock.clone(),
+            self.config.clone(),
+        )
+        .with_proposals(unit)
     }
 
     /// Registers or updates a body identity.
@@ -236,7 +266,22 @@ impl LatticeService {
                 continue;
             }
 
+            let Some(mut mission) = self.missions.get(&command.envelope.mission_id).await? else {
+                continue;
+            };
+            if mission.active_command_id.as_ref() != Some(&command.envelope.command_id)
+                || !matches!(
+                    mission.status,
+                    MissionStatus::Assigned | MissionStatus::Running
+                )
+            {
+                continue;
+            }
             if command.envelope.is_expired(now) {
+                mission.require_recovery(now);
+                mission.status_detail =
+                    Some("Command expired before delivery. Review a recovery proposal.".into());
+                self.missions.save(mission).await?;
                 self.audit_rejection("command.expired", &command.envelope.command_id, body_id)
                     .await?;
                 continue;
@@ -270,6 +315,34 @@ impl LatticeService {
             ));
         }
 
+        if mission.active_command_id.as_ref() != Some(&result.command_id) {
+            return Err(ApplicationError::Conflict(
+                "result command does not own the mission".into(),
+            ));
+        }
+        if matches!(
+            mission.status,
+            MissionStatus::RecoveryRequired | MissionStatus::Cancelled
+        ) {
+            self.audit_rejection(
+                "command.late_result_ignored",
+                &result.command_id,
+                &result.body_id,
+            )
+            .await?;
+            return Ok(mission);
+        }
+        // Retrying a terminal acknowledgement must not lose an already committed result.
+        if matches!(
+            (mission.status, result.status),
+            (MissionStatus::Succeeded, CommandResultStatus::Succeeded)
+                | (
+                    MissionStatus::Failed,
+                    CommandResultStatus::Failed | CommandResultStatus::Rejected
+                )
+        ) {
+            return Ok(mission);
+        }
         let now = self.clock.now();
         if let Some(evidence) = &result.evidence {
             use base64::{Engine, engine::general_purpose::STANDARD};
@@ -378,7 +451,10 @@ impl LatticeService {
         for mut mission in self.missions.list().await? {
             if matches!(
                 mission.status,
-                MissionStatus::Succeeded | MissionStatus::Failed | MissionStatus::Cancelled
+                MissionStatus::Succeeded
+                    | MissionStatus::Failed
+                    | MissionStatus::Cancelled
+                    | MissionStatus::RecoveryRequired
             ) {
                 continue;
             }

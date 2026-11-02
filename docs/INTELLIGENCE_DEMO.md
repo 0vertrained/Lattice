@@ -79,11 +79,13 @@ uploads its own evaluation report without overwriting the checked-in observation
 - `POST /v1/missions` is disabled. Missions originate through approval.
 
 The SHA-256 digest covers the immutable typed proposal, provenance, unique ID and
-creation/expiry timestamps. Approval expires after five minutes. The backend
+creation/expiry timestamps and optional recovery mission identity. Approval expires after five minutes. The backend
 reserves the proposal before dispatch, so concurrent approval requests cannot
 create multiple commands. A completed retry returns the same mission. A request
 interrupted after reservation fails closed and may require a new proposal; this
-in-memory adapter is not a transactional database or a durable exactly-once system.
+disposable in-memory mode is not transactional. The [durable runner](RECOVERY_DEMO.md)
+commits the complete approval use case in PostgreSQL and holds work after restart.
+Neither mode promises exactly-once physical execution.
 
 Rust independently restricts skills, known map destinations and speed. The
 `blocked_shelf` map entry is an explicit negative-test fixture, not an operator
@@ -109,8 +111,9 @@ The inference process has no signing key or ROS interface. These are logical
 process boundaries, not a hardened OS sandbox: native processes share the checkout.
 
 This remains an isolated, single-operator simulator with a shared development key,
-in-memory core state and ephemeral signing keys. It has no per-user approval roles,
-physical-robot validation, durable evidence store, SLAM, LLM or VLM. Mock bodies
+with either disposable memory state or opt-in PostgreSQL history and a persistent
+local signing key. It has no per-user approval roles, physical-robot validation,
+large-artifact object store, SLAM, LLM or VLM. Mock bodies
 cannot produce camera evidence and report inspection failure explicitly. A future
 LLM adapter can produce the same proposal schema; it must retain all backend checks.
 

@@ -353,7 +353,8 @@ h2 {
   border-color: #713742;
 }
 .status-pill.queued,
-.status-pill.interrupted {
+.status-pill.interrupted,
+.status-pill.recovery_required {
   color: #f3c876;
   border-color: #6b5630;
 }

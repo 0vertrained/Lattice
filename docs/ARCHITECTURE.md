@@ -82,10 +82,13 @@ sequenceDiagram
 
 ## Data strategy
 
-PostgreSQL becomes the source of truth. The initial executable uses an in-memory
-adapter so domain behavior and the vertical slice can be developed before database
-wiring. The included schema provides optimistic versions, ordered commands,
-append-only audit, and transactional outbox delivery.
+The durable local runner uses PostgreSQL as the source of truth. Transaction-scoped
+ports commit approval, mission, command, sequence, audit and outbox rows together.
+A session advisory lock enforces one core writer. Startup holds unfinished work
+for a new operator approval and preserves signing identity. See
+[restart recovery](RECOVERY_DEMO.md). The original runner remains in-memory.
+Outbox publication to NATS is not implemented yet.
 
-Large evidence—video, images, maps, MCAP, and rosbag data—belongs in object
-storage. PostgreSQL stores metadata, hashes, retention, and authorization.
+Current bounded inspection JPEGs are retained in mission JSONB. Large evidence—
+video, maps, MCAP and rosbag data—will require object storage, retention and
+authorization controls.

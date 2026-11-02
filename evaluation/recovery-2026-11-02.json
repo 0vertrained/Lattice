@@ -1,0 +1,16 @@
+{
+  "restart_recovery": "passed",
+  "core_available_after_s": 0.504,
+  "stop_observed_after_s": 0.52,
+  "post_stop_drift_m": 0.019,
+  "retained_camera_results": 2,
+  "automatic_resume": false,
+  "operator_approved_recovery": "succeeded",
+  "final_pose": {
+    "x": -2.8891827781808272,
+    "y": -1.9185681712578664,
+    "yaw": -0.13279996661906365
+  },
+  "environment": "Gazebo Harmonic / ROS 2 Jazzy / PostgreSQL 18.4, managed cloud",
+  "scope": "One simulator run; no physical hardware timing guarantee"
+}

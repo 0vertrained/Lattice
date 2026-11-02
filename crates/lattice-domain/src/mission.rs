@@ -21,6 +21,8 @@ pub enum MissionStatus {
     Cancelled,
     /// Lost its body and may be reassigned.
     Interrupted,
+    /// Core restart invalidated execution; an operator must review a new proposal.
+    RecoveryRequired,
 }
 
 /// Durable user objective executed through a typed skill.
@@ -199,6 +201,22 @@ impl Mission {
         self.status = MissionStatus::Queued;
         self.updated_at = now;
         Ok(())
+    }
+
+    /// Holds unfinished work after a restart, retaining the old command for diagnostics.
+    pub fn require_recovery(&mut self, now: DateTime<Utc>) {
+        if matches!(
+            self.status,
+            MissionStatus::Queued
+                | MissionStatus::Assigned
+                | MissionStatus::Running
+                | MissionStatus::Interrupted
+        ) {
+            self.status = MissionStatus::RecoveryRequired;
+            self.updated_at = now;
+            self.status_detail =
+                Some("Core restarted. Review a recovery proposal before continuing.".into());
+        }
     }
 
     fn validate_active_command(&self, command_id: &CommandId) -> Result<(), DomainError> {

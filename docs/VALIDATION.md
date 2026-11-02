@@ -1,5 +1,39 @@
 # Validation
 
+## PostgreSQL recovery increment — November 2, 2026 (UTC)
+
+`LATTICE_RECOVERY_SMOKE=1 ./scripts/run-durable-warehouse.sh` passed in a real
+Gazebo warehouse run. After SIGKILL during measured rover motion, the replacement
+core became available after 0.504 s and the old goal was observed stopped after
+0.520 s, within the 1.5 s motion lease. Map-frame drift over the next three seconds
+was 0.019 m. Both committed camera results survived byte-for-byte. The original
+mission stayed held, and reassignment did not resume it. A fresh recovery approval
+created a new mission which reached the charging station at (-2.889, -1.919).
+These are observations from one simulator run, not hardware timing guarantees.
+The [recorded result](../evaluation/recovery-2026-11-02.json) contains the measurements.
+
+Also passed locally:
+
+- Real PostgreSQL integration: cancellation rollback after all approval writes,
+  concurrent approvals, sole-writer fencing, key mismatch, recovery holds,
+  competing recovery approvals, sequences, audit chain and transactional outbox.
+- Real HTTP processes: eight concurrent approvals, abrupt restart, stable signing
+  identity, evidence/audit preservation, stale-result isolation, explicit recovery,
+  missing/wrong/permissive signing-file rejection, terminal acknowledgement retries.
+- Real camera positive and negative inspections in durable mode; marker confidence
+  0.995856 on this positive frame. The score retains the synthetic-model limitations.
+- Chromium desktop/mobile recovery UI: held mission, frozen command and expiry,
+  explicit approval, no execution from opening a review, no overflow or page errors.
+- 16 standard Rust tests, formatting and Clippy; the PostgreSQL test ran separately
+  (ordinary workspace tests intentionally mark it ignored).
+- 6 frontend tests, type checking, lint, build and bundle budgets; C++ motion-gate
+  CTest during the ROS build. No model training code changed in this increment.
+
+The runner cleaned up its simulator, body, inference and frontend processes. Its
+local PostgreSQL volume and private signing identity remain available for reuse.
+The recovery CI job is configured; its hosted result has not been verified here.
+
+
 ## Portfolio demo release — November 2, 2026
 
 The complete fresh-scene `LATTICE_SMOKE=1 ./scripts/run-warehouse.sh` check
@@ -28,8 +62,10 @@ Passed local checks:
 The public replay contains 91 measured pose samples from a separate 29.2-second
 inspection. Its downloadable JPEG matches the recorded image hash. No API key is
 included in the public artifacts. The portfolio checkout is `/workspace/Portfolio`.
-Source changes and GitHub Actions workflows have been prepared locally; hosted CI
-and GitHub Pages publication have not been performed.
+The portfolio source was subsequently pushed to its publishing branch in commit
+`2dffd93`, and the corresponding demo code in Lattice commit `1f06d60`. The managed
+environment blocks `0vertrained.github.io` and `api.github.com`; live GitHub Pages
+deployment and hosted CI results remain unverified.
 
 ## Historical starter validation
 

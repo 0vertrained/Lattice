@@ -6,11 +6,12 @@ use axum::http::{HeaderName, HeaderValue, Method, StatusCode};
 use axum::middleware;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
-use axum::{Json, Router};
+use axum::{Extension, Json, Router};
 use lattice_application::{
     CreateMissionRequest, HeartbeatRequest, LatticeService, RegisterBodyRequest,
 };
 use lattice_domain::{AuditActor, BodyId, CommandId, CommandResult, MissionId};
+use lattice_infrastructure::PostgresPlatform;
 use serde::{Deserialize, Serialize};
 use tower::ServiceBuilder;
 use tower::limit::ConcurrencyLimitLayer;
@@ -29,6 +30,7 @@ use crate::error::ApiError;
 /// Shared transport state.
 #[derive(Clone)]
 pub struct ApiState {
+    postgres: Option<PostgresPlatform>,
     /// Application facade.
     pub service: LatticeService,
     /// Development-only API key.
@@ -38,8 +40,14 @@ pub struct ApiState {
 }
 
 /// Creates the HTTP router.
-pub fn router(service: LatticeService, config: AppConfig) -> Result<Router, ConfigError> {
+pub fn router(
+    service: LatticeService,
+    config: AppConfig,
+    postgres: Option<PostgresPlatform>,
+    epoch: String,
+) -> Result<Router, ConfigError> {
     let state = ApiState {
+        postgres,
         service,
         dev_api_key: Arc::from(config.dev_api_key),
         ai_gateway_url: Arc::from(config.ai_gateway_url),
@@ -62,15 +70,22 @@ pub fn router(service: LatticeService, config: AppConfig) -> Result<Router, Conf
         .route("/bodies/{body_id}/commands/next", get(next_command))
         .route("/missions", get(list_missions))
         .route("/proposals", get(list_proposals).post(create_proposal))
-        .route("/proposals/plan", post(plan_proposal))
         .route("/proposals/{proposal_id}/approve", post(approve_proposal))
         .route("/missions/reassign", post(reassign))
+        .route(
+            "/missions/{mission_id}/recovery-proposal",
+            post(recovery_proposal),
+        )
         .route(
             "/missions/{mission_id}/commands/{command_id}/result",
             post(report_result),
         )
         .route("/security/verification-key", get(verification_key))
         .route("/audit", get(list_audit))
+        .route_layer(middleware::from_fn_with_state(state.clone(), unit_of_work))
+        // Inference runs outside the serialized database transaction, so it cannot
+        // delay body heartbeats. Only freezing the returned proposal opens a unit.
+        .route("/proposals/plan", post(plan_proposal).layer(Extension(state.clone())))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             require_api_key,
@@ -82,6 +97,11 @@ pub fn router(service: LatticeService, config: AppConfig) -> Result<Router, Conf
         .with_state(state)
         .layer(
             ServiceBuilder::new()
+                .layer(SetResponseHeaderLayer::overriding(
+                    HeaderName::from_static("x-lattice-core-epoch"),
+                    HeaderValue::from_str(&epoch)
+                        .map_err(|_| ConfigError::new("invalid core epoch"))?,
+                ))
                 .layer(SetRequestIdLayer::new(
                     HeaderName::from_static("x-request-id"),
                     MakeRequestUuid,
@@ -109,6 +129,44 @@ pub fn router(service: LatticeService, config: AppConfig) -> Result<Router, Conf
         ))
 }
 
+// All authenticated use cases, including command dequeue, complete one transaction.
+// Error responses and request cancellation roll back. Approval retries are idempotent.
+async fn unit_of_work(
+    State(mut state): State<ApiState>,
+    mut request: axum::extract::Request,
+    next: middleware::Next,
+) -> Response {
+    let tx = match &state.postgres {
+        Some(db) => match db.begin().await {
+            Ok(tx) => Some(tx),
+            Err(e) => return ApiError::from(e).into_response(),
+        },
+        None => None,
+    };
+    if let Some(tx) = &tx {
+        state.service = state.service.in_transaction(tx.clone());
+    }
+    request.extensions_mut().insert(state);
+    let response = next.run(request).await;
+    if let Some(tx) = tx
+        && let Err(e) = tx.finish(response.status().is_success()).await
+    {
+        return ApiError::from(e).into_response();
+    }
+    response
+}
+
+async fn recovery_proposal(
+    Extension(state): Extension<ApiState>,
+    Path(id): Path<String>,
+) -> Result<impl IntoResponse, ApiError> {
+    let id = MissionId::new(id).map_err(lattice_application::ApplicationError::from)?;
+    Ok((
+        StatusCode::CREATED,
+        Json(state.service.propose_recovery(&id).await?),
+    ))
+}
+
 #[derive(Serialize)]
 struct Health {
     status: &'static str,
@@ -125,7 +183,7 @@ async fn health() -> impl IntoResponse {
 }
 
 async fn register_body(
-    State(state): State<ApiState>,
+    Extension(state): Extension<ApiState>,
     Json(request): Json<RegisterBodyRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
     let body = state
@@ -139,7 +197,7 @@ async fn register_body(
 }
 
 async fn heartbeat(
-    State(state): State<ApiState>,
+    Extension(state): Extension<ApiState>,
     Path(body_id): Path<String>,
     Json(request): Json<HeartbeatRequest>,
 ) -> Result<Json<lattice_domain::BodySnapshot>, ApiError> {
@@ -148,7 +206,7 @@ async fn heartbeat(
 }
 
 async fn list_bodies(
-    State(state): State<ApiState>,
+    Extension(state): Extension<ApiState>,
 ) -> Result<Json<Vec<lattice_domain::BodySnapshot>>, ApiError> {
     Ok(Json(state.service.list_bodies().await?))
 }
@@ -165,12 +223,14 @@ struct ApprovalRequest {
     digest: String,
 }
 
-async fn list_proposals(State(state): State<ApiState>) -> Json<Vec<lattice_application::Proposal>> {
-    Json(state.service.list_proposals().await)
+async fn list_proposals(
+    Extension(state): Extension<ApiState>,
+) -> Result<Json<Vec<lattice_application::Proposal>>, ApiError> {
+    Ok(Json(state.service.list_proposals().await?))
 }
 
 async fn create_proposal(
-    State(state): State<ApiState>,
+    Extension(state): Extension<ApiState>,
     Json(request): Json<CreateMissionRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
     let p = state
@@ -189,7 +249,7 @@ async fn create_proposal(
 }
 
 async fn plan_proposal(
-    State(state): State<ApiState>,
+    Extension(state): Extension<ApiState>,
     Json(request): Json<PlanRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
     if !(3..=500).contains(&request.user_intent.len()) {
@@ -233,14 +293,23 @@ async fn plan_proposal(
     value["user_intent"] = serde_json::Value::String(request.user_intent);
     let input = serde_json::from_value(value)
         .map_err(|_| lattice_application::ApplicationError::Infrastructure)?;
-    Ok((
-        StatusCode::CREATED,
-        Json(state.service.propose(input).await?),
-    ))
+    let tx = match &state.postgres {
+        Some(db) => Some(db.begin().await?),
+        None => None,
+    };
+    let service = match &tx {
+        Some(tx) => state.service.in_transaction(tx.clone()),
+        None => state.service.clone(),
+    };
+    let proposal = service.propose(input).await?;
+    if let Some(tx) = &tx {
+        tx.finish(true).await?;
+    }
+    Ok((StatusCode::CREATED, Json(proposal)))
 }
 
 async fn approve_proposal(
-    State(state): State<ApiState>,
+    Extension(state): Extension<ApiState>,
     Path(id): Path<String>,
     Json(request): Json<ApprovalRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
@@ -256,13 +325,13 @@ async fn approve_proposal(
 }
 
 async fn list_missions(
-    State(state): State<ApiState>,
+    Extension(state): Extension<ApiState>,
 ) -> Result<Json<Vec<lattice_domain::Mission>>, ApiError> {
     Ok(Json(state.service.list_missions().await?))
 }
 
 async fn next_command(
-    State(state): State<ApiState>,
+    Extension(state): Extension<ApiState>,
     Path(body_id): Path<String>,
 ) -> Result<Response, ApiError> {
     let body_id = BodyId::new(body_id).map_err(lattice_application::ApplicationError::from)?;
@@ -274,7 +343,7 @@ async fn next_command(
 }
 
 async fn report_result(
-    State(state): State<ApiState>,
+    Extension(state): Extension<ApiState>,
     Path((mission_id, command_id)): Path<(String, String)>,
     Json(mut result): Json<CommandResult>,
 ) -> Result<Json<lattice_domain::Mission>, ApiError> {
@@ -301,7 +370,7 @@ async fn report_result(
 }
 
 async fn reassign(
-    State(state): State<ApiState>,
+    Extension(state): Extension<ApiState>,
 ) -> Result<Json<Vec<lattice_domain::Mission>>, ApiError> {
     Ok(Json(
         state
@@ -312,13 +381,13 @@ async fn reassign(
 }
 
 async fn verification_key(
-    State(state): State<ApiState>,
+    Extension(state): Extension<ApiState>,
 ) -> Result<Json<lattice_domain::VerificationKey>, ApiError> {
     Ok(Json(state.service.verification_key().await?))
 }
 
 async fn list_audit(
-    State(state): State<ApiState>,
+    Extension(state): Extension<ApiState>,
 ) -> Result<Json<Vec<lattice_domain::AuditRecord>>, ApiError> {
     Ok(Json(state.service.list_audit().await?))
 }
@@ -345,6 +414,8 @@ mod tests {
         router(
             service,
             AppConfig {
+                database_url: None,
+                signing_key_file: None,
                 bind_address: "127.0.0.1:8000".parse().unwrap(),
                 dev_api_key: "a".repeat(32),
                 allowed_origin: "http://localhost:5173".into(),
@@ -352,6 +423,8 @@ mod tests {
                 command_ttl: Duration::from_secs(30),
                 heartbeat_timeout: Duration::from_secs(10),
             },
+            None,
+            "test-epoch".into(),
         )
         .unwrap()
     }

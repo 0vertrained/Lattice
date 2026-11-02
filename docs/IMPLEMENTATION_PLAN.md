@@ -82,6 +82,16 @@ Exit test:
 
 ## Milestone 1 — Durable core
 
+**Local durability and recovery increment implemented:** PostgreSQL transaction-scoped
+repositories, frozen proposals, atomic approval/command/outbox writes, stable local
+signing identity, hash-chained audit, persisted sequences and explicit restart recovery.
+The robot stops on a changed core epoch and the operator reviews a new mission before
+continuing. See [the recovery guide](RECOVERY_DEMO.md) and [validation](VALIDATION.md).
+
+This increment uses a serialized single writer. Optimistic multi-writer updates,
+NATS delivery/consumers, remote audit replication, OIDC/mTLS, managed key rotation
+and deployment telemetry below remain future work; this milestone is not complete.
+
 Replace development in-memory adapters while preserving the same application ports.
 
 Build:
