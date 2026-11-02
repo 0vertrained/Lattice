@@ -92,6 +92,8 @@ def render(environment):
             "metadata": {"annotations": {
                 "autoscaling.knative.dev/minScale": "1", "autoscaling.knative.dev/maxScale": "1",
                 "run.googleapis.com/cpu-throttling": "false", "run.googleapis.com/startup-cpu-boost": "true",
+                # The v1 (Knative) API connects Cloud SQL through this annotation alone; it serves the socket at
+                # /cloudsql/<connection>. v1 has no cloudSqlInstance volume and reserves the volume name "cloudsql".
                 "run.googleapis.com/cloudsql-instances": connection,
                 "run.googleapis.com/container-dependencies": '{"core":["inference"]}'}},
             "spec": {"serviceAccountName": f"lattice-runtime@{project}.iam.gserviceaccount.com",
@@ -103,13 +105,12 @@ def render(environment):
                           "env": [{"name": k, "value": v} for k, v in env.items()] + [
                               {"name": k, "valueFrom": {"secretKeyRef": {"name": v, "key": config["LATTICE_SECRET_VERSION"]}}}
                               for k, v in secrets.items()],
-                          "volumeMounts": [{"name": "cloudsql", "mountPath": "/cloudsql"}],
                           "startupProbe": {"httpGet": {"path": "/ready", "port": 8080}, "periodSeconds": 2, "failureThreshold": 30, "timeoutSeconds": 1},
                           "livenessProbe": {"httpGet": {"path": "/health", "port": 8080}, "periodSeconds": 30, "failureThreshold": 3, "timeoutSeconds": 1}},
                          {"name": "inference", "image": pinned_image(environment, "LATTICE_INFERENCE_IMAGE", project, region, "inference"),
                           "resources": {"limits": {"cpu": "1", "memory": "512Mi"}},
                           "startupProbe": {"httpGet": {"path": "/health", "port": 8100}, "periodSeconds": 2, "failureThreshold": 30, "timeoutSeconds": 1}},
-                     ], "volumes": [{"name": "cloudsql", "cloudSqlInstance": {"instances": [connection]}}]},
+                     ]},
         }, "traffic": [{"latestRevision": True, "percent": 100}]},
     }
 

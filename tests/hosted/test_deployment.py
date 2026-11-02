@@ -196,6 +196,19 @@ class DeploymentTests(unittest.TestCase):
             self.assertEqual(env[name]['valueFrom']['secretKeyRef']['key'], '1')
         self.assertEqual(manifest['spec']['template']['metadata']['annotations']['autoscaling.knative.dev/maxScale'], '1')
 
+    def test_manifest_only_uses_volumes_the_cloud_run_v1_api_accepts(self):
+        # gcloud run services replace speaks the v1 API, whose volumes are secret, configMap, emptyDir, nfs or csi;
+        # it reserves the name "cloudsql". Cloud SQL attaches through the annotation, which serves the socket that
+        # the stored database URL points at.
+        template = render(inputs())['spec']['template']
+        for volume in template['spec'].get('volumes', []):
+            self.assertLessEqual(set(volume), {'name', 'secret', 'configMap', 'emptyDir', 'nfs', 'csi'})
+            self.assertNotEqual(volume['name'], 'cloudsql')
+        for container in template['spec']['containers']:
+            self.assertNotIn('cloudsql', [mount['name'] for mount in container.get('volumeMounts', [])])
+        self.assertEqual(template['metadata']['annotations']['run.googleapis.com/cloudsql-instances'],
+                         'lattice-test-123:us-central1:lattice-db')
+
     def test_refuses_mutable_cross_project_or_swapped_images(self):
         for value in ['registry.example/core:latest', inputs()['LATTICE_CORE_IMAGE'].replace('lattice-test-123', 'other-project'), inputs()['LATTICE_INFERENCE_IMAGE']]:
             with self.subTest(value=value), self.assertRaises(ValueError):
