@@ -1,5 +1,13 @@
 [advisories]
 yanked = "deny"
+# Both arrive through jsonwebtoken's rust_crypto backend, which lattice-core-api uses only to verify RS256
+# access tokens against the identity provider's public keys. The timing leaks concern secret-key operations
+# (RSA decryption and signing, constant-time big-integer arithmetic on secrets), which Lattice never performs.
+# Keep in step with .cargo/audit.toml.
+ignore = [
+  { id = "RUSTSEC-2023-0071", reason = "rsa Marvin attack: private-key timing; core only verifies RS256 with public keys" },
+  { id = "RUSTSEC-2026-0387", reason = "crypto-bigint timing on secret values; no secret enters verification" },
+]
 
 [licenses]
 confidence-threshold = 0.8
@@ -7,6 +15,7 @@ allow = [
   "Apache-2.0",
   "BSD-2-Clause",
   "BSD-3-Clause",
+  "CDLA-Permissive-2.0", # webpki-roots: the Mozilla root certificate data
   "ISC",
   "MIT",
   "MPL-2.0",
@@ -17,6 +26,8 @@ allow = [
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"
+# Workspace crates refer to each other by path; they are publish = false, so no registry ever sees a wildcard.
+allow-wildcard-paths = true
 
 [sources]
 unknown-registry = "deny"
