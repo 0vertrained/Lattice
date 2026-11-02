@@ -1,0 +1,11 @@
+{
+  "GCP_PROJECT": "REPLACE_WITH_YOUR_DEDICATED_PROJECT_ID",
+  "GCP_REGION": "us-central1",
+  "GCP_WIF_PROVIDER": "projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/lattice-github/providers/lattice",
+  "GCP_DEPLOY_SERVICE_ACCOUNT": "lattice-deployer@PROJECT_ID.iam.gserviceaccount.com",
+  "LATTICE_SITE_ORIGIN": "https://YOUR-SITE.netlify.app",
+  "LATTICE_OIDC_ISSUER": "https://YOUR-IDENTITY-HOST/realms/lattice",
+  "LATTICE_OIDC_JWKS_URL": "https://YOUR-IDENTITY-HOST/realms/lattice/protocol/openid-connect/certs",
+  "LATTICE_ROUTE_MAP": "warehouse-adaptive",
+  "LATTICE_SECRET_VERSION": "1"
+}

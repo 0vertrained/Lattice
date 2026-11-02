@@ -19,8 +19,14 @@ jobs:
       LATTICE_SITE_ORIGIN: ${{ vars.LATTICE_SITE_ORIGIN }}
       LATTICE_OIDC_ISSUER: ${{ vars.LATTICE_OIDC_ISSUER }}
       LATTICE_OIDC_JWKS_URL: ${{ vars.LATTICE_OIDC_JWKS_URL }}
+      LATTICE_ROUTE_MAP: ${{ vars.LATTICE_ROUTE_MAP || 'warehouse-adaptive' }}
+      LATTICE_SECRET_VERSION: ${{ vars.LATTICE_SECRET_VERSION || '1' }}
+      GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+      GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
     steps:
       - uses: actions/checkout@v4
+      - name: Validate deployment bindings before cloud authentication
+        run: python3 infrastructure/cloud-run/preflight.py --require-wif
       - uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
@@ -43,8 +49,16 @@ jobs:
         run: |
           set -euo pipefail
           python3 infrastructure/cloud-run/render.py > /tmp/lattice-service.json
+          cp /tmp/lattice-service.json target/hosted-release/cloud-run-service.json
           gcloud run services replace /tmp/lattice-service.json --region "$GCP_REGION" --project "$GCP_PROJECT"
-          url=$(gcloud run services describe lattice-core --region "$GCP_REGION" --format='value(status.url)')
+          url=$(gcloud run services describe lattice-core --region "$GCP_REGION" --project "$GCP_PROJECT" --format='value(status.url)')
           curl --fail --retry 8 --retry-delay 3 "$url/ready"
           test "$(curl --silent --output /dev/null --write-out '%{http_code}' "$url/v1/missions")" = 401
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' "$url/v1/navigation/conditions")" = 401
+          curl --fail --silent "$url/v1/auth/config" > /tmp/lattice-auth.json
+          python3 -c 'import json,os; c=json.load(open("/tmp/lattice-auth.json")); assert c["mode"] == "oidc" and c["durable"] and c["issuer"] == os.environ["LATTICE_OIDC_ISSUER"]'
           printf 'Set Netlify LATTICE_API_ORIGIN to %s\n' "$url"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hosted-release-configuration
+          path: target/hosted-release/

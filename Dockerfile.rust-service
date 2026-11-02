@@ -12,5 +12,6 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 10001 lattice
 COPY --from=build /workspace/target/release/${PACKAGE} /usr/local/bin/service
+COPY --from=build --chmod=0444 /workspace/simulation/routes/*.json /app/routes/
 USER lattice
 ENTRYPOINT ["/usr/local/bin/service"]

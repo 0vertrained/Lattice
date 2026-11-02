@@ -2,9 +2,12 @@
 # Run in an authenticated Cloud Shell. Creates dedicated Lattice resources, never Caduceus resources.
 set -euo pipefail
 PROJECT="${1:?usage: setup-gcp.sh PROJECT_ID GITHUB_REPOSITORY_ID [REGION]}"
-REPO_ID="${2:?Supply GitHub's immutable numeric ID for 0vertrained/Lattice}"
+REPO_ID="${2:?Supply the immutable GitHub repository ID for 0vertrained/Lattice}"
 REGION="${3:-us-central1}"
-[[ "$PROJECT" =~ ^[a-z][a-z0-9-]{4,61}[a-z0-9]$ && "$REPO_ID" =~ ^[0-9]+$ ]] || exit 1
+[[ "$PROJECT" =~ ^[a-z][a-z0-9-]{4,28}[a-z0-9]$ && "$REPO_ID" =~ ^[0-9]+$ && "$REGION" =~ ^[a-z]+-[a-z]+[1-9][0-9]*$ ]] || {
+  echo 'Supply a valid 6–30 character GCP project ID, numeric repository ID, and region.' >&2; exit 1;
+}
+command -v gcloud >/dev/null || { echo 'Run this script in authenticated Cloud Shell or install the Google Cloud CLI first.' >&2; exit 1; }
 export CLOUDSDK_CORE_PROJECT="$PROJECT"
 exists() { "$@" > /dev/null 2>&1; }
 retry() { for _ in 1 2 3 4 5 6; do "$@" > /dev/null && return 0; sleep 5; done; "$@" > /dev/null; }
