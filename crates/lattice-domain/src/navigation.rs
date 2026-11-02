@@ -333,7 +333,7 @@ pub enum RouteFailureCode {
     SourceUnavailable,
     /// No semantic path exists, including disabled segments.
     Unreachable,
-    /// A semantic path exists only through disabled segments.
+    /// A semantic path exists only through disabled or currently blocked segments.
     BlockedRoute,
     /// No ready, available body combination can fulfil a required capability.
     NoCapableBody,
@@ -364,7 +364,31 @@ pub fn plan_route(
     request: &RouteRequest,
     candidates: &[RouteCandidate],
 ) -> Result<RoutePlan, RoutePlanningFailure> {
+    plan_route_with_blocked_segments(map, request, candidates, &BTreeSet::new())
+}
+
+/// Plans around current route closures without changing trusted map geometry.
+/// The application must freeze the supplied closure set and its revision in the
+/// review and recheck it before approval and dispatch. An empty set cannot open
+/// a statically disabled segment; unknown segment identities fail closed.
+pub fn plan_route_with_blocked_segments(
+    map: &SemanticMap,
+    request: &RouteRequest,
+    candidates: &[RouteCandidate],
+    blocked_segments: &BTreeSet<String>,
+) -> Result<RoutePlan, RoutePlanningFailure> {
     map.validate().map_err(invalid_failure)?;
+    if blocked_segments.len() > MAX_SEGMENTS
+        || blocked_segments.iter().any(|id| map.segment(id).is_none())
+    {
+        return Err(failure(
+            RouteFailureCode::InvalidInput,
+            "current closures must identify at most 32 segments in the trusted map",
+            vec![],
+        ));
+    }
+    let traversable =
+        |segment: &RouteSegment| segment.enabled && !blocked_segments.contains(&segment.id);
     validate_id(&request.source_place_id).map_err(invalid_failure)?;
     validate_id(&request.destination_place_id).map_err(invalid_failure)?;
     BodyId::new(request.source_body_id.as_str()).map_err(invalid_failure)?;
@@ -397,7 +421,7 @@ pub fn plan_route(
     segments.sort_by(|a, b| a.id.cmp(&b.id));
     let assessments: Vec<_> = bodies
         .iter()
-        .map(|body| assess(map, request, body, &segments))
+        .map(|body| assess(map, request, body, &segments, blocked_segments))
         .collect();
     let source_place = places
         .iter()
@@ -445,15 +469,15 @@ pub fn plan_route(
             assessments,
         ));
     }
-    if shortest_hops(map, request, |segment| segment.enabled).is_none() {
+    if shortest_hops(map, request, traversable).is_none() {
         return Err(failure(
             RouteFailureCode::BlockedRoute,
-            "the route is blocked by disabled semantic segments",
+            "the route is blocked by disabled semantic segments or current route conditions",
             assessments,
         ));
     }
     let compatible_hops = shortest_hops(map, request, |segment| {
-        segment.enabled
+        traversable(segment)
             && bodies.iter().enumerate().any(|(index, body)| {
                 assessments[index].eligible
                     && segment.required_capabilities.is_subset(&body.capabilities)
@@ -516,11 +540,18 @@ pub fn plan_route(
                 .destination_capability
                 .is_none_or(|capability| body.capabilities.contains(&capability))
         {
-            return finish_plan(map, request, &bodies, current, assessments);
+            let mut plan = finish_plan(map, request, &bodies, current, assessments)?;
+            if !blocked_segments.is_empty() {
+                plan.explanation.insert(1, format!(
+                    "Excluded segments [{}] from the current condition snapshot; trusted map geometry and digest are unchanged. Approval must recheck the condition revision.",
+                    blocked_segments.iter().cloned().collect::<Vec<_>>().join(", ")
+                ));
+            }
+            return Ok(plan);
         }
         if current.key.legs < MAX_LEGS {
             for segment in &segments {
-                if !segment.enabled
+                if !traversable(segment)
                     || segment.from != place.id
                     || !segment.required_capabilities.is_subset(&body.capabilities)
                 {
@@ -675,6 +706,7 @@ fn assess(
     request: &RouteRequest,
     body: &RouteCandidate,
     segments: &[&RouteSegment],
+    blocked_segments: &BTreeSet<String>,
 ) -> CandidateAssessment {
     let mut reasons = Vec::new();
     if !body.ready {
@@ -692,7 +724,7 @@ fn assess(
     }
     let mut capability_gaps: Vec<_> = segments
         .iter()
-        .filter(|segment| segment.enabled)
+        .filter(|segment| segment.enabled && !blocked_segments.contains(&segment.id))
         .filter_map(|segment| {
             let missing_capabilities: BTreeSet<_> = segment
                 .required_capabilities
@@ -982,6 +1014,122 @@ mod tests {
         assert_eq!(
             plan_route(&map, &request, &bodies).unwrap_err().code,
             RouteFailureCode::Unreachable
+        );
+    }
+    #[test]
+    fn live_closure_selects_a_real_detour_without_changing_signed_map_geometry() {
+        let (mut map, request, bodies) = fixture();
+        map.places.push(place("detour", -1.0, 0.0, false));
+        map.segments.extend([
+            segment("detour_out", "bay", "detour", &[Capability::Navigate]),
+            segment(
+                "detour_back",
+                "detour",
+                "stair_foot",
+                &[Capability::Navigate],
+            ),
+        ]);
+        let original_map = map.clone();
+        let baseline = plan_route(&map, &request, &bodies).unwrap();
+        assert_eq!(baseline.legs[0].segment_id, "approach");
+        let blocked = BTreeSet::from(["approach".into()]);
+        let plan = plan_route_with_blocked_segments(&map, &request, &bodies, &blocked).unwrap();
+        assert_eq!(
+            plan.legs
+                .iter()
+                .map(|leg| leg.segment_id.as_str())
+                .collect::<Vec<_>>(),
+            ["detour_out", "detour_back", "stairs"]
+        );
+        assert_eq!(plan.transfers[0].before_leg_index, 2);
+        assert_eq!(plan.map_digest, baseline.map_digest);
+        assert_eq!(map, original_map);
+        for leg in &plan.legs {
+            let traversal =
+                crate::RouteTraversal::from_segment(&map, map.segment(&leg.segment_id).unwrap())
+                    .unwrap();
+            traversal.validate_against(&original_map).unwrap();
+        }
+        assert!(
+            plan.explanation
+                .iter()
+                .any(|line| line.contains("Excluded segments [approach]"))
+        );
+        let mut reordered = map.clone();
+        reordered.segments.reverse();
+        let mut reordered_bodies = bodies.clone();
+        reordered_bodies.reverse();
+        assert_eq!(
+            plan_route_with_blocked_segments(&reordered, &request, &reordered_bodies, &blocked)
+                .unwrap(),
+            plan
+        );
+    }
+    #[test]
+    fn closures_never_reopen_static_edges_or_guess_unknown_conditions() {
+        let (mut map, request, bodies) = fixture();
+        let blocked = BTreeSet::from(["approach".into()]);
+        assert_eq!(
+            plan_route_with_blocked_segments(&map, &request, &bodies, &blocked)
+                .unwrap_err()
+                .code,
+            RouteFailureCode::BlockedRoute
+        );
+        map.segments[1].enabled = false;
+        assert_eq!(
+            plan_route_with_blocked_segments(&map, &request, &bodies, &BTreeSet::new())
+                .unwrap_err()
+                .code,
+            RouteFailureCode::BlockedRoute
+        );
+        for invalid in [
+            BTreeSet::from(["unknown".into()]),
+            (0..33).map(|i| format!("segment_{i}")).collect(),
+        ] {
+            assert_eq!(
+                plan_route_with_blocked_segments(&map, &request, &bodies, &invalid)
+                    .unwrap_err()
+                    .code,
+                RouteFailureCode::InvalidInput
+            );
+        }
+    }
+    #[test]
+    fn a_live_detour_still_requires_localized_capable_staged_bodies() {
+        let (mut map, mut request, mut bodies) = fixture();
+        // The remaining objective begins at a verified transfer place; completed
+        // approach work is absent from the returned suffix, never replayed.
+        request.source_place_id = "stair_foot".into();
+        bodies[0].place_id = Some("stair_foot".into());
+        let blocked = BTreeSet::from(["approach".into()]);
+        let plan = plan_route_with_blocked_segments(&map, &request, &bodies, &blocked).unwrap();
+        assert_eq!(plan.legs.len(), 1);
+        assert_eq!(plan.legs[0].segment_id, "stairs");
+        assert_eq!(plan.transfers[0].before_leg_index, 0);
+        bodies[1].place_id = Some("bay".into());
+        assert_eq!(
+            plan_route_with_blocked_segments(&map, &request, &bodies, &blocked)
+                .unwrap_err()
+                .code,
+            RouteFailureCode::TransferUnavailable
+        );
+        bodies[0].place_id = None;
+        assert_eq!(
+            plan_route_with_blocked_segments(&map, &request, &bodies, &blocked)
+                .unwrap_err()
+                .code,
+            RouteFailureCode::SourceUnavailable
+        );
+        bodies[0].place_id = Some("stair_foot".into());
+        bodies[1].place_id = Some("stair_foot".into());
+        map.segments[1]
+            .required_capabilities
+            .insert(Capability::RoughTerrain);
+        assert_eq!(
+            plan_route_with_blocked_segments(&map, &request, &bodies, &blocked)
+                .unwrap_err()
+                .code,
+            RouteFailureCode::NoCapableBody
         );
     }
     #[test]

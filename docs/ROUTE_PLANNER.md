@@ -48,6 +48,28 @@ inspection scenarios. The application may impose a smaller objective limit, such
 as its existing six-step inspection-round bound, and must reject oversized plans
 before dispatch.
 
+## Current route conditions
+
+`plan_route_with_blocked_segments` accepts a bounded set of unavailable segment
+IDs alongside the trusted map, request and current candidates. It excludes those
+edges from reachability, capability feasibility and graph search. The map's
+geometry, revision and digest remain unchanged, so each selected leg can still
+be frozen into a traversal that the body verifies against its trusted map.
+Unknown segment IDs fail validation; clearing the dynamic set cannot reopen a
+statically disabled edge.
+
+The application owns observation provenance, persistence and condition revisions.
+It must bind the exact closure snapshot to the reviewed proposal and recheck it
+before approval and dispatch. A pure plan is not proof that an observation is
+fresh or authentic, and elapsed time never clears a closure inside the planner.
+
+For a remaining objective, the application supplies the body's verified current
+semantic place and original destination. A blocked earlier edge does not cause
+the planner to replay completed legs. Unknown current placement, an unavailable
+source, missing capabilities or an unstaged replacement still refuse a route.
+Completed inspections, evidence, command expiry fences and explicit approval
+belong to the application continuity workflow; this function cannot bypass them.
+
 ## What this establishes
 
 Pure planner tests verify that a rover lacking `stairs` is never assigned a stair
@@ -72,16 +94,19 @@ cargo test --locked -p lattice-domain navigation
 
 ## Reproducible scenario evaluation
 
-The evaluation example runs twenty fixed synthetic scenarios: successful flat,
+The evaluation example runs thirty fixed synthetic scenarios: successful flat,
 stair and destination-task transfers; unavailable or incorrectly placed bodies;
 missing capabilities; forbidden transfers; closed and disconnected segments;
 invalid mobility requirements; the leg bound; cycles and deterministic tie breaks.
-Each scenario records its full input, expected outcome, observed plan or refusal,
+Ten current-condition cases add alternate graph paths, blocked alternatives, unknown
+closure IDs, detour capability requirements, current-placement suffixes,
+unavailable targets and explicit static-edge precedence. Each scenario records
+its full input including the closure set, expected outcome, observed plan or refusal,
 repeatability, and planning wall time across 100 calls after five warmups.
 
 ```sh
 cargo run --locked --release -p lattice-domain --example evaluate-routes \
-  > evaluation/route-planner-2026-11-02.json
+  > evaluation/adaptive-planner-2026-11-02.json
 ```
 
 The command exits unsuccessfully if a case differs from its expected outcome or

@@ -3,12 +3,12 @@ use lattice_domain::{
     BodyId, Capability,
     navigation::{
         RouteCandidate, RouteFailureCode, RoutePlan, RoutePlanningFailure, RoutePose, RouteRequest,
-        RouteSegment, SemanticMap, SemanticPlace, plan_route,
+        RouteSegment, SemanticMap, SemanticPlace, plan_route_with_blocked_segments,
     },
 };
 use serde::Serialize;
 use serde_json::json;
-use std::{hint::black_box, time::Instant};
+use std::{collections::BTreeSet, hint::black_box, time::Instant};
 
 type Error = Box<dyn std::error::Error>;
 type Fixture = (SemanticMap, RouteRequest, Vec<RouteCandidate>);
@@ -52,6 +52,7 @@ impl Expected {
 struct Scenario {
     id: &'static str,
     fixture: Fixture,
+    blocked_segments: BTreeSet<String>,
     expected: Expected,
 }
 fn staged(id: &str, place: &str, capabilities: &[Capability]) -> Result<RouteCandidate, Error> {
@@ -115,6 +116,7 @@ fn scenarios() -> Result<Vec<Scenario>, Error> {
     let mut scenarios = vec![Scenario {
         id: "staged_stair_transfer",
         fixture: baseline.clone(),
+        blocked_segments: BTreeSet::new(),
         expected: stairs.clone(),
     }];
     let mut add = |id, expected, change: fn(&mut Fixture)| {
@@ -123,6 +125,7 @@ fn scenarios() -> Result<Vec<Scenario>, Error> {
         scenarios.push(Scenario {
             id,
             fixture,
+            blocked_segments: BTreeSet::new(),
             expected,
         });
     };
@@ -296,6 +299,7 @@ fn scenarios() -> Result<Vec<Scenario>, Error> {
     scenarios.push(Scenario {
         id: "destination_inspection_transfer",
         fixture: terminal,
+        blocked_segments: BTreeSet::new(),
         expected: planned(
             &[
                 ("bay_to_transfer", "rover-a"),
@@ -315,6 +319,7 @@ fn scenarios() -> Result<Vec<Scenario>, Error> {
     scenarios.push(Scenario {
         id: "colocated_zero_leg_inspection_transfer",
         fixture: colocated,
+        blocked_segments: BTreeSet::new(),
         expected: planned(&[], 1, "camera-c"),
     });
     let mut tie = baseline;
@@ -330,7 +335,158 @@ fn scenarios() -> Result<Vec<Scenario>, Error> {
     scenarios.push(Scenario {
         id: "equal_cost_lexical_body_choice",
         fixture: tie,
+        blocked_segments: BTreeSet::new(),
         expected: stairs,
+    });
+    scenarios.extend(adaptive_scenarios()?);
+    Ok(scenarios)
+}
+
+fn adaptive_scenarios() -> Result<Vec<Scenario>, Error> {
+    let mut detour = fixture()?;
+    detour.0.places.push(SemanticPlace {
+        id: "side_aisle".into(),
+        label: "Side aisle".into(),
+        pose: RoutePose {
+            x: -2.0,
+            y: 2.5,
+            z: 0.0,
+        },
+        arrival_radius_m: 0.25,
+        transfer_allowed: false,
+    });
+    for (id, from, to) in [
+        ("bay_to_side", "inspection_bay", "side_aisle"),
+        ("side_to_transfer", "side_aisle", "stair_transfer"),
+    ] {
+        detour.0.segments.push(RouteSegment {
+            id: id.into(),
+            from: from.into(),
+            to: to.into(),
+            required_capabilities: BTreeSet::from([Capability::Navigate]),
+            max_speed_mps: 0.3,
+            enabled: true,
+        });
+    }
+    let alternate = planned(
+        &[
+            ("bay_to_side", "rover-a"),
+            ("side_to_transfer", "rover-a"),
+            ("stairs_to_upper", "quad-b"),
+        ],
+        1,
+        "quad-b",
+    );
+    let blocked = BTreeSet::from(["bay_to_transfer".into()]);
+    let mut scenarios = vec![Scenario {
+        id: "live_closure_routes_through_known_side_aisle",
+        fixture: detour.clone(),
+        blocked_segments: blocked.clone(),
+        expected: alternate.clone(),
+    }];
+    let mut add = |id, expected, closed: BTreeSet<String>, change: fn(&mut Fixture)| {
+        let mut fixture = detour.clone();
+        change(&mut fixture);
+        scenarios.push(Scenario {
+            id,
+            fixture,
+            blocked_segments: closed,
+            expected,
+        });
+    };
+    add(
+        "all_live_approaches_blocked",
+        Expected::Refusal {
+            code: RouteFailureCode::BlockedRoute,
+        },
+        BTreeSet::from(["bay_to_transfer".into(), "bay_to_side".into()]),
+        |_| {},
+    );
+    add(
+        "live_stair_closure_has_no_alternative",
+        Expected::Refusal {
+            code: RouteFailureCode::BlockedRoute,
+        },
+        BTreeSet::from(["stairs_to_upper".into()]),
+        |_| {},
+    );
+    add(
+        "unknown_live_segment_is_invalid",
+        Expected::Refusal {
+            code: RouteFailureCode::InvalidInput,
+        },
+        BTreeSet::from(["invented_segment".into()]),
+        |_| {},
+    );
+    add(
+        "detour_requires_unavailable_capability",
+        Expected::Refusal {
+            code: RouteFailureCode::NoCapableBody,
+        },
+        blocked.clone(),
+        |(map, _, _)| {
+            map.segments[2]
+                .required_capabilities
+                .insert(Capability::RoughTerrain);
+        },
+    );
+    add(
+        "detour_target_not_at_transfer",
+        Expected::Refusal {
+            code: RouteFailureCode::TransferUnavailable,
+        },
+        blocked.clone(),
+        |(_, _, bodies)| bodies[1].place_id = Some("inspection_bay".into()),
+    );
+    add(
+        "remaining_route_starts_at_verified_transfer",
+        planned(&[("stairs_to_upper", "quad-b")], 1, "quad-b"),
+        blocked.clone(),
+        |(_, request, bodies)| {
+            request.source_place_id = "stair_transfer".into();
+            bodies[0].place_id = Some("stair_transfer".into());
+        },
+    );
+    add(
+        "remaining_route_refuses_unknown_current_placement",
+        Expected::Refusal {
+            code: RouteFailureCode::SourceUnavailable,
+        },
+        blocked.clone(),
+        |(_, _, bodies)| bodies[0].place_id = None,
+    );
+    add(
+        "cleared_overlay_cannot_reopen_disabled_stairs",
+        Expected::Refusal {
+            code: RouteFailureCode::BlockedRoute,
+        },
+        BTreeSet::new(),
+        |(map, _, _)| map.segments[1].enabled = false,
+    );
+    let mut replacement = detour;
+    replacement.2[1].available = false;
+    replacement.2.push(staged(
+        "quad-c",
+        "stair_transfer",
+        &[
+            Capability::Navigate,
+            Capability::Stairs,
+            Capability::Inspect,
+        ],
+    )?);
+    scenarios.push(Scenario {
+        id: "remaining_objective_can_select_staged_available_replacement",
+        fixture: replacement,
+        blocked_segments: blocked,
+        expected: planned(
+            &[
+                ("bay_to_side", "rover-a"),
+                ("side_to_transfer", "rover-a"),
+                ("stairs_to_upper", "quad-c"),
+            ],
+            1,
+            "quad-c",
+        ),
     });
     Ok(scenarios)
 }
@@ -340,18 +496,22 @@ fn main() -> Result<(), Error> {
     let mut all_match = true;
     for scenario in scenarios()? {
         let (map, request, bodies) = &scenario.fixture;
-        let outcome = plan_route(map, request, bodies);
+        let blocked = &scenario.blocked_segments;
+        let outcome = plan_route_with_blocked_segments(map, request, bodies, blocked);
         let mut repeatable = true;
         for _ in 0..5 {
-            let _ = black_box(plan_route(map, request, bodies));
+            let _ = black_box(plan_route_with_blocked_segments(
+                map, request, bodies, blocked,
+            ));
         }
         let mut durations_ns = Vec::with_capacity(SAMPLES);
         for _ in 0..SAMPLES {
             let started = Instant::now();
-            let actual = black_box(plan_route(
+            let actual = black_box(plan_route_with_blocked_segments(
                 black_box(map),
                 black_box(request),
                 black_box(bodies),
+                black_box(blocked),
             ));
             durations_ns.push(started.elapsed().as_nanos());
             repeatable &= actual == outcome;
@@ -360,7 +520,7 @@ fn main() -> Result<(), Error> {
         let matches_expected = scenario.expected.matches(&outcome);
         all_match &= matches_expected && repeatable;
         cases.push(json!({
-            "scenario": scenario.id, "input": {"map": map, "request": request, "candidates": bodies},
+            "scenario": scenario.id, "input": {"map": map, "request": request, "candidates": bodies, "blocked_segments": blocked},
             "expected": scenario.expected, "observed": outcome,
             "matches_expected": matches_expected, "repeatable": repeatable,
             "planning_time_ns": {"samples": SAMPLES, "warmup_calls": 5,
