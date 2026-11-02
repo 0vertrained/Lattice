@@ -132,6 +132,8 @@ export function App() {
     queryClient.removeQueries({ queryKey: ['navigation-map'] });
     queryClient.removeQueries({ queryKey: ['route-plans'] });
     queryClient.removeQueries({ queryKey: ['route-transfer-options'] });
+    queryClient.removeQueries({ queryKey: ['route-conditions'] });
+    queryClient.removeQueries({ queryKey: ['route-replans'] });
   }
 
   if (!connected) {

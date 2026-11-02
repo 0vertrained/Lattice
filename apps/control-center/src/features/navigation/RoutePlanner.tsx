@@ -4,14 +4,17 @@ import { z } from 'zod';
 import { apiClient } from '../../core/api/apiClient';
 import type { Body } from '../../core/api/schemas';
 import { observationTime } from '../memory/observation';
+import { routeConditionsSchema } from './conditions';
 import {
-  type RouteAssessment,
   type RouteObjective,
   type RouteProposal,
   routeProposalSchema,
   type SemanticMap,
   semanticMapSchema,
 } from './navigation';
+import { ReplanPanel } from './ReplanPanel';
+import { CandidateAssessments } from './RouteAssessments';
+import { RouteConditionsPanel } from './RouteConditions';
 import { RouteGraph } from './RouteGraph';
 
 export function RoutePlanner({
@@ -47,6 +50,14 @@ export function RoutePlanner({
     enabled: Boolean(map.data),
     refetchInterval: 2000,
   });
+  const conditions = useQuery({
+    queryKey: ['route-conditions'],
+    queryFn: async () =>
+      routeConditionsSchema.parse(await apiClient.request('/navigation/conditions')),
+    enabled: Boolean(map.data),
+    refetchInterval: 2000,
+    retry: false,
+  });
   const refresh = async () => {
     await Promise.all([
       client.invalidateQueries({ queryKey: ['route-plans'] }),
@@ -55,6 +66,8 @@ export function RoutePlanner({
       client.invalidateQueries({ queryKey: ['audit'] }),
       client.invalidateQueries({ queryKey: ['bodies'] }),
       client.invalidateQueries({ queryKey: ['route-transfer-options'] }),
+      client.invalidateQueries({ queryKey: ['route-conditions'] }),
+      client.invalidateQueries({ queryKey: ['route-replans'] }),
     ]);
   };
   const prepare = useMutation({
@@ -101,6 +114,13 @@ export function RoutePlanner({
     review?.plan &&
     map.data &&
     (review.plan.map_id !== map.data.id || review.plan.map_revision !== map.data.revision);
+  const conditionsChanged = Boolean(
+    review?.adaptive &&
+      (conditions.error ||
+        !conditions.data ||
+        review.adaptive.conditions_revision !== conditions.data.revision ||
+        (review.plan && review.plan.map_digest !== conditions.data.map_digest)),
+  );
   const error = prepare.error ?? approve.error ?? history.error;
   function editRequest() {
     setReview(null);
@@ -136,11 +156,15 @@ export function RoutePlanner({
                   Revision {map.data.revision} · {map.data.frame_id} frame
                 </span>
               </div>
-              <RouteGraph map={map.data} plan={review?.plan ?? null} />
+              <RouteGraph
+                map={map.data}
+                plan={review?.plan ?? null}
+                blockedSegmentIds={conditions.data?.blocked_segment_ids ?? []}
+              />
               <div className="route-map-legend">
                 <span>━ Permitted route</span>
                 <span className="stairs">━ Stairs capability</span>
-                <span>┄ Closed route</span>
+                <span>┄ Closed or reported blocked</span>
                 <span className="selected">━ Reviewed path</span>
               </div>
             </div>
@@ -297,6 +321,12 @@ export function RoutePlanner({
                   The configured map revision changed. Prepare a fresh plan against the current map.
                 </p>
               )}
+              {conditionsChanged && (
+                <p className="notice error" role="status">
+                  Route conditions changed or their current snapshot is unavailable. Prepare a fresh
+                  review against the current conditions before approval.
+                </p>
+              )}
               {reviewStatus !== 'pending' && reviewStatus !== 'blocked' && (
                 <p className="route-note">
                   This review is now {reviewStatus}. Its original plan remains available for
@@ -323,6 +353,7 @@ export function RoutePlanner({
                       approve.isPending ||
                       expired ||
                       Boolean(mapChanged) ||
+                      conditionsChanged ||
                       reviewStatus !== 'pending'
                     }
                     onClick={() => approve.mutate(review)}
@@ -382,6 +413,20 @@ export function RoutePlanner({
               </article>
             ))}
           </div>
+          <RouteConditionsPanel
+            map={map.data}
+            snapshot={conditions.data}
+            bodies={bodies}
+            canOperate={canOperate}
+            unavailable={conditions.error?.message}
+          />
+          <ReplanPanel
+            map={map.data}
+            conditions={conditions.data}
+            bodies={bodies}
+            canOperate={canOperate}
+            conditionsUnavailable={Boolean(conditions.error)}
+          />
         </>
       )}
     </section>
@@ -518,64 +563,5 @@ function RouteDetails({
         </dl>
       </details>
     </>
-  );
-}
-
-function CandidateAssessments({
-  assessments,
-  bodyName,
-  placeName,
-  map,
-}: {
-  readonly assessments: readonly RouteAssessment[];
-  readonly bodyName: (id: string) => string;
-  readonly placeName: (id: string) => string;
-  readonly map: SemanticMap;
-}) {
-  if (assessments.length === 0) return null;
-  return (
-    <details className="route-candidates" open>
-      <summary>Candidate readiness and capability limits</summary>
-      <div className="route-candidate-grid">
-        {assessments.map((assessment) => (
-          <article key={assessment.body_id}>
-            <strong>{bodyName(assessment.body_id)}</strong>
-            <p>
-              {assessment.eligible
-                ? 'Ready and available at a known place; capability limits below still apply.'
-                : 'Excluded from this planning snapshot.'}
-            </p>
-            <small>
-              {assessment.place_id
-                ? `Reported place: ${placeName(assessment.place_id)}`
-                : 'Placement is unknown.'}
-            </small>
-            {assessment.reasons.length > 0 && (
-              <ul>
-                {assessment.reasons.map((reason) => (
-                  <li key={reason}>{reason}</li>
-                ))}
-              </ul>
-            )}
-            {assessment.capability_gaps.length > 0 && (
-              <ul>
-                {assessment.capability_gaps.map((gap) => {
-                  const segment = map.segments.find((entry) => entry.id === gap.segment_id);
-                  return (
-                    <li key={gap.segment_id}>
-                      Missing {gap.missing_capabilities.join(', ')} for{' '}
-                      {segment
-                        ? `${placeName(segment.from)} → ${placeName(segment.to)}`
-                        : gap.segment_id.replaceAll('_', ' ')}
-                      .
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </article>
-        ))}
-      </div>
-    </details>
   );
 }

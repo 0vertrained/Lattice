@@ -908,6 +908,69 @@ textarea:focus-visible {
 .route-binding {
   margin: 16px 0;
 }
+.route-conditions,
+.route-replanning {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid #263b4d;
+  min-width: 0;
+}
+.route-condition-cards,
+.route-condition-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+}
+.route-condition-cards article,
+.route-condition-history article {
+  border: 1px solid #33546b;
+  border-radius: 10px;
+  background: #0a1b29;
+  padding: 16px;
+  min-width: 0;
+}
+.route-condition-history article {
+  margin-top: 12px;
+}
+.route-condition-form {
+  max-width: 700px;
+  margin: 24px 0;
+}
+.route-condition-form h4 {
+  margin: 0;
+}
+.route-condition-form textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  resize: vertical;
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid #33546b;
+  border-radius: 10px;
+  background: #071019;
+  color: #c0d5e3;
+  font: inherit;
+}
+.route-replan-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+.route-replan-summary strong {
+  display: block;
+  color: #96d6ff;
+  font-size: 1.5rem;
+}
+.route-replan-summary span {
+  color: #a5bbca;
+  font-size: 0.8rem;
+}
+.route-retained-missions {
+  padding-left: 20px;
+  overflow-wrap: anywhere;
+}
 .route-candidates summary,
 .route-binding summary {
   color: #a9cbe0;

@@ -106,6 +106,15 @@ export const routeProposalSchema = z.object({
   expires_at: z.string(),
   status: z.enum(['pending', 'blocked', 'approved', 'invalidated']),
   round_id: z.string().nullable(),
+  adaptive: z
+    .object({
+      conditions_revision: z.number().int().nonnegative(),
+      blocked_segment_ids: z.array(z.string()),
+      step_offset: z.number().int().nonnegative(),
+      parent_plan_id: z.string().nullable().optional(),
+    })
+    .nullable()
+    .optional(),
 });
 
 export type SemanticMap = z.infer<typeof semanticMapSchema>;

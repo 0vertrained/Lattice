@@ -3,9 +3,11 @@ import type { RoutePlan, SemanticMap } from './navigation';
 export function RouteGraph({
   map,
   plan,
+  blockedSegmentIds = [],
 }: {
   readonly map: SemanticMap;
   readonly plan?: RoutePlan | null;
+  readonly blockedSegmentIds?: readonly string[];
 }) {
   const xs = map.places.map((place) => place.pose.x);
   const ys = map.places.map((place) => place.pose.y);
@@ -22,6 +24,7 @@ export function RouteGraph({
     };
   };
   const selected = new Set(plan?.legs.map((leg) => leg.segment_id));
+  const blocked = new Set(blockedSegmentIds);
   return (
     <figure className="route-graph">
       <svg
@@ -41,14 +44,15 @@ export function RouteGraph({
             <g key={segment.id}>
               <title>
                 {segment.id.replaceAll('_', ' ')}: {segment.required_capabilities.join(', ')}{' '}
-                required; {segment.enabled ? 'open' : 'closed'}
+                required;{' '}
+                {blocked.has(segment.id) ? 'reported blocked' : segment.enabled ? 'open' : 'closed'}
               </title>
               <line
                 x1={from.x}
                 y1={from.y}
                 x2={to.x}
                 y2={to.y}
-                className={`route-edge ${!segment.enabled ? 'closed' : selected.has(segment.id) ? 'selected' : segment.required_capabilities.includes('stairs') ? 'stairs' : ''}`}
+                className={`route-edge ${!segment.enabled || blocked.has(segment.id) ? 'closed' : selected.has(segment.id) ? 'selected' : segment.required_capabilities.includes('stairs') ? 'stairs' : ''}`}
               />
               <circle
                 cx={from.x + (to.x - from.x) * 0.65}
@@ -71,7 +75,11 @@ export function RouteGraph({
                 <circle cx={p.x} cy={p.y} r="17" className="route-transfer-ring" />
               )}
               <circle cx={p.x} cy={p.y} r="10" />
-              <text x={p.x} y={p.y - 28} textAnchor="middle">
+              <text
+                x={p.x}
+                y={p.y - 28}
+                textAnchor={p.x < 200 ? 'start' : p.x > 560 ? 'end' : 'middle'}
+              >
                 {place.label}
               </text>
               <text x={p.x} y={p.y + 36} textAnchor="middle" className="route-elevation">
