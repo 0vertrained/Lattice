@@ -1,0 +1,46 @@
+{
+  "id": "warehouse_stairs",
+  "revision": 1,
+  "frame_id": "map",
+  "places": [
+    {
+      "id": "inspection_bay",
+      "label": "Inspection bay · ground floor",
+      "pose": {"x": 0.0, "y": 2.5, "z": 0.0},
+      "arrival_radius_m": 0.45,
+      "transfer_allowed": false
+    },
+    {
+      "id": "stair_transfer",
+      "label": "Stair transfer · staging area",
+      "pose": {"x": 1.0, "y": -2.0, "z": 0.0},
+      "arrival_radius_m": 0.4,
+      "transfer_allowed": true
+    },
+    {
+      "id": "upper_inspection",
+      "label": "Upper inspection · raised platform",
+      "pose": {"x": 4.5, "y": -2.0, "z": 0.15},
+      "arrival_radius_m": 0.25,
+      "transfer_allowed": false
+    }
+  ],
+  "segments": [
+    {
+      "id": "bay_to_transfer",
+      "from": "inspection_bay",
+      "to": "stair_transfer",
+      "required_capabilities": ["navigate"],
+      "max_speed_mps": 0.3,
+      "enabled": true
+    },
+    {
+      "id": "stairs_to_upper",
+      "from": "stair_transfer",
+      "to": "upper_inspection",
+      "required_capabilities": ["navigate", "stairs"],
+      "max_speed_mps": 0.3,
+      "enabled": true
+    }
+  ]
+}

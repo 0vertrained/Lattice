@@ -18,6 +18,8 @@ pub use evidence::{Detection, InspectionEvidence};
 pub mod id;
 /// Mission lifecycle model and invariants.
 pub mod mission;
+/// Bounded semantic routes and deterministic body capability planning.
+pub mod navigation;
 /// Closed, typed robot capability and skill vocabulary.
 pub mod skill;
 
