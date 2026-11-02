@@ -73,11 +73,14 @@ with tempfile.TemporaryDirectory(prefix='lattice-identity-') as directory:
   req('/v1/bodies/robot-beta/commands/next',credential=robot,expected=403)
   req('/v1/proposals',{'title':'Forbidden robot task','command':{'type':'inspect','location':'inspection_bay'}},robot,403)
   req('/v1/devices',credential=robot,expected=403)
-  for path in ['/v1/navigation/map','/v1/navigation/plans','/v1/rounds/unknown/transfer-options']:
+  for path in ['/v1/navigation/map','/v1/navigation/plans','/v1/rounds/unknown/transfer-options','/v1/navigation/conditions','/v1/replans']:
    req(path,credential=robot,expected=403)
-  for path in ['/v1/navigation/plans','/v1/navigation/plans/unknown/approve','/v1/rounds/unknown/abandon']:
+  for path in ['/v1/navigation/plans','/v1/navigation/plans/unknown/approve','/v1/rounds/unknown/abandon','/v1/navigation/conditions','/v1/rounds/unknown/replan-proposal','/v1/replans/unknown/approve']:
    req(path,{'digest':'0'*64},viewer,403)
    req(path,{'digest':'0'*64},robot,403)
+  condition={'event_id':'cross-body-condition','map_digest':'0'*64,'segment_id':'fixture-route','status':'blocked','reason':'Scope rejection test','observed_at':datetime.now(timezone.utc).isoformat()}
+  req('/v1/bodies/robot-beta/route-conditions',condition,robot,403)
+  req('/v1/bodies/robot-alpha/route-conditions',condition,operator,403)
   req('/v1/devices/'+device['credential']['id']+'/revoke',{},admin,204)
   req('/v1/security/verification-key',credential=robot,expected=401)
   robot=req('/v1/devices',{'body_id':'robot-alpha','label':'Rotated device','expires_in_days':1},admin,201)['token']
