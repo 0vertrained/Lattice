@@ -1177,6 +1177,10 @@ details code {
     font-size: 0.76rem;
     padding: 11px 14px;
     gap: 12px;
+    /* A long label wraps on a narrow phone instead of widening the page; how wide a label renders
+       depends on the fallback font when Inter isn't installed. */
+    white-space: normal;
+    text-align: center;
   }
 }
 @media (prefers-reduced-motion: reduce) {
