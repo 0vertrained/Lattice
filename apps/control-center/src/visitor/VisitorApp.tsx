@@ -1,9 +1,11 @@
 import { Component, lazy, type ReactNode, Suspense, useEffect, useRef, useState } from 'react';
+import type { CapabilityRecording } from './capabilityTypes';
 import type { HandoffRecording } from './handoffTypes';
 import type { Walkthrough } from './types';
 
 const RecordedTwin = lazy(() => import('./RecordedTwin'));
 const HandoffStory = lazy(() => import('./HandoffStory'));
+const CapabilityStory = lazy(() => import('./CapabilityStory'));
 class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   override state = { failed: false };
   static getDerivedStateFromError() {
@@ -64,8 +66,13 @@ const fmt = (t: number) =>
 export function VisitorApp() {
   const [run, setRun] = useState<Walkthrough | null>(null);
   const [handoffRun, setHandoffRun] = useState<HandoffRecording | null>(null);
-  const [story, setStory] = useState<'single' | 'handoff'>(() =>
-    window.location.hash === '#handoff' ? 'handoff' : 'single',
+  const [capabilityRun, setCapabilityRun] = useState<CapabilityRecording | null>(null);
+  const [story, setStory] = useState<'single' | 'handoff' | 'capability'>(() =>
+    window.location.hash === '#capability'
+      ? 'capability'
+      : window.location.hash === '#handoff'
+        ? 'handoff'
+        : 'single',
   );
   const [error, setError] = useState('');
   const [chapter, setChapter] = useState(0);
@@ -112,6 +119,24 @@ export function VisitorApp() {
     return () => abort.abort();
   }, []);
   useEffect(() => {
+    const abort = new AbortController();
+    fetch(`${import.meta.env.BASE_URL}demo/capability-route.json`, { signal: abort.signal })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        const value: unknown = await response.json();
+        const { capabilityRecordingSchema } = await import('./capabilityTypes');
+        const parsed = capabilityRecordingSchema.safeParse(value);
+        return parsed.success ? parsed.data : null;
+      })
+      .then((recording) => {
+        if (!abort.signal.aborted) setCapabilityRun(recording);
+      })
+      .catch(() => {
+        /* The capability scenario appears only when its completed recording is available. */
+      });
+    return () => abort.abort();
+  }, []);
+  useEffect(() => {
     if (!playing || !run) return;
     let frame = 0;
     let previous = performance.now();
@@ -133,6 +158,8 @@ export function VisitorApp() {
   }
   const pose = run?.poses.findLast((p) => p.t <= time) ?? run?.poses[0];
   const event = run?.events.findLast((e) => e.t <= time);
+  const capabilitySelected = story === 'capability' && capabilityRun !== null;
+  const handoffSelected = story === 'handoff' && handoffRun !== null;
   return (
     <div className="visitor-app">
       <a className="skip-link" href="#chapter">
@@ -161,26 +188,36 @@ export function VisitorApp() {
         <section className="visitor-hero">
           <div>
             <p className="eyebrow">
-              {story === 'handoff' && handoffRun
-                ? 'Shared memory, measured continuation'
-                : 'A warehouse objective, end to end'}
+              {capabilitySelected
+                ? 'Capability-aware planning, measured continuation'
+                : handoffSelected
+                  ? 'Shared memory, measured continuation'
+                  : 'A warehouse objective, end to end'}
             </p>
             <h1>
-              {story === 'handoff' && handoffRun
-                ? 'Two bodies. One objective.'
-                : 'Inspect. Find the exception.'}
+              {capabilitySelected
+                ? 'The objective needs stairs.'
+                : handoffSelected
+                  ? 'Two bodies. One objective.'
+                  : 'Inspect. Find the exception.'}
               <br />
               <em>
-                {story === 'handoff' && handoffRun ? 'The evidence stays.' : 'Recover and finish.'}
+                {capabilitySelected
+                  ? 'The body can change.'
+                  : handoffSelected
+                    ? 'The evidence stays.'
+                    : 'Recover and finish.'}
               </em>
             </h1>
             <p className="hero-description">
-              {story === 'handoff' && handoffRun
-                ? 'Rover A records an inspection. Rover B acknowledges its shared context and finishes the reviewed round. Follow both bodies through measured Gazebo poses and original camera evidence.'
-                : 'Follow a rover through two safety inspections, a missing marker and a core restart. Every pose and camera image comes from the working Gazebo simulator.'}
+              {capabilitySelected
+                ? 'A rover inspects the bay. A capability-aware plan selects a Go1 for the stairs. Follow the reviewed transfer, measured simulator motion and original camera evidence through one continuous objective.'
+                : handoffSelected
+                  ? 'Rover A records an inspection. Rover B acknowledges its shared context and finishes the reviewed round. Follow both bodies through measured Gazebo poses and original camera evidence.'
+                  : 'Follow a rover through two safety inspections, a missing marker and a core restart. Every pose and camera image comes from the working Gazebo simulator.'}
             </p>
             <div className="visitor-actions">
-              {story === 'handoff' && handoffRun ? (
+              {capabilitySelected || handoffSelected ? (
                 <a className="visitor-button primary" href="#chapter">
                   Explore this recording <span aria-hidden="true">→</span>
                 </a>
@@ -211,6 +248,18 @@ export function VisitorApp() {
                   Explore two-rover handoff →
                 </button>
               )}
+              {capabilityRun && story !== 'capability' && (
+                <button
+                  type="button"
+                  className="visitor-button"
+                  onClick={() => {
+                    setStory('capability');
+                    setPlaying(false);
+                  }}
+                >
+                  Explore rover-to-quadruped route →
+                </button>
+              )}
             </div>
           </div>
           <div className="hero-notes">
@@ -220,12 +269,18 @@ export function VisitorApp() {
             <strong>
               One round.
               <br />
-              {story === 'handoff' && handoffRun ? 'Two executing rovers.' : 'Three bounded steps.'}
+              {capabilitySelected
+                ? 'Two different body types.'
+                : handoffSelected
+                  ? 'Two executing rovers.'
+                  : 'Three bounded steps.'}
             </strong>
             <p>
-              {story === 'handoff' && handoffRun
-                ? `${handoffRun.steps.length} reviewed steps. A retained inspection and explicit approval before a second rover continues.`
-                : 'Two inspected locations. Camera evidence for both outcomes. A fresh approval before recovery.'}
+              {capabilitySelected
+                ? `${capabilityRun.steps.length} reviewed steps. Separate Gazebo and MuJoCo simulations. A retained inspection and explicit approval before Go1 continues.`
+                : handoffSelected
+                  ? `${handoffRun.steps.length} reviewed steps. A retained inspection and explicit approval before a second rover continues.`
+                  : 'Two inspected locations. Camera evidence for both outcomes. A fresh approval before recovery.'}
             </p>
             <span className="scope-note">
               Interactive replay · no robot connection · no sign-in required
@@ -241,7 +296,7 @@ export function VisitorApp() {
         {!run && !error && <p role="status">Loading the recorded inspection round…</p>}
         {run && (
           <>
-            {handoffRun && (
+            {(handoffRun || capabilityRun) && (
               <fieldset className="story-switch">
                 <legend>Choose a recorded scenario</legend>
                 <button
@@ -255,20 +310,39 @@ export function VisitorApp() {
                 >
                   Single-rover restart recovery
                 </button>
-                <button
-                  type="button"
-                  className="visitor-button"
-                  aria-pressed={story === 'handoff'}
-                  onClick={() => {
-                    setStory('handoff');
-                    setPlaying(false);
-                  }}
-                >
-                  Shared memory · two-rover handoff
-                </button>
+                {handoffRun && (
+                  <button
+                    type="button"
+                    className="visitor-button"
+                    aria-pressed={story === 'handoff'}
+                    onClick={() => {
+                      setStory('handoff');
+                      setPlaying(false);
+                    }}
+                  >
+                    Shared memory · two-rover handoff
+                  </button>
+                )}
+                {capabilityRun && (
+                  <button
+                    type="button"
+                    className="visitor-button"
+                    aria-pressed={story === 'capability'}
+                    onClick={() => {
+                      setStory('capability');
+                      setPlaying(false);
+                    }}
+                  >
+                    Capability route · rover to quadruped
+                  </button>
+                )}
               </fieldset>
             )}
-            {story === 'handoff' && handoffRun ? (
+            {capabilitySelected ? (
+              <Suspense fallback={<p role="status">Loading the recorded capability route…</p>}>
+                <CapabilityStory run={capabilityRun} />
+              </Suspense>
+            ) : story === 'handoff' && handoffRun ? (
               <Suspense
                 fallback={<p role="status">Loading the recorded two-rover continuation…</p>}
               >

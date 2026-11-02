@@ -11,7 +11,7 @@ const { createHash } = require('node:crypto');
     const errors = [], calls = [];
     page.on('pageerror', (error) => errors.push(error.message));
     page.on('console', (message) => { if (message.type() === 'error' && /Encountered|Error:/.test(message.text())) errors.push(message.text()); });
-    page.on('request', (request) => { if (/\/api\//.test(request.url())) calls.push(request.url()); });
+    page.on('request', (request) => { if (/\/(?:api\/)?v1\//.test(new URL(request.url()).pathname)) calls.push(request.url()); });
     const response = await page.request.get(new URL('demo/handoff.json', base).href);
     assert.equal(response.ok(), true, 'Measured recording must be published');
     const run = await response.json();

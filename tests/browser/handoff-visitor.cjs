@@ -54,7 +54,7 @@ const fixture = {
     const page = await browser.newPage({ viewport: { width: 1440, height: 1080 }, reducedMotion: 'reduce' });
     const errors = [], calls = [];
     page.on('pageerror', (error) => errors.push(error.message));
-    page.on('request', (request) => { if (/\/api\//.test(request.url())) calls.push(request.url()); });
+    page.on('request', (request) => { if (/\/(?:api\/)?v1\//.test(new URL(request.url()).pathname)) calls.push(request.url()); });
     await page.route('**/demo/handoff.json', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(fixture) }));
     await page.goto(base);
     await page.getByRole('heading', { name: 'Briefing', exact: true }).waitFor();

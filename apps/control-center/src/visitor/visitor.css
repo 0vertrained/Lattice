@@ -434,6 +434,67 @@ details code {
   border-radius: 6px;
   background: #0b151a;
 }
+.capability-planned-edge {
+  stroke: #50695d;
+  stroke-width: 1.5;
+}
+.capability-elevation {
+  margin: 24px 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #0b151a;
+}
+.capability-video {
+  margin: 0 0 28px;
+}
+.capability-video video {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #0b151a;
+}
+.capability-video figcaption {
+  padding-top: 15px;
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+.capability-video figcaption p {
+  color: var(--muted);
+}
+.capability-story .replay-controls select {
+  margin-left: 8px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #0d191e;
+  color: var(--muted);
+  font: inherit;
+}
+.capability-elevation figcaption {
+  padding: 14px 18px 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.capability-elevation svg {
+  display: block;
+  width: 100%;
+}
+.capability-assessments,
+.capability-proof {
+  margin: 24px 0;
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+.capability-proof dt {
+  margin-top: 14px;
+  color: var(--muted);
+}
+.capability-proof dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
 .warehouse-floor {
   fill: #102027;
   stroke: #466457;
