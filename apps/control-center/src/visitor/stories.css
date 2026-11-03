@@ -270,3 +270,26 @@
     gap: 12px;
   }
 }
+/* Until each story moves onto the shared chapter shell. */
+.chapter-nav > .eyebrow,
+.chapter-nav nav button > span,
+.chapter-heading .eyebrow {
+  display: none;
+}
+.chapter-nav nav:has(> :nth-child(2)[aria-current]) {
+  --at: 1;
+}
+.chapter-nav nav:has(> :nth-child(3)[aria-current]) {
+  --at: 2;
+}
+.chapter-nav nav:has(> :nth-child(4)[aria-current]) {
+  --at: 3;
+}
+.chapter-heading h2 {
+  font-size: 1.9375rem;
+  margin-bottom: 24px;
+}
+.chapter-content > p:not(.chapter-lead) {
+  color: var(--graphite);
+  max-width: 45em;
+}

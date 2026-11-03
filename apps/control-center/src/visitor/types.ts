@@ -20,7 +20,10 @@ export interface Evidence {
   frame_sha256: string;
   model_id: string;
   confidence_domain: string;
-  detections: { label: string; confidence: number }[];
+  /** When the camera captured the frame, in Unix milliseconds. */
+  captured_at_ms?: number;
+  /** Box is [x, y, width, height] in the 320 × 240 frame. */
+  detections: { label: string; confidence: number; box?: [number, number, number, number] }[];
 }
 export interface Walkthrough {
   schema: string;

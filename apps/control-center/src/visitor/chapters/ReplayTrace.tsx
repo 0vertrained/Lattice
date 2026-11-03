@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { Pose } from './drawing/geometry';
+import type { Pose } from '../drawing/geometry';
 
 const W = 600,
   H = 64;

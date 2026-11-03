@@ -1,3 +1,4 @@
+import './chapters/chapters.css';
 import './stories.css';
 import { Component, lazy, type ReactNode, Suspense, useEffect, useRef, useState } from 'react';
 import type { HandoffRecording } from './handoffTypes';

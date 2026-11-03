@@ -1,0 +1,1081 @@
+/* Chapters load with their story; the opening's stylesheet stays within its budget. */
+.event-track time,
+.stages .figures,
+.rung-name .figures,
+.route-sheet td:first-child {
+  font-stretch: 112%;
+  font-variant-numeric: tabular-nums;
+}
+/* A story's chapters as stations on one line, filled up to the chapter on screen. */
+.visitor-workspace {
+  border-top: 1px solid var(--rule);
+  padding-top: 32px;
+  scroll-margin-top: 16px;
+}
+.chapter-nav {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--rule);
+}
+.chapter-nav nav {
+  --n: 4;
+  --at: 0;
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  max-width: 900px;
+}
+.chapter-nav nav::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  top: 6px;
+  left: 8px;
+  width: calc(var(--at) * 100% / var(--n));
+  height: 4px;
+  background: var(--ink);
+  pointer-events: none;
+}
+.chapter-nav button {
+  position: relative;
+  display: grid;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 44px;
+  padding: 26px 12px 8px 0;
+  border: 0;
+  background: none;
+  color: var(--graphite);
+  text-align: left;
+  line-height: 1.35;
+  hyphens: auto;
+  overflow-wrap: anywhere;
+}
+.chapter-nav button::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--paper);
+}
+.chapter-nav button:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 7px;
+  left: 16px;
+  right: 0;
+  height: 2px;
+  background: var(--rule);
+}
+.chapter-nav button:has(~ [aria-current])::before {
+  background: var(--ink);
+}
+.chapter-nav [aria-current],
+.chapter-nav button:hover {
+  color: var(--ink);
+}
+.chapter-nav [aria-current] {
+  font-weight: 650;
+}
+.chapter-nav [aria-current]::before {
+  background: var(--lane);
+  box-shadow:
+    0 0 0 3px var(--paper),
+    0 0 0 5px var(--ink);
+}
+.run-facts {
+  display: grid;
+  gap: 2px;
+  color: var(--graphite);
+  font-size: 0.8125rem;
+  text-align: right;
+}
+.chapter-content {
+  padding: 32px 0;
+  min-width: 0;
+  scroll-margin-top: 16px;
+}
+.chapter-content > h2 {
+  font-size: 1.9375rem;
+  margin-bottom: 24px;
+}
+.chapter-lead {
+  font-size: 1.5625rem;
+  line-height: 1.35;
+  max-width: 36em;
+}
+.chapter-body > p:not(.chapter-lead) {
+  color: var(--graphite);
+  max-width: 45em;
+}
+.chapter-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--rule);
+}
+.chapter-footer > span {
+  color: var(--graphite);
+  font-size: 0.8125rem;
+}
+.eyebrow {
+  color: var(--graphite);
+  font-size: 0.8125rem;
+}
+/* Recorded run: map, controls, readouts and events */
+.replay {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 24px 40px;
+}
+.replay-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.replay-bar p {
+  margin: 0;
+  color: var(--graphite);
+  font-size: 0.8125rem;
+}
+.segmented,
+.stages {
+  display: inline-flex;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--ink);
+}
+.segmented button,
+.stages button {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  background: none;
+}
+:is(.segmented, .stages) [aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--paper);
+}
+.replay-plate {
+  container: drawing / inline-size;
+}
+.replay-plate .lattice-drawing {
+  max-height: max(360px, calc(100svh - 380px));
+}
+.replay-fallback {
+  padding: 24px;
+}
+.replay .replay-controls {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  margin-top: 20px;
+}
+.trace {
+  position: relative;
+  height: 64px;
+}
+.trace svg,
+.trace input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+.trace path {
+  fill: none;
+}
+.trace-base {
+  stroke: var(--rule);
+}
+.trace-speed,
+.trace-event {
+  stroke: var(--graphite);
+  stroke-width: 1.5;
+}
+.trace-event {
+  stroke-width: 2;
+}
+.trace-anomaly {
+  stroke: var(--hold);
+}
+.trace-recovery {
+  stroke: var(--stop);
+}
+.trace-approval {
+  stroke: var(--body);
+}
+.trace-complete {
+  stroke: var(--clear);
+}
+.trace-head {
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+.trace input {
+  appearance: none;
+  background: none;
+  cursor: pointer;
+}
+.trace input::-webkit-slider-runnable-track {
+  height: 100%;
+  background: none;
+}
+.trace input::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 25px;
+  border: 2px solid var(--paper);
+  background: var(--ink);
+}
+.trace input::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--paper);
+  border-radius: 0;
+  background: var(--ink);
+}
+.speed {
+  display: grid;
+  gap: 2px;
+  color: var(--graphite);
+  font-size: 0.8125rem;
+}
+.speed select {
+  min-height: 40px;
+  padding: 0 8px;
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  background: var(--paper);
+  color: var(--ink);
+}
+.readout-panel .readouts {
+  display: block;
+}
+.readout-panel :where(.readouts) > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.readout-panel dd {
+  font-size: 1rem;
+  text-align: right;
+}
+.latest-event {
+  margin-top: 24px;
+}
+.latest-event > p {
+  color: var(--graphite);
+}
+.latest-event > p:first-child {
+  margin-bottom: 4px;
+  font-size: 0.8125rem;
+}
+.event-track {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+.event-track button {
+  flex: 0 0 150px;
+  padding: 12px;
+  border: 1px solid var(--rule);
+  border-top-width: 3px;
+  background: none;
+  color: var(--graphite);
+  text-align: left;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+.event-track .reached {
+  border-top-color: var(--ink);
+  color: var(--ink);
+}
+.event-track time,
+.event-track small {
+  display: block;
+  margin-bottom: 4px;
+}
+.event-track small {
+  margin: 4px 0 0;
+  color: var(--graphite);
+}
+/* Route sheet: the reviewed steps as a form, closed by the round's title block. */
+.sheet {
+  margin: 32px 0;
+}
+.route-sheet {
+  width: 100%;
+  border-collapse: collapse;
+}
+.route-sheet caption {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--ink);
+  font-weight: 600;
+  font-stretch: 112%;
+  text-align: left;
+}
+.route-sheet th {
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--rule);
+  color: var(--graphite);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  text-align: left;
+}
+.route-sheet td {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+.route-sheet td:first-child {
+  width: 4.5em;
+  font-size: 1.25rem;
+  line-height: 1.3;
+}
+.route-sheet td:last-child {
+  width: 34%;
+  color: var(--graphite);
+}
+/* The one step the round may continue past is ruled in the inspection colour. */
+.route-sheet [data-continues] td:last-child {
+  box-shadow: inset 3px 0 var(--hold);
+  color: var(--ink);
+}
+.route-sheet strong {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+.route-sheet code {
+  color: var(--graphite);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+  overflow-wrap: break-word;
+}
+.note-mark {
+  margin-left: 4px;
+  font-size: 0.75em;
+  vertical-align: super;
+  line-height: 0;
+}
+/* Engineering title block: labelled cells ruled with hairlines. */
+.title-block {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+  margin: 0;
+  border-top: 1px solid var(--ink);
+  background: var(--rule);
+}
+.title-block > div {
+  flex: 1 1 11em;
+  min-width: 0;
+  padding: 10px 20px 12px;
+  background: var(--film);
+}
+.title-block .wide {
+  flex-basis: 100%;
+}
+.title-block dt {
+  color: var(--graphite);
+  font-size: 0.8125rem;
+}
+.title-block dd {
+  margin: 2px 0 0;
+}
+.sheet-notes {
+  margin: 0;
+  padding: 14px 20px 16px 40px;
+  border-top: 1px solid var(--rule);
+}
+.sheet-notes li {
+  color: var(--graphite);
+  max-width: 60em;
+}
+.sheet-notes strong {
+  color: var(--ink);
+}
+/* Camera evidence as plates: the frame dimensioned in pixels, the detector's box called out. */
+.camera-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 32px;
+  margin: 32px 0;
+}
+.evidence {
+  margin: 0;
+  min-width: 0;
+}
+.shot {
+  container: shot / inline-size;
+  padding: 7% 9%;
+  border-bottom: 1px solid var(--rule);
+}
+.shot > div {
+  position: relative;
+}
+.shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.shot svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: none;
+  stroke-width: 1;
+}
+.shot text {
+  fill: var(--graphite);
+  stroke: none;
+  font-size: 9.5px;
+  font-variant-numeric: tabular-nums;
+  text-anchor: middle;
+}
+.dim-frame path,
+.dim-ext {
+  stroke: var(--graphite);
+}
+.dim-box path {
+  stroke: var(--ink);
+  stroke-width: 1.4;
+}
+.shot .dim-box text {
+  fill: var(--ink);
+  font-weight: 600;
+}
+/* Extension lines cross the dark recorded frame in the same light tone in both themes. */
+.dim-over {
+  stroke: #e6edf1;
+  stroke-dasharray: 2 3;
+  opacity: 0.7;
+}
+@container shot (max-width: 360px) {
+  .shot text {
+    font-size: 15px;
+  }
+}
+.evidence figcaption {
+  padding: 16px 20px 20px;
+}
+.evidence figcaption .title-block {
+  margin: 12px -20px 16px;
+}
+.camera-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  color: var(--graphite);
+  font-size: 0.8125rem;
+}
+.success {
+  color: var(--clear);
+}
+.anomaly {
+  color: var(--hold);
+}
+.evidence p,
+.limits p {
+  color: var(--graphite);
+}
+.limits {
+  margin: 40px 0 0;
+  padding-top: 24px;
+  border-top: 2px solid var(--ink);
+}
+.limits .readouts,
+.chapter-body > .readouts {
+  margin: 24px 0 16px;
+}
+/* Restart recovery: an interlock ladder between two power rails. */
+@property --in {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: transparent;
+}
+@property --out {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: transparent;
+}
+@property --iw {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 1px;
+}
+@property --ow {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 1px;
+}
+.recovery {
+  max-width: 1040px;
+  margin: 32px 0;
+}
+.stages {
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.stages button {
+  display: grid;
+  min-height: 48px;
+  padding: 4px 16px;
+  line-height: 1.25;
+  text-align: left;
+}
+.stages .figures {
+  color: inherit;
+  font-size: 0.8125rem;
+  opacity: 0.8;
+}
+.ladder {
+  margin: 16px 0;
+  padding: 4px 0 12px;
+  border-inline: 3px solid var(--ink);
+  background: var(--film);
+  list-style: none;
+}
+/* Contacts sit in columns and every coil on the right, as in a ladder editor; a rung with fewer
+   contacts carries its wire through the empty column. */
+.ladder ul {
+  --fill: var(--graphite);
+  --fw: 1px;
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)) minmax(180px, 1.3fr);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background:
+    linear-gradient(var(--fill) 0 0) 0 calc(21px - var(--fw)) / 100% calc(2 * var(--fw)) no-repeat;
+}
+.ladder ul[data-on] {
+  --fill: var(--clear);
+  --fw: 2.5px;
+}
+.coil {
+  grid-column: -2;
+}
+.rung-name {
+  margin: 14px 16px 8px;
+  font-weight: 600;
+}
+.rung-name .figures {
+  margin-right: 6px;
+  color: var(--graphite);
+}
+.contact,
+.coil {
+  --in: var(--graphite);
+  --out: var(--graphite);
+  --iw: 1px;
+  --ow: 1px;
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 50px 10px 0;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  text-align: center;
+  background:
+    linear-gradient(var(--in) 0 0) left 0 top calc(21px - var(--iw)) / 50% calc(2 * var(--iw))
+    no-repeat,
+    linear-gradient(var(--out) 0 0) right 0 top calc(21px - var(--ow)) / 50% calc(2 * var(--ow))
+    no-repeat;
+}
+.coil {
+  font-weight: 600;
+}
+:is(.contact, .coil)[data-in] {
+  --in: var(--clear);
+  --iw: 2.5px;
+}
+:is(.contact, .coil)[data-out] {
+  --out: var(--clear);
+  --ow: 2.5px;
+}
+.ladder svg {
+  position: absolute;
+  top: 0;
+  left: calc(50% - 30px);
+  width: 60px;
+  height: 42px;
+  overflow: visible;
+}
+.ladder rect {
+  fill: var(--film);
+}
+.ladder svg path {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+.contact[data-closed] rect,
+.coil[data-in] rect {
+  fill: color-mix(in srgb, var(--clear) 30%, var(--film));
+}
+.contact[data-closed] path,
+.coil[data-in] path {
+  stroke: var(--clear);
+}
+.ladder .hatch {
+  visibility: hidden;
+  stroke-width: 1.5;
+}
+.coil[data-hold][data-in] .hatch {
+  visibility: visible;
+}
+.coil[data-hold][data-in] rect {
+  fill: var(--film);
+}
+.coil[data-hold][data-in] path {
+  stroke: var(--hold);
+}
+.stage-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 24px;
+  margin-bottom: 24px;
+}
+.stage-note p {
+  flex: 1 1 32em;
+  max-width: 45em;
+  margin: 0;
+  color: var(--graphite);
+}
+.stage-note strong {
+  color: var(--ink);
+}
+/* Architecture: the authority chain as a schematic; links that carry a hash bear hash ticks. */
+.schematic-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: 32px 48px;
+  align-items: start;
+  margin: 32px 0;
+}
+.schematic {
+  --wire: var(--graphite);
+  min-width: 0;
+  margin: 0;
+  padding: 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  grid-template-areas:
+    "operator ."
+    "approve ."
+    "core ."
+    "command ."
+    "agent perception"
+    "goal frame"
+    "ros .";
+  column-gap: 56px;
+}
+.block {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 64px;
+  padding: 10px 16px;
+  border: 1px solid var(--ink);
+  background: var(--film);
+  text-align: left;
+}
+.block small {
+  color: var(--graphite);
+}
+.block[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--lane) 30%, var(--film));
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+.link,
+.branch {
+  position: relative;
+  margin: 0;
+  color: var(--graphite);
+  font-size: 0.8125rem;
+}
+.link {
+  padding: 16px 0 18px 52px;
+}
+.branch {
+  padding-top: 8px;
+}
+.link code,
+.branch code {
+  display: block;
+  margin-top: 2px;
+}
+/* The wire down the left of each link, ending in an arrowhead at the next block. */
+.link::before,
+.branch-block::before {
+  content: "";
+  position: absolute;
+  left: 27px;
+  top: 0;
+  bottom: 6px;
+  border-left: 2px solid var(--wire);
+}
+.link::after,
+.branch-block::after {
+  content: "";
+  position: absolute;
+  left: 22px;
+  bottom: 0;
+  border: 6px solid transparent;
+  border-top: 7px solid var(--wire);
+  border-bottom: 0;
+}
+/* The branch to perception runs across the gap, pointing back at the agent it reports to. */
+.branch-block::before {
+  left: auto;
+  right: 100%;
+  top: 50%;
+  bottom: auto;
+  width: 50px;
+  border-left: 0;
+  border-top: 2px solid var(--wire);
+}
+.branch-block::after {
+  left: -56px;
+  top: calc(50% - 5px);
+  bottom: auto;
+  border: 6px solid transparent;
+  border-right: 7px solid var(--wire);
+  border-left: 0;
+}
+.ticks {
+  position: absolute;
+  left: 19px;
+  top: calc(50% - 12px);
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: var(--wire);
+  stroke-width: 2;
+}
+.block .ticks {
+  left: -36px;
+  top: calc(50% - 8px);
+  transform: rotate(90deg);
+}
+:is(.link, .branch)[data-on],
+.block[data-on] {
+  --wire: var(--ink);
+  color: var(--ink);
+}
+.link[data-on]::before {
+  border-left-width: 3px;
+}
+.schematic-detail {
+  padding: 24px;
+  border: 1px solid var(--rule);
+  background: var(--film);
+}
+.schematic-role {
+  color: var(--graphite);
+}
+.engineering-notes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 32px;
+  margin: 32px 0;
+}
+.engineering-notes p {
+  color: var(--graphite);
+}
+/* Parts of the stories still awaiting their own redesign; already on the new tokens. */
+.brief-steps,
+.recovery-sequence {
+  list-style: none;
+  padding: 0;
+  margin: 32px 0;
+}
+.brief-steps li,
+.recovery-sequence li {
+  display: flex;
+  gap: 20px;
+  padding: 20px 0;
+  border-top: 1px solid var(--rule);
+}
+.step-number,
+.recovery-sequence li > span,
+.recovery-metrics strong {
+  font-stretch: 112%;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.step-number {
+  flex: 0 0 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--ink);
+  font-size: 0.8125rem;
+}
+.brief-steps p,
+.recovery-sequence p,
+.camera-grid p {
+  color: var(--graphite);
+}
+.recovery-sequence li > span {
+  font-size: 0.8125rem;
+  padding-top: 4px;
+}
+.callout {
+  margin: 24px 0;
+  padding: 20px 24px;
+  border-left: 3px solid var(--ink);
+  background: color-mix(in srgb, var(--rule) 40%, transparent);
+}
+.callout p {
+  margin: 8px 0 0;
+}
+.camera-grid figure:not(.evidence) {
+  margin: 0;
+  min-width: 0;
+}
+.camera-grid figure:not(.evidence) img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--rule);
+}
+.camera-grid figure:not(.evidence) figcaption {
+  padding-top: 16px;
+}
+.recovery-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  margin: 32px 0;
+}
+.recovery-metrics > div {
+  border-top: 2px solid var(--ink);
+  padding-top: 16px;
+}
+.recovery-metrics strong {
+  display: block;
+  font-size: 2.4375rem;
+  line-height: 1.1;
+}
+.recovery-metrics small {
+  font-size: 1rem;
+}
+.recovery-metrics span {
+  display: block;
+  margin-top: 8px;
+  color: var(--graphite);
+  font-size: 0.8125rem;
+}
+@media (max-width: 1023px) {
+  .replay,
+  .schematic-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .readout-panel .readouts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    column-gap: 24px;
+  }
+  .readout-panel :where(.readouts) > div {
+    display: block;
+  }
+  .readout-panel dd {
+    text-align: left;
+  }
+}
+@media (max-width: 760px) {
+  .chapter-nav {
+    display: block;
+  }
+  .chapter-nav button {
+    font-size: 0.8125rem;
+    padding-right: 6px;
+  }
+  .run-facts,
+  .chapter-footer > span {
+    display: none;
+  }
+  .chapter-lead {
+    font-size: 1.25rem;
+  }
+  .replay .replay-controls {
+    grid-template-columns: auto auto;
+    justify-content: space-between;
+  }
+  .replay .trace {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .camera-grid,
+  .engineering-notes,
+  .recovery-metrics {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .schematic {
+    padding: 16px;
+    column-gap: 28px;
+  }
+  .block .ticks {
+    left: -23px;
+  }
+  .branch-block::before {
+    width: 22px;
+  }
+  .branch-block::after {
+    left: -28px;
+  }
+}
+/* On phones the sheet's columns stack, and each rung of the ladder runs down the page. */
+@media (max-width: 560px) {
+  .chapter-nav button {
+    font-size: 0;
+  }
+  .route-sheet thead {
+    display: none;
+  }
+  .route-sheet tr {
+    display: grid;
+    grid-template-columns: 2.5em minmax(0, 1fr);
+    border-bottom: 1px solid var(--rule);
+  }
+  .route-sheet td {
+    padding: 14px 16px 4px 0;
+    border: 0;
+  }
+  .route-sheet td:first-child {
+    width: auto;
+    padding-left: 16px;
+    grid-row: span 2;
+  }
+  .route-sheet td:last-child {
+    width: auto;
+    padding: 4px 16px 14px 12px;
+  }
+  .title-block > div {
+    padding-inline: 16px;
+  }
+  .evidence figcaption {
+    padding-inline: 16px;
+  }
+  .evidence figcaption .title-block {
+    margin-inline: -16px;
+  }
+  .ladder {
+    border-inline: 0;
+  }
+  .ladder ul {
+    display: flex;
+    flex-direction: column;
+    background: none;
+  }
+  /* A stub of the power rail heads each rung. */
+  .ladder ul::before {
+    content: "";
+    width: 56px;
+    height: 3px;
+    margin-left: 8px;
+    background: var(--ink);
+  }
+  .contact,
+  .coil {
+    min-height: 64px;
+    padding: 10px 16px 18px 72px;
+    text-align: left;
+    background:
+      linear-gradient(var(--in) 0 0) left calc(36px - var(--iw)) top 0 / calc(2 * var(--iw)) 50%
+      no-repeat,
+      linear-gradient(var(--out) 0 0) left calc(36px - var(--ow)) bottom 0 / calc(2 * var(--ow)) 50%
+      no-repeat;
+  }
+  .coil:last-child {
+    background-size:
+      calc(2 * var(--iw)) 50%,
+      0 0;
+  }
+  .ladder svg {
+    top: calc(50% - 21px);
+    left: 6px;
+    transform: rotate(90deg);
+  }
+  .stages {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  }
+}
+/* Motion that answers a choice; none of it runs for visitors who ask for reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .chapter-nav nav::before {
+    transition: width 0.6s cubic-bezier(0.65, 0, 0.25, 1);
+  }
+  .chapter-nav button::before {
+    transition: 0.2s 0.3s;
+  }
+  .chapter-nav [aria-current]::before {
+    transition-delay: 0.45s;
+  }
+  /* A new chapter's heading and parts sweep in from the left, like a pass of the plotter. */
+  .chapter-content > h2,
+  .chapter-body > * {
+    animation: sweep-in 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+  }
+  .chapter-body > * {
+    animation-delay: 0.08s;
+  }
+  /* Current flows along a rung from the left rail, one contact at a time. */
+  .contact,
+  .coil {
+    transition:
+      --in 0.12s calc(var(--i) * 0.11s),
+      --iw 0.12s calc(var(--i) * 0.11s),
+      --out 0.12s calc(var(--i) * 0.11s + 0.06s),
+      --ow 0.12s calc(var(--i) * 0.11s + 0.06s);
+  }
+  .ladder rect,
+  .ladder svg path {
+    transition:
+      fill 0.15s,
+      stroke 0.15s;
+  }
+  .block,
+  .link::before {
+    transition:
+      background-color 0.15s,
+      border-color 0.15s;
+  }
+}
+@keyframes sweep-in {
+  from {
+    clip-path: inset(0 100% 0 0);
+    opacity: 0.3;
+  }
+}

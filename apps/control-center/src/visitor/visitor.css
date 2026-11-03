@@ -100,23 +100,6 @@ code,
   font-size: 0.8125rem;
   overflow-wrap: anywhere;
 }
-/* Measurements use Archivo's tabular figures: B612 Mono's full-width point and colon read as gaps. */
-.figures,
-.readouts dd,
-.d-dim,
-.event-track time,
-.recovery-metrics strong,
-.step-number,
-.recovery-sequence li > span,
-.architecture-nodes button > span {
-  font-family: var(--sans);
-  font-stretch: 112%;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-}
-small {
-  font-size: 0.8125rem;
-}
 details {
   border-top: 1px solid var(--rule);
   padding: 16px 0;
@@ -133,6 +116,18 @@ details dd {
 }
 details code {
   display: block;
+}
+/* Measurements use Archivo's tabular figures: B612 Mono's full-width point and colon read as gaps. */
+.figures,
+.readouts dd,
+.d-dim {
+  font-family: var(--sans);
+  font-stretch: 112%;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+small {
+  font-size: 0.8125rem;
 }
 .visually-hidden {
   position: absolute;
@@ -345,8 +340,7 @@ details code {
     linear-gradient(var(--graphite) 0 0) right 8px bottom 0 / 1px 17px;
   background-repeat: no-repeat;
 }
-.drawing-frame,
-.replay-plate {
+.drawing-frame {
   container: drawing / inline-size;
 }
 .drawing-frame {
@@ -385,10 +379,6 @@ details code {
   width: 100%;
   height: auto;
   font-family: var(--sans);
-}
-/* The replay keeps its controls in view; the map letterboxes on the plate. */
-.replay-plate .lattice-drawing {
-  max-height: max(360px, calc(100svh - 380px));
 }
 .lattice-drawing :is(path, circle, polygon) {
   fill: none;
@@ -662,12 +652,10 @@ details code {
     0 0 0 5px var(--ink);
   pointer-events: none;
 }
-.story-line li,
-.chapter-nav nav button {
+.story-line li {
   position: relative;
 }
-.story-line li:not(:last-child)::after,
-.chapter-nav nav button:not(:last-child)::after {
+.story-line li:not(:last-child)::after {
   content: "";
   position: absolute;
   top: 7px;
@@ -676,8 +664,7 @@ details code {
   height: 2px;
   background: var(--ink);
 }
-.story-line button,
-.chapter-nav nav button {
+.story-line button {
   display: grid;
   width: 100%;
   min-height: 44px;
@@ -687,8 +674,7 @@ details code {
   text-align: left;
   line-height: 1.35;
 }
-.story-line button::before,
-.chapter-nav nav button::before {
+.story-line button::before {
   content: "";
   position: absolute;
   top: 0;
@@ -699,444 +685,15 @@ details code {
   border-radius: 50%;
   background: var(--paper);
 }
-.story-line [aria-pressed="true"],
-.chapter-nav [aria-current] {
+.story-line [aria-pressed="true"] {
   font-weight: 650;
-}
-.chapter-nav [aria-current]::before {
-  background: var(--lane);
-  box-shadow:
-    0 0 0 3px var(--paper),
-    0 0 0 5px var(--ink);
 }
 .story-line .figures {
   color: var(--graphite);
   font-size: 0.8125rem;
 }
-/* Chapters: the same line, filled up to the chapter on screen. */
-.visitor-workspace {
-  border-top: 1px solid var(--rule);
-  padding-top: 32px;
-  scroll-margin-top: 16px;
-}
-.chapter-nav {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 32px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid var(--rule);
-}
-.chapter-nav > .eyebrow,
-.chapter-nav nav button > span,
-.chapter-heading .eyebrow {
-  display: none;
-}
-.chapter-nav nav {
-  --n: 4;
-  --at: 0;
-  position: relative;
-  display: flex;
-  flex: 1 1 auto;
-  max-width: 900px;
-}
-.chapter-nav nav:has(> :nth-child(5)) {
-  --n: 5;
-}
-.chapter-nav nav:has(> :nth-child(2)[aria-current]) {
-  --at: 1;
-}
-.chapter-nav nav:has(> :nth-child(3)[aria-current]) {
-  --at: 2;
-}
-.chapter-nav nav:has(> :nth-child(4)[aria-current]) {
-  --at: 3;
-}
-.chapter-nav nav:has(> :nth-child(5)[aria-current]) {
-  --at: 4;
-}
-.chapter-nav nav::before {
-  content: "";
-  position: absolute;
-  z-index: 1;
-  top: 6px;
-  left: 8px;
-  width: calc(var(--at) * 100% / var(--n));
-  height: 4px;
-  background: var(--ink);
-  pointer-events: none;
-}
-.chapter-nav nav button::before {
-  z-index: 2;
-}
-.chapter-nav nav button {
-  flex: 1 1 0;
-  min-width: 0;
-  color: var(--graphite);
-  hyphens: auto;
-  overflow-wrap: anywhere;
-}
-.chapter-nav nav button::after {
-  background: var(--rule);
-}
-.chapter-nav nav button:has(~ [aria-current])::before {
-  background: var(--ink);
-}
-.chapter-nav nav button[aria-current],
-.chapter-nav nav button:hover {
-  color: var(--ink);
-}
-.run-facts {
-  display: grid;
-  gap: 2px;
-  color: var(--graphite);
-  font-size: 0.8125rem;
-  text-align: right;
-}
-.chapter-content {
-  padding: 32px 0;
-  min-width: 0;
-  scroll-margin-top: 16px;
-}
-.chapter-heading h2 {
-  font-size: 1.9375rem;
-  margin-bottom: 24px;
-}
-.chapter-lead {
-  font-size: 1.5625rem;
-  line-height: 1.35;
-  max-width: 36em;
-}
-.chapter-content > p:not(.chapter-lead) {
-  color: var(--graphite);
-  max-width: 45em;
-}
-.chapter-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-top: 32px;
-  padding-top: 24px;
-  border-top: 1px solid var(--rule);
-}
-.chapter-footer > span {
-  color: var(--graphite);
-  font-size: 0.8125rem;
-}
-/* Recorded mission: map, controls and readouts */
-.replay {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
-  gap: 24px 40px;
-}
-.replay-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.replay-bar p {
-  margin: 0;
-  color: var(--graphite);
-  font-size: 0.8125rem;
-}
-.segmented {
-  display: inline-flex;
-  margin: 0;
-  padding: 0;
-  border: 1px solid var(--ink);
-}
-.segmented button {
-  min-height: 40px;
-  padding: 0 16px;
-  border: 0;
-  background: none;
-}
-.segmented [aria-pressed="true"] {
-  background: var(--ink);
-  color: var(--paper);
-}
-.replay .replay-controls {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 16px;
-  margin-top: 20px;
-}
-.trace {
-  position: relative;
-  height: 64px;
-}
-.trace svg,
-.trace input {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-}
-.trace path {
-  fill: none;
-}
-.trace-base {
-  stroke: var(--rule);
-}
-.trace-speed {
-  stroke: var(--graphite);
-  stroke-width: 1.5;
-}
-.trace-event {
-  stroke: var(--graphite);
-  stroke-width: 2;
-}
-.trace-anomaly {
-  stroke: var(--hold);
-}
-.trace-recovery {
-  stroke: var(--stop);
-}
-.trace-approval {
-  stroke: var(--body);
-}
-.trace-complete {
-  stroke: var(--clear);
-}
-.trace-head {
-  stroke: var(--ink);
-  stroke-width: 2;
-}
-.trace input {
-  appearance: none;
-  background: none;
-  cursor: pointer;
-}
-.trace input::-webkit-slider-runnable-track {
-  height: 100%;
-  background: none;
-}
-.trace input::-webkit-slider-thumb {
-  appearance: none;
-  width: 14px;
-  height: 14px;
-  margin-top: 25px;
-  border: 2px solid var(--paper);
-  background: var(--ink);
-}
-.trace input::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
-  border: 2px solid var(--paper);
-  border-radius: 0;
-  background: var(--ink);
-}
-.speed {
-  display: grid;
-  gap: 2px;
-  color: var(--graphite);
-  font-size: 0.8125rem;
-}
-.speed select {
-  min-height: 40px;
-  padding: 0 8px;
-  border: 1px solid var(--ink);
-  border-radius: 0;
-  background: var(--paper);
-  color: var(--ink);
-}
-.readout-panel .readouts {
-  display: block;
-}
-.readout-panel .readouts > div {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--rule);
-}
-.readout-panel dd {
-  font-size: 1rem;
-  text-align: right;
-}
-.latest-event {
-  margin-top: 24px;
-}
-.latest-event > p {
-  color: var(--graphite);
-}
-.latest-event > p:first-child {
-  margin-bottom: 4px;
-  font-size: 0.8125rem;
-}
-.event-track {
-  grid-column: 1 / -1;
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 8px;
-}
-.event-track button {
-  flex: 0 0 150px;
-  padding: 12px;
-  border: 1px solid var(--rule);
-  border-top-width: 3px;
-  background: none;
-  color: var(--graphite);
-  text-align: left;
-  font-size: 0.8125rem;
-  line-height: 1.4;
-}
-.event-track .reached {
-  border-top-color: var(--ink);
-  color: var(--ink);
-}
-.event-track time {
-  display: block;
-  margin-bottom: 4px;
-}
-.event-track small {
-  display: block;
-  margin-top: 4px;
-  color: var(--graphite);
-}
-/* Chapter parts kept until their own redesign; already on the new tokens. */
-.eyebrow {
-  color: var(--graphite);
-  font-size: 0.8125rem;
-}
-.brief-steps,
-.recovery-sequence {
-  list-style: none;
-  padding: 0;
-  margin: 32px 0;
-}
-.brief-steps li,
-.recovery-sequence li {
-  display: flex;
-  gap: 20px;
-  padding: 20px 0;
-  border-top: 1px solid var(--rule);
-}
-.step-number {
-  flex: 0 0 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--ink);
-  font-size: 0.8125rem;
-}
-.brief-steps p,
-.recovery-sequence p,
-.camera-grid p,
-.engineering-notes p,
 .visitor-bottom > p {
   color: var(--graphite);
-}
-.recovery-sequence li > span {
-  font-size: 0.8125rem;
-  padding-top: 4px;
-}
-.callout {
-  margin: 24px 0;
-  padding: 20px 24px;
-  border-left: 3px solid var(--ink);
-  background: color-mix(in srgb, var(--rule) 40%, transparent);
-}
-.callout p {
-  margin: 8px 0 0;
-}
-.camera-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px;
-  margin: 32px 0;
-}
-.camera-grid figure {
-  margin: 0;
-  min-width: 0;
-}
-.camera-label {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
-  font-size: 0.8125rem;
-  color: var(--graphite);
-}
-.success {
-  color: var(--clear);
-}
-.anomaly {
-  color: var(--hold);
-}
-.camera-grid img {
-  display: block;
-  width: 100%;
-  height: auto;
-  border: 1px solid var(--rule);
-}
-.camera-grid figcaption {
-  padding-top: 16px;
-}
-.recovery-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 24px;
-  margin: 32px 0;
-}
-.recovery-metrics > div {
-  border-top: 2px solid var(--ink);
-  padding-top: 16px;
-}
-.recovery-metrics strong {
-  display: block;
-  font-size: 2.4375rem;
-  line-height: 1.1;
-}
-.recovery-metrics small {
-  font-size: 1rem;
-}
-.recovery-metrics span {
-  display: block;
-  margin-top: 8px;
-  color: var(--graphite);
-  font-size: 0.8125rem;
-}
-.architecture-nodes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 32px 0 16px;
-}
-.architecture-nodes button {
-  flex: 1 1 110px;
-  display: grid;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid var(--rule);
-  background: none;
-  text-align: left;
-}
-.architecture-nodes button > span {
-  font-size: 0.8125rem;
-  color: var(--graphite);
-}
-.architecture-nodes .selected {
-  border-color: var(--ink);
-  background: color-mix(in srgb, var(--lane) 18%, transparent);
-}
-.architecture-detail {
-  padding: 24px;
-  border: 1px solid var(--rule);
-}
-.engineering-notes {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 32px;
-  margin: 32px 0;
 }
 .visitor-bottom {
   max-width: 44em;
@@ -1166,20 +723,6 @@ details code {
   }
   .opening-text {
     padding-top: 0;
-  }
-  .replay {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .readout-panel .readouts {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    column-gap: 24px;
-  }
-  .readout-panel .readouts > div {
-    display: block;
-  }
-  .readout-panel dd {
-    text-align: left;
   }
 }
 @media (max-width: 760px) {
@@ -1257,39 +800,6 @@ details code {
     padding: 0 0 16px 32px;
     grid-template-columns: 1fr auto;
   }
-  .chapter-nav {
-    display: block;
-  }
-  .chapter-nav nav button {
-    font-size: 0.8125rem;
-    padding-right: 6px;
-  }
-  .run-facts,
-  .chapter-footer > span {
-    display: none;
-  }
-  .replay .replay-controls {
-    grid-template-columns: auto auto;
-    justify-content: space-between;
-  }
-  .replay .trace {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
-  .camera-grid,
-  .engineering-notes,
-  .recovery-metrics {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .chapter-lead {
-    font-size: 1.25rem;
-  }
-}
-/* On narrow phones the chapter line keeps its stations and the heading names the chapter. */
-@media (max-width: 560px) {
-  .chapter-nav nav button {
-    font-size: 0;
-  }
 }
 /* Motion that answers a choice; none of it runs for visitors who ask for reduced motion. */
 @media (prefers-reduced-motion: no-preference) {
@@ -1297,32 +807,11 @@ details code {
   .opening h1 .line[data-shown] {
     transition: clip-path 0.8s cubic-bezier(0.65, 0, 0.25, 1);
   }
-  .story-line ul::before,
-  .chapter-nav nav::before {
+  .story-line ul::before {
     transition: 0.6s cubic-bezier(0.65, 0, 0.25, 1);
-    transition-property: left, top, width;
-  }
-  .chapter-nav nav button::before {
-    transition: 0.2s 0.3s;
-  }
-  .chapter-nav [aria-current]::before {
-    transition-delay: 0.45s;
+    transition-property: left, top;
   }
   .d-head {
     transition: opacity 0.15s;
-  }
-  /* A new chapter's heading and parts sweep in from the left, like a pass of the plotter. */
-  .chapter-heading h2,
-  .chapter-content > :not(.chapter-heading, .chapter-footer) {
-    animation: sweep-in 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
-  }
-  .chapter-content > :not(.chapter-heading, .chapter-footer) {
-    animation-delay: 0.08s;
-  }
-}
-@keyframes sweep-in {
-  from {
-    clip-path: inset(0 100% 0 0);
-    opacity: 0.3;
   }
 }
