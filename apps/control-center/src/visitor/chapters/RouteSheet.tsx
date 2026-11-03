@@ -3,6 +3,8 @@ import type { ReactNode } from 'react';
 export interface SheetStep {
   readonly title: string;
   readonly command?: unknown;
+  /** A sentence under the title, for steps described rather than given as a command. */
+  readonly text?: ReactNode;
   /** The last column: a failure policy, an assignment or a status. */
   readonly detail: ReactNode;
   /** Marks the step whose failure the round is allowed to continue past. */
@@ -76,6 +78,7 @@ export function RouteSheet({
                     </a>
                   )}
                 </strong>
+                {step.text && <p>{step.text}</p>}
                 {step.command !== undefined && (
                   <code>{JSON.stringify(step.command, null, 1).replace(/\n\s*/g, ' ')}</code>
                 )}
@@ -97,5 +100,20 @@ export function RouteSheet({
         </ol>
       )}
     </div>
+  );
+}
+
+/** Capability identifiers a segment requires, as the planner names them. */
+export function Capabilities({ list }: { readonly list: readonly string[] }) {
+  return (
+    <>
+      Requires{' '}
+      {list.map((capability, index) => (
+        <span key={capability}>
+          {index ? ' and ' : ''}
+          <code>{capability}</code>
+        </span>
+      ))}
+    </>
   );
 }

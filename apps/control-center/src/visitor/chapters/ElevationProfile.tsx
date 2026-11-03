@@ -1,8 +1,8 @@
-import { minutes as fmt } from '../format';
+import { minutes as fmt, signed } from '../format';
 
 const W = 720,
   H = 190,
-  L = 64,
+  L = 84,
   R = 16,
   T = 18,
   B = 34;
@@ -52,7 +52,7 @@ export function ElevationProfile({
             <path d={`M${L} ${y(z)}H${W - R}`} />
             {Math.round(z * 100) % 10 === 0 && (
               <text x={L - 8} y={y(z) + 4} textAnchor="end">
-                {`${(z * 100).toFixed(0)} cm`}
+                {`${signed(z * 100, 0)} cm`}
               </text>
             )}
           </g>

@@ -13,7 +13,7 @@ import { EvidencePlate } from './chapters/EvidencePlate';
 import { PolarScan } from './chapters/PolarScan';
 import { bodyReadouts, ReplayPanel } from './chapters/ReplayPanel';
 import { speeds } from './chapters/ReplayTrace';
-import { RouteSheet, TitleBlock } from './chapters/RouteSheet';
+import { Capabilities, RouteSheet, TitleBlock } from './chapters/RouteSheet';
 import { LatticeDrawing } from './drawing/LatticeDrawing';
 import { adaptiveScene, routeScene } from './drawing/scenes';
 
@@ -31,20 +31,6 @@ const name = (id: string, run: AdaptiveRecording) =>
       : id;
 const asset = (file: string) => `${import.meta.env.BASE_URL}demo/${file}`;
 
-/** Capability identifiers a segment requires, as the planner names them. */
-export function Capabilities({ list }: { readonly list: readonly string[] }) {
-  return (
-    <>
-      Requires{' '}
-      {list.map((capability, index) => (
-        <span key={capability}>
-          {index ? ' and ' : ''}
-          <code>{capability}</code>
-        </span>
-      ))}
-    </>
-  );
-}
 const when = (iso: string | null | undefined) =>
   iso ? new Date(iso).toLocaleString() : 'Not recorded';
 

@@ -369,6 +369,14 @@
   margin-bottom: 4px;
   font-weight: 600;
 }
+.sheet-line {
+  display: block;
+}
+.route-sheet td p {
+  margin: 0;
+  max-width: 40em;
+  color: var(--graphite);
+}
 .route-sheet code {
   color: var(--graphite);
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;

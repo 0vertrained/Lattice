@@ -1,3 +1,69 @@
+/* Rover to quadruped: each segment's needs against the bodies the planner assessed. */
+.matrix-plate {
+  margin: 32px 0;
+}
+.matrix {
+  width: 100%;
+  border-collapse: collapse;
+}
+.matrix caption {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--ink);
+  font-weight: 600;
+  font-stretch: 112%;
+  text-align: left;
+}
+.matrix :is(th, td) {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+  vertical-align: top;
+}
+.matrix th {
+  font-weight: 600;
+}
+.matrix small {
+  display: block;
+  margin-top: 2px;
+  color: var(--graphite);
+  font-weight: 400;
+}
+.matrix tbody th {
+  width: 40%;
+}
+.matrix tbody td {
+  border-left: 1px solid var(--rule);
+}
+/* Assigned in lane yellow, as on the map; a missing capability hatched in red. */
+.matrix [data-state="assigned"] {
+  background: color-mix(in srgb, var(--lane) 45%, var(--film));
+  font-weight: 600;
+}
+.matrix [data-state="able"] {
+  color: var(--graphite);
+}
+.matrix [data-state="gap"] {
+  background: repeating-linear-gradient(
+    -45deg,
+    color-mix(in srgb, var(--stop) 20%, transparent) 0 2px,
+    transparent 2px 9px
+  );
+  color: var(--stop);
+  font-weight: 600;
+}
+@media (max-width: 560px) {
+  .matrix {
+    font-size: 0.8125rem;
+    overflow-wrap: anywhere;
+  }
+  .matrix caption,
+  .matrix :is(th, td) {
+    padding: 10px 8px;
+  }
+  .matrix tbody th {
+    width: auto;
+  }
+}
 /* Blocked aisle: the recorded scan as a plan-position plot, with a detail of the tested corridor. */
 .polar {
   display: grid;
