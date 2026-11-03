@@ -33,6 +33,21 @@ const assert = require('node:assert/strict');
         await page.getByRole('slider',{name:'Recorded mission time'}).fill('70');
         await page.getByRole('button',{name:'Map view',exact:true}).click();
       }
+      if(chapter==='Camera evidence'){
+        // Each plate's title block carries the recorded image hash.
+        for(const evidence of run.evidence) await page.getByText(evidence.image_sha256,{exact:true}).waitFor();
+      }
+      if(chapter==='Restart recovery'){
+        await page.getByRole('button',{name:/^Hold/}).click();
+        await page.getByRole('list',{name:'Interlocks at hold'}).waitFor();
+        assert.match(await page.locator('.stage-note p').innerText(),/holds it for review/);
+        await page.getByRole('button',{name:/^Fence/}).click();
+        assert.match(await page.locator('.stage-note p').innerText(),new RegExp(`${run.recovery.stop_observed_after_s.toFixed(2)} s after the interruption`));
+      }
+      if(chapter==='Architecture'){
+        await page.getByRole('button',{name:/^Robot agent/}).click();
+        await page.getByRole('heading',{name:'Robot agent',exact:true}).waitFor();
+      }
       if(process.env.LATTICE_CAPTURE) await page.screenshot({path:`/tmp/lattice-visitor-${chapter.replaceAll(' ','-')}.png`,fullPage:true});
     }
     for(const width of [320,390,768,1440]){
@@ -43,6 +58,6 @@ const assert = require('node:assert/strict');
       }
     }
     assert.deepEqual(errors,[]); assert.deepEqual(calls,[]);
-    console.log('PASS: all walkthrough chapters, replay controls, focus, camera hashes, recorded outcomes, four viewport widths, no robot API requests');
+    console.log('PASS: all walkthrough chapters, replay controls, focus, camera hashes on the plates, the restart ladder, the schematic, recorded outcomes, four viewport widths, no robot API requests');
   } finally {await browser.close();}
 })().catch(e=>{console.error(e);process.exit(1)});
