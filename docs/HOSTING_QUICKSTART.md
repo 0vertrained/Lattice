@@ -186,6 +186,20 @@ gcloud run services describe lattice-core \
 The workflow artifact includes the reviewed map and deployed service manifest.
 It does not prove that a physical simulator is online; that is the last step.
 
+Before building anything, the job checks that the realm's key set holds an RSA
+signing key, which the core needs to start. If the deploy fails later with
+"failed the configured startup probe checks", open the **Logs URL** printed under
+that error and search for `Lattice Core stopped`. Its reason names the step:
+
+| Reason begins with | Check |
+| --- | --- |
+| `identity provider` | The realm issuer and its keys; the reason gives the HTTP status or network error |
+| `database` | The `PostgreSQL operation failed` line just before it: `No such file or directory` means the Cloud SQL connection (instance `lattice-db` running, `lattice-runtime` holding Cloud SQL Client); `SQLSTATE 28P01` means the `lattice-database-url` secret's password doesn't match the `lattice` user |
+| `database: its history is signed with a different key` | The `lattice-signing-seed` secret changed; deploy the version the database first started with |
+| `signing key` | The `lattice-signing-seed` secret must be base64 of 32 bytes |
+
+Logs stay in your Google Cloud project; the workflow does not copy them.
+
 ## 6. Enable Netlify sign-in
 
 Add two **build environment variables** to your Netlify site and trigger a new
