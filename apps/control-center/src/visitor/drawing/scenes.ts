@@ -20,9 +20,15 @@ export interface Place {
   readonly at: Point;
   /** Arrival radius in metres when the recording states one. */
   readonly radius: number | null;
+  /** Height in the map frame, when the route map gives one. */
+  readonly z?: number;
 }
 export interface Lane {
   readonly id: string;
+  /** Place ids at either end, in the segment's direction. */
+  readonly ends: readonly [string, string];
+  /** Capabilities a body needs to traverse it, such as stairs. */
+  readonly needs: readonly string[];
   readonly from: Point;
   readonly to: Point;
   readonly length: number;
@@ -67,10 +73,14 @@ export interface Scene {
     readonly origin: Point;
     /** Map-frame direction of the first beam, so a sweep reveals beams in recorded order. */
     readonly start: number;
-    readonly rays: readonly (Point & { hit: boolean })[];
+    readonly rays: readonly (Point & { hit: boolean; beam: number })[];
+    /** Beams in the recorded sweep, including any without a usable return. */
+    readonly beams: number;
     readonly corridor: readonly Point[];
     readonly hits: number;
   } | null;
+  /** The planned route's endpoints, for showing the planner's search over the map's segments. */
+  readonly route: { readonly from: string; readonly to: string } | null;
   readonly tracks: readonly Track[];
   readonly marks: readonly Mark[];
 }
@@ -124,6 +134,7 @@ function routeMap(
     label: shortLabel(place.label),
     at: { x: place.pose.x, y: place.pose.y },
     radius: place.arrival_radius_m,
+    z: place.pose.z ?? 0,
   }));
   const lanes = run.map.segments.flatMap((segment) => {
     const from = places.find((place) => place.id === segment.from),
@@ -132,9 +143,12 @@ function routeMap(
     return [
       {
         id: segment.id,
+        ends: [segment.from, segment.to] as const,
+        needs: segment.required_capabilities,
         from: from.at,
         to: to.at,
-        length: Math.hypot(to.at.x - from.at.x, to.at.y - from.at.y),
+        // Straight-line length between the place poses, height included, as the planner measures it.
+        length: Math.hypot(to.at.x - from.at.x, to.at.y - from.at.y, (to.z ?? 0) - (from.z ?? 0)),
         planned: planned.has(segment.id),
         blocked: segment.id === blocked,
         replanned: replanned.has(segment.id) && !planned.has(segment.id),
@@ -158,6 +172,7 @@ export function capabilityScene(run: CapabilityRecording): Scene {
     lanes,
     stairs,
     scan: null,
+    route: { from: run.plan.source_place_id, to: run.plan.destination_place_id },
     tracks: [
       track(run.poses, source, 'Gazebo rover', 'ink'),
       track(run.poses, target, 'MuJoCo Go1', 'body'),
@@ -196,10 +211,12 @@ export function adaptiveScene(run: AdaptiveRecording, scan: Scan | null): Scene 
             origin: scan.sensor_map_pose,
             start: scan.sensor_map_pose.yaw + scan.angle_min,
             rays,
+            beams: scan.ranges.length,
             corridor: corridorOutline(base, target),
             hits: rays.filter((ray) => ray.hit).length,
           }
         : null,
+    route: { from: run.plan.source_place_id, to: run.plan.destination_place_id },
     tracks: [
       track(run.poses, source, 'Gazebo rover', 'ink'),
       track(run.poses, receiver, 'MuJoCo Go1', 'body'),
@@ -228,6 +245,7 @@ export function handoffScene(run: HandoffRecording): Scene {
     lanes: [],
     stairs: null,
     scan: null,
+    route: null,
     tracks: [
       track(run.poses, source, 'Rover A', 'ink'),
       track(run.poses, receiver, 'Rover B', 'body'),
@@ -250,6 +268,7 @@ export function singleScene(run: Walkthrough): Scene {
     lanes: [],
     stairs: null,
     scan: null,
+    route: null,
     tracks: [track(run.poses, 'rover', 'Rover', 'ink')],
     marks: [
       ...(anomaly

@@ -111,6 +111,19 @@ export function poseAt<T extends { t: number }>(poses: readonly T[], t: number):
   return poses.findLast((pose) => pose.t <= t) ?? poses[0];
 }
 
+/** Position and heading at time `t`, interpolated between the two recorded samples around it. */
+export function sampleAt(samples: readonly Pose[], t: number): Pose | undefined {
+  const hi = samples.findIndex((sample) => sample.t >= t);
+  if (hi < 0) return samples.at(-1);
+  if (hi === 0) return samples[0];
+  const a = samples[hi - 1] as Pose,
+    b = samples[hi] as Pose;
+  const s = b.t > a.t ? (t - a.t) / (b.t - a.t) : 1;
+  // Turn the short way round between the two recorded headings.
+  const turn = Math.atan2(Math.sin(b.yaw - a.yaw), Math.cos(b.yaw - a.yaw));
+  return { t, x: a.x + (b.x - a.x) * s, y: a.y + (b.y - a.y) * s, yaw: a.yaw + turn * s };
+}
+
 export interface Scan {
   readonly angle_min: number;
   readonly angle_increment: number;
@@ -148,7 +161,7 @@ export function scanReturns(scan: Scan, base: Point, target: Point) {
       ahead >= corridor.ahead[0] &&
       ahead <= Math.min(corridor.ahead[1], distance) &&
       lateral <= corridor.lateral;
-    return [{ x, y, hit }];
+    return [{ x, y, hit, beam: index }];
   });
 }
 
