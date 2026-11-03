@@ -19,9 +19,39 @@ use std::sync::{
 use tokio::sync::{Mutex, OwnedMutexGuard, RwLock};
 use tokio_postgres::{Client, NoTls};
 
-pub(crate) fn failure(error: impl std::fmt::Display) -> ApplicationError {
-    tracing::error!(%error, "PostgreSQL operation failed");
+pub(crate) fn failure<E: std::fmt::Display + 'static>(error: E) -> ApplicationError {
+    match (&error as &dyn std::any::Any).downcast_ref::<tokio_postgres::Error>() {
+        Some(postgres) => {
+            tracing::error!(error = %describe(postgres), "PostgreSQL operation failed")
+        }
+        None => tracing::error!(%error, "PostgreSQL operation failed"),
+    }
     ApplicationError::Infrastructure
+}
+
+/// The driver's own text is only "db error" or "error connecting to server". Add the SQLSTATE or
+/// the operating-system cause, which say what went wrong without quoting data: a server's message
+/// and detail can contain row values, so neither is logged.
+fn describe(error: &tokio_postgres::Error) -> String {
+    if let Some(server) = error.as_db_error() {
+        let code = server.code().code();
+        let meaning = match code {
+            "28P01" => ": password rejected",
+            "28000" => ": role may not log in",
+            "3D000" => ": database does not exist",
+            "42501" => ": permission denied",
+            "53300" => ": too many connections",
+            "57P03" => ": server is starting or stopping",
+            _ => "",
+        };
+        return format!("{error} (SQLSTATE {code}{meaning})");
+    }
+    let os = std::iter::successors(std::error::Error::source(error), |cause| cause.source())
+        .find_map(|cause| cause.downcast_ref::<std::io::Error>());
+    match os {
+        Some(os) => format!("{error}: {os}"),
+        None => error.to_string(),
+    }
 }
 fn encode(value: &impl Serialize) -> Result<Value, ApplicationError> {
     serde_json::to_value(value).map_err(failure)
