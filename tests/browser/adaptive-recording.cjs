@@ -67,7 +67,7 @@ const { chromium } = require('../../apps/control-center/node_modules/playwright'
     await page.getByRole('heading', { name: 'A new route condition', exact: true }).waitFor();
     await page.getByText(/Original scan hash verified/).waitFor();
     await page.getByRole('img', { name: 'Original route with measured blockage scan returns', exact: true }).waitFor();
-    assert.ok(await page.locator('.adaptive-map g[aria-label="Original scan returns within two metres"] circle').count() > 0);
+    assert.ok(await page.locator('.adaptive-map .adaptive-scan-returns circle').count() > 0);
     await page.getByRole('button', { name: 'Reviewed detour', exact: true }).click();
     await page.getByRole('img', { name: 'Reviewed detour with measured blockage scan returns', exact: true }).waitFor();
     const chapters = ['A new route condition', 'Reviewed continuity', 'Measured continuation', 'Evidence and limits'];
@@ -112,11 +112,11 @@ const { chromium } = require('../../apps/control-center/node_modules/playwright'
     await page.locator('.adaptive-story').screenshot({ path: '/tmp/lattice-adaptive-public.png' });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.locator('.adaptive-story').screenshot({ path: '/tmp/lattice-adaptive-public-mobile.png' });
-    await page.getByRole('button', { name: 'Capability route · rover to quadruped', exact: true }).click();
+    await page.getByRole('navigation', { name: 'Recorded stories' }).getByRole('button', { name: 'Rover to quadruped', exact: true }).click();
     await page.getByRole('heading', { name: 'Capability decision', exact: true }).waitFor();
-    await page.getByRole('button', { name: 'Shared memory · two-rover handoff', exact: true }).click();
+    await page.getByRole('navigation', { name: 'Recorded stories' }).getByRole('button', { name: 'Two-rover handoff', exact: true }).click();
     await page.getByRole('heading', { name: 'Shared objective', exact: true }).waitFor();
-    await page.getByRole('button', { name: 'Single-rover restart recovery', exact: true }).click();
+    await page.getByRole('navigation', { name: 'Recorded stories' }).getByRole('button', { name: 'Core restart', exact: true }).click();
     await page.getByRole('heading', { name: 'Briefing', exact: true }).waitFor();
     assert.deepEqual(errors, []); assert.deepEqual(calls, []);
     // Absence is a test-only network failure; never replace public mission evidence.
@@ -124,7 +124,7 @@ const { chromium } = require('../../apps/control-center/node_modules/playwright'
     await fallback.route('**/demo/adaptive-route.json', (route) => route.fulfill({ status: 404, body: 'recording unavailable' }));
     await fallback.goto(new URL('.', base).href);
     await fallback.getByRole('heading', { name: 'Briefing', exact: true }).waitFor();
-    assert.equal(await fallback.getByRole('button', { name: 'Adaptive route · blocked aisle', exact: true }).count(), 0);
+    assert.equal(await fallback.getByRole('navigation', { name: 'Recorded stories' }).getByRole('button', { name: 'Blocked aisle', exact: true }).count(), 0);
     await fallback.close();
     console.log(`PASS: actual adaptive round ${run.round_id}, ${run.mission_duration_s}s completion/${run.duration_s}s recording, ${scan.ranges.length} SHA-bound scan samples, ${run.observations.length} original JPEGs, preserved work, approved detour, ${video ? 'verified same-run video' : 'optional video not yet published'}, four viewport widths and all prior stories`);
   } finally { await browser.close(); }

@@ -36,7 +36,7 @@ const { createHash } = require('node:crypto');
     await page.goto(new URL('#handoff', base).href);
     await page.getByRole('heading', { name: 'Shared objective', exact: true }).waitFor();
     const expectedOperatorLinks = process.env.LATTICE_EXPECT_OPERATOR_LINK === '1' ? 1 : 0;
-    assert.equal(await page.getByRole('link', { name: 'Operator sign-in →', exact: true }).count(), expectedOperatorLinks, 'Operator entry must match the selected deployment mode');
+    assert.equal(await page.getByRole('link', { name: 'Operator sign-in', exact: true }).count(), expectedOperatorLinks, 'Operator entry must match the selected deployment mode');
     const chapters = ['Shared objective', 'Two-rover replay', 'Shared memory', 'Handoff proof'];
     async function chapter(name) {
       await page.getByRole('navigation', { name: 'Two-rover chapters', exact: true }).getByRole('button', { name: new RegExp(name) }).click();

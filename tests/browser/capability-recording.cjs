@@ -97,9 +97,9 @@ const { chromium } = require('../../apps/control-center/node_modules/playwright'
     await page.locator('.capability-story').screenshot({ path: '/tmp/lattice-capability-public.png' });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.locator('.capability-story').screenshot({ path: '/tmp/lattice-capability-mobile.png' });
-    await page.getByRole('button', { name: 'Shared memory · two-rover handoff', exact: true }).click();
+    await page.getByRole('navigation', { name: 'Recorded stories' }).getByRole('button', { name: 'Two-rover handoff', exact: true }).click();
     await page.getByRole('heading', { name: 'Shared objective', exact: true }).waitFor();
-    await page.getByRole('button', { name: 'Single-rover restart recovery', exact: true }).click();
+    await page.getByRole('navigation', { name: 'Recorded stories' }).getByRole('button', { name: 'Core restart', exact: true }).click();
     await page.getByRole('heading', { name: 'Briefing', exact: true }).waitFor();
     assert.deepEqual(errors, []);
     assert.deepEqual(robotCalls, []);

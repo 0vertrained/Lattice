@@ -46,7 +46,7 @@ export function AdaptiveMap({
             : 'Reviewed detour with measured blockage scan returns'
         }
       >
-        <rect x="25" y="25" width="690" height="340" rx="10" className="warehouse-floor" />
+        <rect x="25" y="25" width="690" height="340" className="warehouse-floor" />
         {run.map.segments.map((segment) => {
           const from = run.map.places.find((place) => place.id === segment.from),
             to = run.map.places.find((place) => place.id === segment.to);
@@ -61,7 +61,13 @@ export function AdaptiveMap({
               y1={a.y}
               x2={b.x}
               y2={b.y}
-              stroke={blocked ? '#e0a376' : selected.has(segment.id) ? '#83dfb8' : '#40574d'}
+              style={{
+                stroke: blocked
+                  ? 'var(--stop)'
+                  : selected.has(segment.id)
+                    ? 'var(--ink)'
+                    : 'var(--graphite)',
+              }}
               strokeWidth={selected.has(segment.id) ? 4 : 2}
               strokeDasharray={blocked ? '7 6' : undefined}
             >
@@ -76,17 +82,17 @@ export function AdaptiveMap({
             </line>
           );
         })}
-        <g aria-label="Original scan returns within two metres">
+        <g className="adaptive-scan-returns">
           {points.map((point) => {
             const p = xy(point);
             return (
-              <circle key={point.beam} cx={p.x} cy={p.y} r="2" fill="#efba7f" opacity="0.85" />
+              <circle key={point.beam} cx={p.x} cy={p.y} r="2" style={{ fill: 'var(--stop)' }} />
             );
           })}
         </g>
         {scan && (
           <g transform={`translate(${xy(scan.sensor_map_pose).x},${xy(scan.sensor_map_pose).y})`}>
-            <circle r="6" fill="#efba7f" />
+            <circle r="6" style={{ fill: 'var(--body)' }} />
             <title>Recorded lidar sensor position</title>
           </g>
         )}
@@ -132,9 +138,9 @@ export function AdaptiveMap({
         ))}
       </ol>
       <figcaption>
-        Green: displayed plan · dashed amber: reported blocked segment · orange dots: actual scan
-        returns within 2 m, transformed with the recorded sensor pose. The points do not classify
-        the object.
+        Solid line: displayed plan. Dashed red: reported blocked segment. Red dots: actual scan
+        returns within 2 m, transformed with the recorded sensor pose; the blue dot is the sensor.
+        The points do not classify the object.
       </figcaption>
     </figure>
   );

@@ -1,3 +1,4 @@
+import './stories.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   type CapabilityRecording,
@@ -633,7 +634,7 @@ export function CapabilityMap({
       role="img"
       aria-label="Recorded rover and quadruped paths in the common semantic frame"
     >
-      <rect x="30" y="28" width="680" height="384" rx="10" className="warehouse-floor" />
+      <rect x="30" y="28" width="680" height="384" className="warehouse-floor" />
       {run.map.segments.map((segment) => {
         const from = run.map.places.find((place) => place.id === segment.from),
           to = run.map.places.find((place) => place.id === segment.to);
@@ -679,7 +680,7 @@ export function CapabilityMap({
         const poses = run.poses.filter((pose) => pose.body_id === id);
         const visible = poses.filter((pose) => pose.t <= time);
         const current = visible.at(-1);
-        const color = index ? '#87b8e6' : '#83dfb8';
+        const color = index ? 'var(--body)' : 'var(--ink)';
         return (
           <g key={id}>
             <polyline points={points(poses)} className="route-full" />
@@ -763,7 +764,7 @@ export function ElevationProfile({
             .map(xy)
             .join(' ')}
           className="route-played"
-          style={{ stroke: '#87b8e6' }}
+          style={{ stroke: 'var(--body)' }}
         />
       </svg>
     </figure>

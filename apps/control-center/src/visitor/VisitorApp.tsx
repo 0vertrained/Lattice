@@ -1,7 +1,23 @@
-import { Component, lazy, type ReactNode, Suspense, useEffect, useRef, useState } from 'react';
+import {
+  Component,
+  lazy,
+  type ReactNode,
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import type { AdaptiveRecording } from './adaptiveTypes';
 import type { CapabilityRecording } from './capabilityTypes';
+import { LatticeDrawing } from './drawing/LatticeDrawing';
+import { type StoryId, singleScene } from './drawing/scenes';
+import { minutes as fmt, signed } from './format';
 import type { HandoffRecording } from './handoffTypes';
+import { ReplayTrace, speeds } from './ReplayTrace';
+import { SiteHeader } from './SiteHeader';
+import { StoryLine } from './StoryLine';
+import { type Recordings, StoryOpening } from './StoryOpening';
 import type { Walkthrough } from './types';
 
 const RecordedTwin = lazy(() => import('./RecordedTwin'));
@@ -61,25 +77,72 @@ const components = [
     file: 'services/lattice-ai-gateway/app/vision.py',
   },
 ];
-const fmt = (t: number) =>
-  `${Math.floor(t / 60)}:${Math.floor(t % 60)
-    .toString()
-    .padStart(2, '0')}`;
+
+interface Load<T> {
+  readonly data: T | null;
+  readonly done: boolean;
+}
+/** Fetches one recording; `accept` returns null for anything that is not a complete, consistent recording. */
+function useRecording<T>(
+  file: string,
+  accept: (value: unknown) => T | null | Promise<T | null>,
+): Load<T> {
+  const [state, setState] = useState<Load<T>>({ data: null, done: false });
+  useEffect(() => {
+    const abort = new AbortController();
+    fetch(`${import.meta.env.BASE_URL}demo/${file}`, { signal: abort.signal })
+      .then(async (response) => (response.ok ? accept(await response.json()) : null))
+      .then((data) => {
+        if (!abort.signal.aborted) setState({ data, done: true });
+      })
+      .catch(() => {
+        if (!abort.signal.aborted) setState({ data: null, done: true });
+      });
+    return () => abort.abort();
+  }, [file, accept]);
+  return state;
+}
+const acceptWalkthrough = (value: unknown) => value as Walkthrough;
+const acceptHandoff = (value: unknown) => {
+  const recording = value as HandoffRecording | null;
+  /* This second recording is optional on older deployments. */
+  return recording?.schema === 'lattice.handoff.v1' &&
+    recording.handoff &&
+    Array.isArray(recording.poses) &&
+    recording.poses.length > 0 &&
+    Array.isArray(recording.observations) &&
+    Number.isFinite(recording.duration_s)
+    ? recording
+    : null;
+};
+/* The capability scenario appears only when its completed recording is available. */
+const acceptCapability = async (value: unknown): Promise<CapabilityRecording | null> => {
+  const { capabilityRecordingSchema } = await import('./capabilityTypes');
+  const parsed = capabilityRecordingSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+};
+/* Only a complete, consistent adaptive recording is offered as a scenario. */
+const acceptAdaptive = async (value: unknown): Promise<AdaptiveRecording | null> => {
+  const { adaptiveRecordingSchema } = await import('./adaptiveTypes');
+  const parsed = adaptiveRecordingSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+};
+const storyFromHash = (): StoryId =>
+  !window.location.hash || window.location.hash === '#adaptive'
+    ? 'adaptive'
+    : window.location.hash === '#capability'
+      ? 'capability'
+      : window.location.hash === '#handoff'
+        ? 'handoff'
+        : 'single';
+
 export function VisitorApp() {
-  const [run, setRun] = useState<Walkthrough | null>(null);
-  const [handoffRun, setHandoffRun] = useState<HandoffRecording | null>(null);
-  const [capabilityRun, setCapabilityRun] = useState<CapabilityRecording | null>(null);
-  const [adaptiveRun, setAdaptiveRun] = useState<AdaptiveRecording | null>(null);
-  const [story, setStory] = useState<'single' | 'handoff' | 'capability' | 'adaptive'>(() =>
-    !window.location.hash || window.location.hash === '#adaptive'
-      ? 'adaptive'
-      : window.location.hash === '#capability'
-        ? 'capability'
-        : window.location.hash === '#handoff'
-          ? 'handoff'
-          : 'single',
-  );
-  const [error, setError] = useState('');
+  const single = useRecording('walkthrough.json', acceptWalkthrough);
+  const handoff = useRecording('handoff.json', acceptHandoff);
+  const capability = useRecording('capability-route.json', acceptCapability);
+  const adaptive = useRecording('adaptive-route.json', acceptAdaptive);
+  const run = single.data;
+  const [story, setStory] = useState<StoryId>(storyFromHash);
   const [chapter, setChapter] = useState(0);
   const [time, setTime] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -88,77 +151,26 @@ export function VisitorApp() {
   const [component, setComponent] = useState(1);
   const selectedComponent = components[component] ?? components[0];
   const heading = useRef<HTMLHeadingElement>(null);
-  useEffect(() => {
-    const abort = new AbortController();
-    fetch(`${import.meta.env.BASE_URL}demo/walkthrough.json`, { signal: abort.signal })
-      .then((r) => {
-        if (!r.ok) throw new Error('Recorded mission unavailable');
-        return r.json() as Promise<Walkthrough>;
-      })
-      .then(setRun)
-      .catch((e) => {
-        if (!abort.signal.aborted)
-          setError(e instanceof Error ? e.message : 'Unable to load recording');
-      });
-    return () => abort.abort();
-  }, []);
-  useEffect(() => {
-    const abort = new AbortController();
-    fetch(`${import.meta.env.BASE_URL}demo/handoff.json`, { signal: abort.signal })
-      .then((response) => (response.ok ? (response.json() as Promise<HandoffRecording>) : null))
-      .then((recording) => {
-        if (
-          recording?.schema === 'lattice.handoff.v1' &&
-          recording.handoff &&
-          Array.isArray(recording.poses) &&
-          recording.poses.length > 0 &&
-          Array.isArray(recording.observations) &&
-          Number.isFinite(recording.duration_s)
-        ) {
-          setHandoffRun(recording);
-        }
-      })
-      .catch(() => {
-        /* This second recording is optional on older deployments. */
-      });
-    return () => abort.abort();
-  }, []);
-  useEffect(() => {
-    const abort = new AbortController();
-    fetch(`${import.meta.env.BASE_URL}demo/capability-route.json`, { signal: abort.signal })
-      .then(async (response) => {
-        if (!response.ok) return null;
-        const value: unknown = await response.json();
-        const { capabilityRecordingSchema } = await import('./capabilityTypes');
-        const parsed = capabilityRecordingSchema.safeParse(value);
-        return parsed.success ? parsed.data : null;
-      })
-      .then((recording) => {
-        if (!abort.signal.aborted) setCapabilityRun(recording);
-      })
-      .catch(() => {
-        /* The capability scenario appears only when its completed recording is available. */
-      });
-    return () => abort.abort();
-  }, []);
-  useEffect(() => {
-    const abort = new AbortController();
-    fetch(`${import.meta.env.BASE_URL}demo/adaptive-route.json`, { signal: abort.signal })
-      .then(async (response) => {
-        if (!response.ok) return null;
-        const value: unknown = await response.json();
-        const { adaptiveRecordingSchema } = await import('./adaptiveTypes');
-        const parsed = adaptiveRecordingSchema.safeParse(value);
-        return parsed.success ? parsed.data : null;
-      })
-      .then((recording) => {
-        if (!abort.signal.aborted) setAdaptiveRun(recording);
-      })
-      .catch(() => {
-        /* Only a complete, consistent adaptive recording is offered as a scenario. */
-      });
-    return () => abort.abort();
-  }, []);
+  const loads = { single, handoff, capability, adaptive };
+  // A story whose recording is still loading keeps its place; one that failed falls back to the single rover.
+  const shown: StoryId = loads[story].data || !loads[story].done ? story : 'single';
+  const recordings: Recordings = useMemo(
+    () => ({
+      single: single.data,
+      handoff: handoff.data,
+      capability: capability.data,
+      adaptive: adaptive.data,
+    }),
+    [single.data, handoff.data, capability.data, adaptive.data],
+  );
+  const durations = Object.fromEntries(
+    Object.entries(recordings).flatMap(([id, recording]) =>
+      recording ? [[id, recording.duration_s]] : [],
+    ),
+  ) as Partial<Record<StoryId, number>>;
+  const map = useMemo(() => run && singleScene(run), [run]);
+  const samples = map?.tracks[0]?.samples ?? [];
+  const series = useMemo(() => speeds(samples), [samples]);
   useEffect(() => {
     if (!playing || !run) return;
     let frame = 0;
@@ -179,243 +191,66 @@ export function VisitorApp() {
     setPlaying(false);
     setTimeout(() => heading.current?.focus(), 0);
   }
+  function select(next: StoryId) {
+    setStory(next);
+    setPlaying(false);
+    if (next === 'single') go(0);
+  }
   const pose = run?.poses.findLast((p) => p.t <= time) ?? run?.poses[0];
   const event = run?.events.findLast((e) => e.t <= time);
-  const capabilitySelected = story === 'capability' && capabilityRun !== null;
-  const adaptiveSelected = story === 'adaptive' && adaptiveRun !== null;
-  const handoffSelected = story === 'handoff' && handoffRun !== null;
+  const velocity = series.findLast((sample) => sample.t <= time)?.v ?? 0;
   return (
     <div className="visitor-app">
       <a className="skip-link" href="#chapter">
         Skip to walkthrough
       </a>
-      <header className="visitor-header">
-        <a className="visitor-brand" href="./" aria-label="Lattice home">
-          <span className="brand-symbol" aria-hidden="true">
-            L
-          </span>
-          <span>
-            LATTICE<small>Embodiment control plane</small>
-          </span>
-        </a>
-        <nav aria-label="Site">
-          <a href="https://0vertrained.github.io/#lattice">Portfolio</a>
-          <a href={source}>Source</a>
-          {import.meta.env.VITE_OPERATOR_ENABLED !== 'false' && (
-            <a className="visitor-button quiet" href="./operator.html">
-              Operator sign-in →
-            </a>
-          )}
-        </nav>
-      </header>
+      <SiteHeader source={source} operator={import.meta.env.VITE_OPERATOR_ENABLED !== 'false'} />
       <main>
-        <section className="visitor-hero">
-          <div>
-            <p className="eyebrow">
-              {adaptiveSelected
-                ? 'A changed route, a preserved objective'
-                : capabilitySelected
-                  ? 'Capability-aware planning, measured continuation'
-                  : handoffSelected
-                    ? 'Shared memory, measured continuation'
-                    : 'A warehouse objective, end to end'}
-            </p>
-            <h1>
-              {adaptiveSelected
-                ? 'The aisle is blocked.'
-                : capabilitySelected
-                  ? 'The objective needs stairs.'
-                  : handoffSelected
-                    ? 'Two bodies. One objective.'
-                    : 'Inspect. Find the exception.'}
-              <br />
-              <em>
-                {adaptiveSelected
-                  ? 'The objective continues.'
-                  : capabilitySelected
-                    ? 'The body can change.'
-                    : handoffSelected
-                      ? 'The evidence stays.'
-                      : 'Recover and finish.'}
-              </em>
-            </h1>
-            <p className="hero-description">
-              {adaptiveSelected
-                ? 'A real Gazebo lidar condition holds the route. An operator reviews a west-aisle detour without repeating the completed inspection. Follow the same objective through retained evidence, measured motion and a separate Go1 handoff.'
-                : capabilitySelected
-                  ? 'A rover inspects the bay. A capability-aware plan selects a Go1 for the stairs. Follow the reviewed transfer, measured simulator motion and original camera evidence through one continuous objective.'
-                  : handoffSelected
-                    ? 'Rover A records an inspection. Rover B acknowledges its shared context and finishes the reviewed round. Follow both bodies through measured Gazebo poses and original camera evidence.'
-                    : 'Follow a rover through two safety inspections, a missing marker and a core restart. Every pose and camera image comes from the working Gazebo simulator.'}
-            </p>
-            <div className="visitor-actions">
-              {adaptiveSelected || capabilitySelected || handoffSelected ? (
-                <a className="visitor-button primary" href="#chapter">
-                  Explore this recording <span aria-hidden="true">→</span>
-                </a>
-              ) : (
-                <button
-                  type="button"
-                  className="visitor-button primary"
-                  onClick={() => {
-                    setStory('single');
-                    go(1);
-                  }}
-                >
-                  Explore the mission <span aria-hidden="true">→</span>
-                </button>
-              )}
-              <a
-                className="visitor-button"
-                href={`${source}/blob/main/docs/${adaptiveSelected ? 'ADAPTIVE_DEMO.md' : capabilitySelected ? 'CAPABILITY_ROUTES.md' : 'SHOWCASE.md'}`}
-              >
-                Run it yourself
-              </a>
-              {handoffRun && story !== 'handoff' && (
-                <button
-                  type="button"
-                  className="visitor-button"
-                  onClick={() => {
-                    setStory('handoff');
-                    setPlaying(false);
-                  }}
-                >
-                  Explore two-rover handoff →
-                </button>
-              )}
-              {capabilityRun && story !== 'capability' && (
-                <button
-                  type="button"
-                  className="visitor-button"
-                  onClick={() => {
-                    setStory('capability');
-                    setPlaying(false);
-                  }}
-                >
-                  Explore rover-to-quadruped route →
-                </button>
-              )}
-              {adaptiveRun && story !== 'adaptive' && (
-                <button
-                  type="button"
-                  className="visitor-button"
-                  onClick={() => {
-                    setStory('adaptive');
-                    setPlaying(false);
-                  }}
-                >
-                  Explore the blocked-route continuation →
-                </button>
-              )}
-            </div>
-          </div>
-          <div className="hero-notes">
-            <p className="recorded-label">
-              <span aria-hidden="true" /> Recorded simulation
-            </p>
-            <strong>
-              One round.
-              <br />
-              {adaptiveSelected
-                ? 'A reviewed route change.'
-                : capabilitySelected
-                  ? 'Two different body types.'
-                  : handoffSelected
-                    ? 'Two executing rovers.'
-                    : 'Three bounded steps.'}
-            </strong>
-            <p>
-              {adaptiveSelected
-                ? `${adaptiveRun.adaptation.completed_steps_preserved} completed inspection preserved. ${adaptiveRun.adaptation.repeated_inspections} repeated source inspections. The remaining route and later body transfer each require explicit approval.`
-                : capabilitySelected
-                  ? `${capabilityRun.steps.length} reviewed steps. Separate Gazebo and MuJoCo simulations. A retained inspection and explicit approval before Go1 continues.`
-                  : handoffSelected
-                    ? `${handoffRun.steps.length} reviewed steps. A retained inspection and explicit approval before a second rover continues.`
-                    : 'Two inspected locations. Camera evidence for both outcomes. A fresh approval before recovery.'}
-            </p>
-            <span className="scope-note">
-              Interactive replay · no robot connection · no sign-in required
-            </span>
-          </div>
-        </section>
-        {error && (
+        <StoryOpening
+          story={shown}
+          recordings={recordings}
+          source={source}
+          onExplore={() => {
+            setStory('single');
+            go(1);
+          }}
+        />
+        {single.done && !run && (
           <p className="visitor-error" role="alert">
-            {error}.{' '}
+            The recorded mission is unavailable.{' '}
             <a href={`${source}/blob/main/docs/VALIDATION.md`}>Read the validation report.</a>
           </p>
         )}
-        {!run && !error && <p role="status">Loading the recorded inspection round…</p>}
+        {!single.done && <p role="status">Loading the recorded inspection round…</p>}
         {run && (
           <>
-            {(handoffRun || capabilityRun || adaptiveRun) && (
-              <fieldset className="story-switch">
-                <legend>Choose a recorded scenario</legend>
-                <button
-                  type="button"
-                  className="visitor-button"
-                  aria-pressed={story === 'single'}
-                  onClick={() => {
-                    setStory('single');
-                    go(0);
-                  }}
+            <StoryLine current={shown} durations={durations} onSelect={select} />
+            {shown === 'adaptive' ? (
+              adaptive.data ? (
+                <Suspense fallback={<p role="status">Loading the recorded adaptive route…</p>}>
+                  <AdaptiveStory run={adaptive.data} />
+                </Suspense>
+              ) : (
+                <p role="status">Loading the recorded adaptive route…</p>
+              )
+            ) : shown === 'capability' ? (
+              capability.data ? (
+                <Suspense fallback={<p role="status">Loading the recorded capability route…</p>}>
+                  <CapabilityStory run={capability.data} />
+                </Suspense>
+              ) : (
+                <p role="status">Loading the recorded capability route…</p>
+              )
+            ) : shown === 'handoff' ? (
+              handoff.data ? (
+                <Suspense
+                  fallback={<p role="status">Loading the recorded two-rover continuation…</p>}
                 >
-                  Single-rover restart recovery
-                </button>
-                {handoffRun && (
-                  <button
-                    type="button"
-                    className="visitor-button"
-                    aria-pressed={story === 'handoff'}
-                    onClick={() => {
-                      setStory('handoff');
-                      setPlaying(false);
-                    }}
-                  >
-                    Shared memory · two-rover handoff
-                  </button>
-                )}
-                {capabilityRun && (
-                  <button
-                    type="button"
-                    className="visitor-button"
-                    aria-pressed={story === 'capability'}
-                    onClick={() => {
-                      setStory('capability');
-                      setPlaying(false);
-                    }}
-                  >
-                    Capability route · rover to quadruped
-                  </button>
-                )}
-                {adaptiveRun && (
-                  <button
-                    type="button"
-                    className="visitor-button"
-                    aria-pressed={story === 'adaptive'}
-                    onClick={() => {
-                      setStory('adaptive');
-                      setPlaying(false);
-                    }}
-                  >
-                    Adaptive route · blocked aisle
-                  </button>
-                )}
-              </fieldset>
-            )}
-            {adaptiveSelected ? (
-              <Suspense fallback={<p role="status">Loading the recorded adaptive route…</p>}>
-                <AdaptiveStory run={adaptiveRun} />
-              </Suspense>
-            ) : capabilitySelected ? (
-              <Suspense fallback={<p role="status">Loading the recorded capability route…</p>}>
-                <CapabilityStory run={capabilityRun} />
-              </Suspense>
-            ) : story === 'handoff' && handoffRun ? (
-              <Suspense
-                fallback={<p role="status">Loading the recorded two-rover continuation…</p>}
-              >
-                <HandoffStory run={handoffRun} />
-              </Suspense>
+                  <HandoffStory run={handoff.data} />
+                </Suspense>
+              ) : (
+                <p role="status">Loading the recorded two-rover continuation…</p>
+              )
             ) : (
               <section className="visitor-workspace" aria-label="Guided walkthrough">
                 <aside className="chapter-nav">
@@ -431,7 +266,6 @@ export function VisitorApp() {
                       >
                         <span>{String(i + 1).padStart(2, '0')}</span>
                         {name}
-                        <span aria-hidden="true">→</span>
                       </button>
                     ))}
                   </nav>
@@ -447,7 +281,7 @@ export function VisitorApp() {
                     <span>{fmt(run.duration_s)} elapsed</span>
                     <span>{run.distance_m.toFixed(1)} m reported path</span>
                     <a href={`${import.meta.env.BASE_URL}demo/walkthrough.json`} download>
-                      Download the run →
+                      Download the run
                     </a>
                   </div>
                 </aside>
@@ -513,95 +347,111 @@ export function VisitorApp() {
                       </details>
                     </>
                   )}
-                  {chapter === 1 && (
-                    <>
-                      <div className="replay-caption">
-                        <p>Actual map-frame telemetry</p>
-                        <span>{pose?.status.replaceAll('_', ' ') ?? 'Waiting'}</span>
-                      </div>
-                      <fieldset className="view-switch" aria-label="Replay view">
-                        <button
-                          type="button"
-                          className="visitor-button quiet"
-                          aria-pressed={view === 'map'}
-                          onClick={() => setView('map')}
-                        >
-                          Map view
-                        </button>
-                        <button
-                          type="button"
-                          className="visitor-button quiet"
-                          aria-pressed={view === '3d'}
-                          onClick={() => setView('3d')}
-                        >
-                          3D replay
-                        </button>
-                      </fieldset>
-                      {view === 'map' ? (
-                        <WarehouseMap run={run} time={time} />
-                      ) : (
-                        <SceneBoundary>
-                          <Suspense fallback={<p>Loading the 3D reconstruction…</p>}>
-                            <RecordedTwin run={run} time={time} />
-                          </Suspense>
-                        </SceneBoundary>
-                      )}
-                      <div className="replay-controls">
-                        <button
-                          type="button"
-                          className="visitor-button primary"
-                          aria-pressed={playing}
-                          onClick={() => {
-                            if (time >= run.duration_s) setTime(0);
-                            setPlaying(!playing);
-                          }}
-                        >
-                          {playing ? 'Pause replay' : 'Play replay'}
-                        </button>
-                        <label>
-                          Recorded time{' '}
-                          <output>
-                            {fmt(time)} / {fmt(run.duration_s)}
-                          </output>
-                          <input
-                            aria-label="Recorded mission time"
-                            type="range"
-                            min={0}
-                            max={run.duration_s}
-                            step={0.1}
-                            value={time}
-                            onChange={(e) => {
+                  {chapter === 1 && map && (
+                    <div className="replay">
+                      <div className="replay-main">
+                        <div className="replay-bar">
+                          <p>Map-frame telemetry from the recorded run</p>
+                          <fieldset className="segmented" aria-label="Replay view">
+                            <button
+                              type="button"
+                              aria-pressed={view === 'map'}
+                              onClick={() => setView('map')}
+                            >
+                              Map view
+                            </button>
+                            <button
+                              type="button"
+                              aria-pressed={view === '3d'}
+                              onClick={() => setView('3d')}
+                            >
+                              3D replay
+                            </button>
+                          </fieldset>
+                        </div>
+                        <div className="plate replay-plate">
+                          {view === 'map' ? (
+                            <LatticeDrawing
+                              scene={map}
+                              mode="replay"
+                              time={time}
+                              label="Recorded rover path through the warehouse, with the bay, loading dock and charging station"
+                            />
+                          ) : (
+                            <SceneBoundary>
+                              <Suspense fallback={<p>Loading the 3D reconstruction…</p>}>
+                                <RecordedTwin run={run} time={time} />
+                              </Suspense>
+                            </SceneBoundary>
+                          )}
+                        </div>
+                        <div className="replay-controls">
+                          <button
+                            type="button"
+                            className="button primary"
+                            aria-pressed={playing}
+                            onClick={() => {
+                              if (time >= run.duration_s) setTime(0);
+                              setPlaying(!playing);
+                            }}
+                          >
+                            {playing ? 'Pause replay' : 'Play replay'}
+                          </button>
+                          <ReplayTrace
+                            series={series}
+                            events={run.events}
+                            time={time}
+                            duration={run.duration_s}
+                            label="Recorded mission time"
+                            onSeek={(next) => {
                               setPlaying(false);
-                              setTime(Number(e.target.value));
+                              setTime(next);
                             }}
                           />
-                        </label>
-                        <label className="speed-label">
-                          Speed
-                          <select value={speed} onChange={(e) => setSpeed(Number(e.target.value))}>
-                            <option value={1}>1×</option>
-                            <option value={3}>3×</option>
-                            <option value={6}>6×</option>
-                          </select>
-                        </label>
+                          <label className="speed">
+                            Speed
+                            <select
+                              value={speed}
+                              onChange={(e) => setSpeed(Number(e.target.value))}
+                            >
+                              <option value={1}>1×</option>
+                              <option value={3}>3×</option>
+                              <option value={6}>6×</option>
+                            </select>
+                          </label>
+                        </div>
                       </div>
-                      <div className="telemetry-strip">
-                        <span>
-                          x <strong>{pose?.x.toFixed(2)} m</strong>
-                        </span>
-                        <span>
-                          y <strong>{pose?.y.toFixed(2)} m</strong>
-                        </span>
-                        <span>
-                          heading{' '}
-                          <strong>{pose ? Math.round((pose.yaw * 180) / Math.PI) : 0}°</strong>
-                        </span>
-                      </div>
-                      <div className="current-event">
-                        <span className="eyebrow">At this point in the recording</span>
-                        <h3>{event?.title ?? 'Round reviewed'}</h3>
-                        <p>{event?.detail ?? 'The approved plan is ready for the rover.'}</p>
-                      </div>
+                      <aside className="readout-panel" aria-label="Replay readouts">
+                        <dl className="readouts">
+                          <div>
+                            <dt>Time</dt>
+                            <dd>
+                              {fmt(time)} / {fmt(run.duration_s)}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Position</dt>
+                            <dd>{pose ? `${signed(pose.x, 2)}, ${signed(pose.y, 2)} m` : '–'}</dd>
+                          </div>
+                          <div>
+                            <dt>Heading</dt>
+                            <dd>{signed(pose ? (pose.yaw * 180) / Math.PI : 0, 0)}°</dd>
+                          </div>
+                          <div>
+                            <dt>Speed</dt>
+                            <dd>{velocity.toFixed(2)} m/s</dd>
+                          </div>
+                          <div>
+                            <dt>State</dt>
+                            <dd>{pose?.status.replaceAll('_', ' ') ?? 'waiting'}</dd>
+                          </div>
+                        </dl>
+                        <div className="latest-event">
+                          <p>Latest event</p>
+                          <h3>{event?.title ?? 'Round reviewed'}</h3>
+                          <p>{event?.detail ?? 'The approved plan is ready for the rover.'}</p>
+                        </div>
+                      </aside>
                       <nav className="event-track" aria-label="Jump to a recorded event">
                         {run.events.map((e) => (
                           <button
@@ -619,7 +469,7 @@ export function VisitorApp() {
                           </button>
                         ))}
                       </nav>
-                    </>
+                    </div>
                   )}
                   {chapter === 2 && (
                     <>
@@ -658,7 +508,7 @@ export function VisitorApp() {
                                 <code>Frame SHA-256: {e.frame_sha256}</code>
                               </details>
                               <a href={`${import.meta.env.BASE_URL}demo/${e.image}`} download>
-                                Original annotated image →
+                                Original annotated image
                               </a>
                             </figcaption>
                           </figure>
@@ -673,7 +523,7 @@ export function VisitorApp() {
                           establish physical-camera accuracy.
                         </p>
                         <a href={`${import.meta.env.BASE_URL}demo/evaluation.json`} download>
-                          Read the full evaluation →
+                          Read the full evaluation
                         </a>
                       </div>
                     </>
@@ -766,7 +616,7 @@ export function VisitorApp() {
                         <h3>{selectedComponent?.subtitle}</h3>
                         <p>{selectedComponent?.text}</p>
                         <a href={`${source}/blob/main/${selectedComponent?.file}`}>
-                          Read this component →
+                          Read this component
                         </a>
                       </article>
                       <div className="engineering-notes">
@@ -795,7 +645,7 @@ export function VisitorApp() {
                       disabled={chapter === 0}
                       onClick={() => go(chapter - 1)}
                     >
-                      ← Previous
+                      Previous
                     </button>
                     <span>{chapters[chapter]}</span>
                     <button
@@ -803,90 +653,27 @@ export function VisitorApp() {
                       className="visitor-button"
                       onClick={() => go(chapter === 4 ? 0 : chapter + 1)}
                     >
-                      {chapter === 4 ? 'Back to briefing' : 'Next chapter'} →
+                      {chapter === 4 ? 'Back to briefing' : 'Next chapter'}
                     </button>
                   </div>
                 </div>
               </section>
             )}
             <section className="visitor-bottom">
-              <p className="eyebrow">Built by Rami Martinez</p>
+              <p>Built by Rami Martinez</p>
               <h2>From model output to an observable robot outcome.</h2>
               <p>Explore the implementation, measured failures and the decisions behind them.</p>
-              <a className="visitor-button" href="https://0vertrained.github.io/#lattice">
-                Read the portfolio case study →
+              <a className="button" href="https://0vertrained.github.io/#lattice">
+                Read the portfolio case study
               </a>
             </section>
           </>
         )}
       </main>
       <footer className="visitor-footer">
-        <span>Lattice · ROS 2 Jazzy / Gazebo Harmonic / Rust / Python</span>
+        <span>Lattice, built on ROS 2 Jazzy, Gazebo Harmonic, Rust and Python.</span>
         <span>Recorded evidence. No tracking.</span>
       </footer>
     </div>
-  );
-}
-function WarehouseMap({ run, time }: { readonly run: Walkthrough; readonly time: number }) {
-  const xy = (p: { x: number; y: number }) => `${(p.x + 5) * 68 + 30},${(4 - p.y) * 48 + 28}`;
-  const current = run.poses.findLast((p) => p.t <= time) ?? run.poses[0];
-  return (
-    <svg
-      className="warehouse-map"
-      viewBox="0 0 740 440"
-      role="img"
-      aria-label="Recorded rover path through the warehouse, with the bay, loading dock and charging station"
-    >
-      <defs>
-        <pattern id="map-grid" width="68" height="48" patternUnits="userSpaceOnUse">
-          <path d="M68 0H0V48" fill="none" stroke="#1e3541" strokeWidth="1" />
-        </pattern>
-      </defs>
-      <rect x="30" y="28" width="680" height="384" rx="10" className="warehouse-floor" />
-      <rect x="30" y="28" width="680" height="384" fill="url(#map-grid)" />
-      <rect
-        x={30 + 6.65 * 68}
-        y={28 + 3.1 * 48}
-        width={0.7 * 68}
-        height={1.8 * 48}
-        rx="4"
-        className="warehouse-shelf"
-      />
-      <text x="506" y="279" className="map-label" textAnchor="middle">
-        Occupied shelf
-      </text>
-      {[
-        { x: 0, y: 2.5, name: 'Inspection bay' },
-        { x: 3.5, y: 0, name: 'Loading dock' },
-        { x: -3, y: -2, name: 'Charging station' },
-      ].map((p) => (
-        <g key={p.name} transform={`translate(${xy(p)})`}>
-          <circle r="10" className="map-station" />
-          <text y="-20" textAnchor="middle" className="map-label">
-            {p.name}
-          </text>
-        </g>
-      ))}
-      <polyline points={run.poses.map(xy).join(' ')} className="route-full" />
-      <polyline
-        points={run.poses
-          .filter((p) => p.t <= time)
-          .map(xy)
-          .join(' ')}
-        className="route-played"
-      />
-      {current && (
-        <g transform={`translate(${xy(current)})`}>
-          <circle r="20" className="rover-halo" />
-          <g transform={`rotate(${(-current.yaw * 180) / Math.PI})`}>
-            <circle r="9" className="map-rover" />
-            <path d="M0 -5L19 0L0 5" className="rover-arrow" />
-          </g>
-        </g>
-      )}
-      <text x="47" y="395" className="map-label">
-        10 × 8 m · map frame
-      </text>
-    </svg>
   );
 }

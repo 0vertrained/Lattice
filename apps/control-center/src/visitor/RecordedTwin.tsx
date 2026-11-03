@@ -1,3 +1,4 @@
+import './twin.css';
 import { Canvas, useThree } from '@react-three/fiber';
 import { useEffect, useMemo } from 'react';
 import { BufferGeometry, Line, LineBasicMaterial, Vector3 } from 'three';

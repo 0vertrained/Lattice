@@ -1,3 +1,4 @@
+import './stories.css';
 import { Component, lazy, type ReactNode, Suspense, useEffect, useRef, useState } from 'react';
 import type { HandoffRecording } from './handoffTypes';
 
@@ -533,13 +534,12 @@ function HandoffMap({ run, time }: { readonly run: HandoffRecording; readonly ti
       role="img"
       aria-label="Recorded paths of rover A and rover B in the shared warehouse map"
     >
-      <rect x="30" y="28" width="680" height="384" rx="10" className="warehouse-floor" />
+      <rect x="30" y="28" width="680" height="384" className="warehouse-floor" />
       <rect
         x={30 + 6.65 * 68}
         y={28 + 3.1 * 48}
         width={0.7 * 68}
         height={1.8 * 48}
-        rx="4"
         className="warehouse-shelf"
       />
       <text x="506" y="279" className="map-label" textAnchor="middle">
@@ -560,7 +560,7 @@ function HandoffMap({ run, time }: { readonly run: HandoffRecording; readonly ti
       {[run.handoff.source_body_id, run.handoff.target_body_id].map((id, index) => {
         const poses = run.poses.filter((pose) => pose.body_id === id);
         const current = poses.findLast((pose) => pose.t <= time) ?? poses[0];
-        const color = index === 0 ? '#83dfb8' : '#87b8e6';
+        const color = index === 0 ? 'var(--ink)' : 'var(--body)';
         return (
           <g key={id}>
             <polyline points={poses.map(xy).join(' ')} className="route-full" />

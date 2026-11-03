@@ -58,7 +58,7 @@ const fixture = {
     await page.route('**/demo/handoff.json', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(fixture) }));
     await page.goto(new URL('#single', base).href);
     await page.getByRole('heading', { name: 'Briefing', exact: true }).waitFor();
-    await page.getByRole('button', { name: 'Shared memory · two-rover handoff', exact: true }).click();
+    await page.getByRole('navigation', { name: 'Recorded stories' }).getByRole('button', { name: 'Two-rover handoff', exact: true }).click();
     await page.getByRole('heading', { name: 'Shared objective', exact: true }).waitFor();
     const chapters = ['Shared objective', 'Two-rover replay', 'Shared memory', 'Handoff proof'];
     async function chapter(name) {
@@ -96,7 +96,7 @@ const fixture = {
       await chapter('Two-rover replay');
       await page.screenshot({ path: '/tmp/lattice-handoff-visitor.png', fullPage: true });
     }
-    await page.getByRole('button', { name: 'Single-rover restart recovery', exact: true }).click();
+    await page.getByRole('navigation', { name: 'Recorded stories' }).getByRole('button', { name: 'Core restart', exact: true }).click();
     await page.getByRole('heading', { name: 'Briefing', exact: true }).waitFor();
     assert.deepEqual(errors, []);
     assert.deepEqual(calls, []);
@@ -104,7 +104,7 @@ const fixture = {
     await fallback.route('**/demo/handoff.json', (route) => route.fulfill({ status: 404, body: 'not recorded yet' }));
     await fallback.goto(new URL('#single', base).href);
     await fallback.getByRole('heading', { name: 'Briefing', exact: true }).waitFor();
-    assert.equal(await fallback.getByRole('button', { name: 'Shared memory · two-rover handoff', exact: true }).count(), 0);
+    assert.equal(await fallback.getByRole('navigation', { name: 'Recorded stories' }).getByRole('button', { name: 'Two-rover handoff', exact: true }).count(), 0);
     console.log('PASS: fixture-backed two-rover map/3D replay, memory query and negative evidence, context provenance, chapter focus, four viewport widths, original walkthrough and optional-recording fallback; no robot API requests');
   } finally { await browser.close(); }
 })().catch((error) => { console.error(error); process.exitCode = 1; });
