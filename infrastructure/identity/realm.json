@@ -5,7 +5,7 @@
   "accessTokenLifespan": 300, "revokeRefreshToken": true,
   "roles": {"realm": [{"name":"lattice-viewer"},{"name":"lattice-operator"},{"name":"lattice-admin"}]},
   "clients": [{
-    "clientId":"lattice-ui", "name":"Lattice Control Center", "enabled":true,
+    "clientId":"lattice-ui", "name":"Lattice Control Center", "enabled":true, "protocol":"openid-connect",
     "publicClient":true, "standardFlowEnabled":true, "directAccessGrantsEnabled":false,
     "implicitFlowEnabled":false, "serviceAccountsEnabled":false,
     "redirectUris":["__SITE__/operator.html"], "webOrigins":["__SITE__"],

@@ -149,6 +149,8 @@ class DeploymentTests(unittest.TestCase):
         realm = keycloak_setup.imports(inputs()['LATTICE_SITE_ORIGIN'])
         client = realm['clients'][0]
         self.assertEqual(client['clientId'], 'lattice-ui')
+        # Keycloak's Import client refuses a client that doesn't name its protocol ("Invalid protocol").
+        self.assertEqual(client['protocol'], 'openid-connect')
         self.assertTrue(client['publicClient'])
         self.assertFalse(client['directAccessGrantsEnabled'])
         self.assertEqual(client['redirectUris'], ['https://lattice-test.netlify.app/operator.html'])
