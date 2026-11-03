@@ -34,13 +34,26 @@ jobs:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
       - uses: google-github-actions/setup-gcloud@v3
-      - name: Build and push immutable images
+      - name: Build immutable images
+        run: |
+          set -euo pipefail
+          registry="$GCP_REGION-docker.pkg.dev/$GCP_PROJECT/lattice"
+          docker build -f Dockerfile.rust-service --build-arg PACKAGE=lattice-core-api -t "$registry/core:$GITHUB_SHA" .
+          docker build -t "$registry/inference:$GITHUB_SHA" services/lattice-ai-gateway
+      - name: Check each image can read its own files as its runtime user
+        run: |
+          set -euo pipefail
+          registry="$GCP_REGION-docker.pkg.dev/$GCP_PROJECT/lattice"
+          # Both run as the image's own non-root user, as Cloud Run will.
+          docker run --rm --network none --entrypoint /bin/sh "$registry/core:$GITHUB_SHA" \
+            -c 'for map in /app/routes/*.json; do test -r "$map" && cat "$map" > /dev/null || exit 1; done'
+          docker run --rm --network none "$registry/inference:$GITHUB_SHA" \
+            python -c 'from app.planner import Planner; from app.vision import Detector; Planner(); Detector()'
+      - name: Push images
         run: |
           set -euo pipefail
           registry="$GCP_REGION-docker.pkg.dev/$GCP_PROJECT/lattice"
           gcloud auth configure-docker "$GCP_REGION-docker.pkg.dev" --quiet
-          docker build -f Dockerfile.rust-service --build-arg PACKAGE=lattice-core-api -t "$registry/core:$GITHUB_SHA" .
-          docker build -t "$registry/inference:$GITHUB_SHA" services/lattice-ai-gateway
           docker push "$registry/core:$GITHUB_SHA"
           docker push "$registry/inference:$GITHUB_SHA"
           core_digest=$(docker inspect --format='{{index .RepoDigests 0}}' "$registry/core:$GITHUB_SHA")

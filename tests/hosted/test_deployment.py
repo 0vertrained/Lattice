@@ -197,6 +197,18 @@ class DeploymentTests(unittest.TestCase):
         workflow = (ROOT / '.github/workflows/deploy-hosted.yml').read_text()
         self.assertLess(workflow.index('check-identity.py'), workflow.index('google-github-actions/auth'))
 
+    def test_images_are_checked_as_their_runtime_users_before_they_are_pushed(self):
+        # BuildKit applies COPY --chmod to the directories a copy creates as well; a read-only
+        # 0444 /app/routes cannot be entered, which stopped the hosted core at its route map.
+        dockerfile = (ROOT / 'Dockerfile.rust-service').read_text()
+        instructions = [line for line in dockerfile.splitlines() if not line.lstrip().startswith('#')]
+        self.assertFalse([line for line in instructions if '--chmod' in line])
+        self.assertIn('chmod 0755 /app /app/routes && chmod 0444 /app/routes/*.json', dockerfile)
+        self.assertLess(dockerfile.index('chmod 0755 /app'), dockerfile.index('USER lattice'))
+        workflow = (ROOT / '.github/workflows/deploy-hosted.yml').read_text()
+        for check in ('/app/routes/*.json', 'Planner(); Detector()'):
+            self.assertLess(workflow.index(check), workflow.index('docker push'))
+
     def test_identity_check_reports_status_and_does_not_follow_redirects(self):
         import http.server
         import threading
