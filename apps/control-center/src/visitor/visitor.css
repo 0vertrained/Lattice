@@ -401,7 +401,7 @@ details code {
 }
 /* The replay keeps its controls in view; the map letterboxes on the plate. */
 .replay-plate .lattice-drawing {
-  max-height: calc(100svh - 290px);
+  max-height: max(360px, calc(100svh - 380px));
 }
 .lattice-drawing path,
 .lattice-drawing circle,
