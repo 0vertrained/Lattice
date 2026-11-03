@@ -94,8 +94,7 @@ h3 {
 h3 {
   font-size: 1.25rem;
 }
-code,
-.mono {
+code {
   font-family: var(--mono);
   font-size: 0.8125rem;
   overflow-wrap: anywhere;

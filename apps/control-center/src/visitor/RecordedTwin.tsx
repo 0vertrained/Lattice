@@ -1,6 +1,6 @@
 import './twin.css';
 import { Canvas, useThree } from '@react-three/fiber';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BufferGeometry, Line, LineBasicMaterial, Vector3 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
@@ -46,7 +46,30 @@ function Trail({
   );
   return <primitive object={line} />;
 }
+const tokenNames = ['film', 'paper', 'ink', 'graphite', 'rule', 'clear', 'hold', 'body'] as const;
+type Tokens = Record<(typeof tokenNames)[number], string>;
+const readTokens = (): Tokens => {
+  const style = getComputedStyle(document.documentElement);
+  return Object.fromEntries(
+    tokenNames.map((name) => [name, style.getPropertyValue(`--${name}`).trim() || '#808080']),
+  ) as Tokens;
+};
+/** The page's colour tokens, read again whenever the theme changes. */
+function useTokens() {
+  const [tokens, setTokens] = useState(readTokens);
+  useEffect(() => {
+    const observer = new MutationObserver(() => setTokens(readTokens()));
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    });
+    return () => observer.disconnect();
+  }, []);
+  return tokens;
+}
+
 export default function RecordedTwin({ run, time }: { run: RecordedPath; time: number }) {
+  const tone = useTokens();
   const bodies = useMemo(
     () =>
       (run.handoff
@@ -66,34 +89,34 @@ export default function RecordedTwin({ run, time }: { run: RecordedPath; time: n
         aria-label="Interactive 3D reconstruction of the warehouse using recorded rover poses"
       >
         <Canvas frameloop="demand" camera={{ position: [8, 10, 10], fov: 45 }}>
-          <color attach="background" args={['#0a151a']} />
+          <color attach="background" args={[tone.film]} />
           <ambientLight intensity={1.5} />
           <directionalLight position={[2, 9, 4]} intensity={2.2} />
           <CameraControls />
           <mesh position={[0, -0.08, 0]}>
             <boxGeometry args={[10, 0.12, 8]} />
-            <meshStandardMaterial color="#192d34" />
+            <meshStandardMaterial color={tone.rule} />
           </mesh>
-          <gridHelper args={[10, 20, '#3f5f65', '#243e46']} />
+          <gridHelper key={tone.graphite} args={[10, 20, tone.graphite, tone.graphite]} />
           <mesh position={[2, 0.65, 0]}>
             <boxGeometry args={[0.7, 1.3, 1.8]} />
-            <meshStandardMaterial color="#64756f" roughness={0.8} />
+            <meshStandardMaterial color={tone.graphite} roughness={0.8} />
           </mesh>
           <mesh position={[0, 0.6, -4]}>
             <boxGeometry args={[10, 1.2, 0.1]} />
-            <meshStandardMaterial color="#35545b" transparent opacity={0.5} />
+            <meshStandardMaterial color={tone.ink} transparent opacity={0.3} />
           </mesh>
           <mesh position={[-5, 0.6, 0]}>
             <boxGeometry args={[0.1, 1.2, 8]} />
-            <meshStandardMaterial color="#35545b" transparent opacity={0.5} />
+            <meshStandardMaterial color={tone.ink} transparent opacity={0.3} />
           </mesh>
           {[
-            [0, 2.5, '#83dfb8'],
-            [3.5, 0, '#e9b66c'],
-            [-3, -2, '#87b8e6'],
-          ].map(([x, y, color]) => (
+            [0, 2.5, tone.clear, 'bay'],
+            [3.5, 0, tone.hold, 'dock'],
+            [-3, -2, tone.body, 'charge'],
+          ].map(([x, y, color, name]) => (
             <mesh
-              key={String(color)}
+              key={String(name)}
               position={[Number(x), 0.025, -Number(y)]}
               rotation={[-Math.PI / 2, 0, 0]}
             >
@@ -103,7 +126,7 @@ export default function RecordedTwin({ run, time }: { run: RecordedPath; time: n
           ))}
           {bodies.map((body, index) => {
             const pose = body.poses.findLast((item) => item.t <= time) ?? body.poses[0];
-            const color = index === 0 ? '#83dfb8' : '#87b8e6';
+            const color = index === 0 ? tone.ink : tone.body;
             return (
               <group key={body.id}>
                 <Trail poses={body.poses} time={time} color={color} />
@@ -115,7 +138,7 @@ export default function RecordedTwin({ run, time }: { run: RecordedPath; time: n
                     </mesh>
                     <mesh position={[0.28, 0.12, 0]}>
                       <boxGeometry args={[0.14, 0.12, 0.22]} />
-                      <meshStandardMaterial color="#e6f6f1" />
+                      <meshStandardMaterial color={tone.paper} />
                     </mesh>
                     {[-0.2, 0.2].flatMap((x) =>
                       [-0.25, 0.25].map((z) => (
@@ -125,7 +148,7 @@ export default function RecordedTwin({ run, time }: { run: RecordedPath; time: n
                           rotation={[Math.PI / 2, 0, 0]}
                         >
                           <cylinderGeometry args={[0.12, 0.12, 0.1, 20]} />
-                          <meshStandardMaterial color="#070b10" />
+                          <meshStandardMaterial color={tone.ink} />
                         </mesh>
                       )),
                     )}
@@ -137,8 +160,8 @@ export default function RecordedTwin({ run, time }: { run: RecordedPath; time: n
         </Canvas>
       </div>
       <p className="scope-note">
-        Drag to orbit · scroll to zoom. Simplified 3D reconstruction from measured poses; camera
-        evidence is in the next chapter.
+        Drag to orbit and scroll to zoom. A simplified reconstruction from measured poses; the
+        camera evidence has its own chapter.
       </p>
       <div className="twin-stations">
         <span>● Inspection bay</span>

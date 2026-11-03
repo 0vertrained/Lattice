@@ -129,10 +129,6 @@
   color: var(--graphite);
   font-size: 0.8125rem;
 }
-.eyebrow {
-  color: var(--graphite);
-  font-size: 0.8125rem;
-}
 /* Recorded run: map, controls, readouts and events */
 .replay {
   display: grid;
@@ -917,90 +913,6 @@
     font-size: 22px;
   }
 }
-/* Parts of the stories still awaiting their own redesign; already on the new tokens. */
-.brief-steps,
-.recovery-sequence {
-  list-style: none;
-  padding: 0;
-  margin: 32px 0;
-}
-.brief-steps li,
-.recovery-sequence li {
-  display: flex;
-  gap: 20px;
-  padding: 20px 0;
-  border-top: 1px solid var(--rule);
-}
-.step-number,
-.recovery-sequence li > span,
-.recovery-metrics strong {
-  font-stretch: 112%;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-}
-.step-number {
-  flex: 0 0 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--ink);
-  font-size: 0.8125rem;
-}
-.brief-steps p,
-.recovery-sequence p,
-.camera-grid p {
-  color: var(--graphite);
-}
-.recovery-sequence li > span {
-  font-size: 0.8125rem;
-  padding-top: 4px;
-}
-.callout {
-  margin: 24px 0;
-  padding: 20px 24px;
-  border-left: 3px solid var(--ink);
-  background: color-mix(in srgb, var(--rule) 40%, transparent);
-}
-.callout p {
-  margin: 8px 0 0;
-}
-.camera-grid figure:not(.evidence) {
-  margin: 0;
-  min-width: 0;
-}
-.camera-grid figure:not(.evidence) img {
-  display: block;
-  width: 100%;
-  height: auto;
-  border: 1px solid var(--rule);
-}
-.camera-grid figure:not(.evidence) figcaption {
-  padding-top: 16px;
-}
-.recovery-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 24px;
-  margin: 32px 0;
-}
-.recovery-metrics > div {
-  border-top: 2px solid var(--ink);
-  padding-top: 16px;
-}
-.recovery-metrics strong {
-  display: block;
-  font-size: 2.4375rem;
-  line-height: 1.1;
-}
-.recovery-metrics small {
-  font-size: 1rem;
-}
-.recovery-metrics span {
-  display: block;
-  margin-top: 8px;
-  color: var(--graphite);
-  font-size: 0.8125rem;
-}
 @media (max-width: 1023px) {
   .replay,
   .sheet-layout,
@@ -1044,8 +956,7 @@
   }
   .camera-grid,
   .engineering-notes,
-  .capability-video,
-  .recovery-metrics {
+  .capability-video {
     grid-template-columns: minmax(0, 1fr);
   }
   .capability-video figcaption {
