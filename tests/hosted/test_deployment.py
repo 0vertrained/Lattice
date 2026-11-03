@@ -27,6 +27,7 @@ def module(name):
 
 github_setup = module('configure-github')
 keycloak_setup = module('keycloak-config')
+identity_check = module('check-identity')
 
 # Stands in for gcloud when running setup-gcp.sh: tracks which resources exist, reports a database that is still
 # being created on the first status check, and expands --flags-file the way gcloud does, where a key without its
@@ -168,6 +169,69 @@ class DeploymentTests(unittest.TestCase):
         for changed in [{'issuer': 'https://different.example/realm'}, {'id_token_signing_alg_values_supported': ['HS256']}, {'jwks_uri': 'http://identity.example/keys'}]:
             with self.subTest(changed=changed), mock.patch('urllib.request.urlopen', return_value=io.BytesIO(json.dumps({**metadata, **changed}).encode())), self.assertRaises(ValueError):
                 github_setup.discover_keycloak(issuer)
+
+    def test_identity_check_applies_the_cores_key_rule_before_deploying(self):
+        issuer, jwks = inputs()['LATTICE_OIDC_ISSUER'], inputs()['LATTICE_OIDC_JWKS_URL']
+        rsa = {'kty': 'RSA', 'n': 'u1SU1LfVLPHCozMxH2Mo4lgOEePzNm0tRgeLezV6ffA', 'e': 'AQAB'}
+        discovery = {'issuer': issuer, 'jwks_uri': jwks}
+        documents = {issuer + '/.well-known/openid-configuration': discovery,
+                     jwks: {'keys': [{**rsa, 'kid': 'enc', 'use': 'enc', 'alg': 'RSA-OAEP'},
+                                     {'kty': 'oct', 'kid': 'shared', 'k': 'c2VjcmV0'},
+                                     {**rsa, 'use': 'sig'}, {**rsa, 'kid': 'sig', 'use': 'sig', 'alg': 'RS256'}]}}
+        fetch = lambda url, limit: documents[url]
+        self.assertEqual(identity_check.check(issuer, jwks, fetch), ['sig'])
+        documents[jwks] = {'keys': [{**rsa, 'kid': 'enc', 'use': 'enc'}]}
+        with self.assertRaisesRegex(ValueError, 'none of its 1 keys is an RSA signing key'):
+            identity_check.check(issuer, jwks, fetch)
+        documents[jwks] = ['not', 'a', 'key', 'set']
+        with self.assertRaisesRegex(ValueError, 'not a JSON Web Key Set'):
+            identity_check.check(issuer, jwks, fetch)
+        for changed, message in [({'issuer': issuer + '/other'}, 'different issuer'),
+                                 ({'jwks_uri': jwks + '/moved'}, 'configure-github.py')]:
+            with self.subTest(changed=changed):
+                documents[issuer + '/.well-known/openid-configuration'] = {**discovery, **changed}
+                with self.assertRaisesRegex(ValueError, message):
+                    identity_check.check(issuer, jwks, fetch)
+
+    def test_deploy_checks_identity_keys_before_authenticating_or_building(self):
+        workflow = (ROOT / '.github/workflows/deploy-hosted.yml').read_text()
+        self.assertLess(workflow.index('check-identity.py'), workflow.index('google-github-actions/auth'))
+
+    def test_identity_check_reports_status_and_does_not_follow_redirects(self):
+        import http.server
+        import threading
+
+        class Provider(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                if self.path == '/moved':
+                    self.send_response(302)
+                    self.send_header('Location', '/keys')
+                    self.end_headers()
+                elif self.path == '/keys':
+                    body = json.dumps({'keys': []}).encode()
+                    self.send_response(200)
+                    self.send_header('Content-Length', str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                else:
+                    self.send_error(404)
+
+            def log_message(self, *args):
+                pass
+
+        server = http.server.HTTPServer(('127.0.0.1', 0), Provider)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        base = f'http://127.0.0.1:{server.server_port}'
+        with mock.patch.dict(os.environ, {'no_proxy': '127.0.0.1', 'NO_PROXY': '127.0.0.1'}):
+            self.assertEqual(identity_check.fetch(base + '/keys', 1024), {'keys': []})
+            with self.assertRaisesRegex(ValueError, 'answered HTTP 302'):
+                identity_check.fetch(base + '/moved', 1024)
+            with self.assertRaisesRegex(ValueError, 'answered HTTP 404'):
+                identity_check.fetch(base + '/realms/missing/.well-known/openid-configuration', 1024)
+            with self.assertRaisesRegex(ValueError, 'returned more than'):
+                identity_check.fetch(base + '/keys', 4)
 
     def test_github_helper_previews_and_only_applies_repository_metadata(self):
         with tempfile.TemporaryDirectory() as directory:

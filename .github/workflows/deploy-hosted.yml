@@ -27,6 +27,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate deployment bindings before cloud authentication
         run: python3 infrastructure/cloud-run/preflight.py --require-wif
+      - name: Check the core can load the identity provider's signing keys
+        run: python3 infrastructure/cloud-run/check-identity.py
       - uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
