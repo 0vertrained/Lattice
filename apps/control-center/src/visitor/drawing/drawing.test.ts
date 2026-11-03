@@ -9,7 +9,7 @@ import type { Walkthrough } from '../types';
 import { living, opening } from './director';
 import { along, cumulative, type Scan, scanReturns, simplify, voronoiCell } from './geometry';
 import { layout } from './layout';
-import { adaptiveScene, capabilityScene, markPose, singleScene } from './scenes';
+import { adaptiveScene, capabilityScene, markPose, routeScene, singleScene } from './scenes';
 import { searchRoute } from './search';
 
 const recorded = {
@@ -80,6 +80,29 @@ describe('story scenes', () => {
     expect(scene.tracks.map((track) => track.label)).toEqual(['Gazebo rover', 'MuJoCo Go1']);
     expect(scene.scan?.hits).toBe(run.condition_observation.evidence?.blocked_samples);
     expect(scene.solids.filter((solid) => solid.kind === 'barrier')).toHaveLength(1);
+  });
+
+  it('shows the route before the replan with nothing closed, and after it with the closed lane bare', () => {
+    const run = adaptiveRecordingSchema.parse(demo('adaptive-route.json'));
+    const scene = adaptiveScene(run, demo('adaptive-blockage-scan.json') as Scan);
+    const before = routeScene(scene, 'original');
+    const after = routeScene(scene, 'detour');
+    expect(before.lanes.some((lane) => lane.blocked || lane.replanned)).toBe(false);
+    expect(before.lanes.filter((lane) => lane.planned).map((lane) => lane.id)).toEqual(
+      scene.lanes.filter((lane) => lane.planned).map((lane) => lane.id),
+    );
+    expect(after.lanes.find((lane) => lane.id === 'bay_to_transfer')).toMatchObject({
+      blocked: true,
+      planned: false,
+    });
+    expect(
+      after.lanes
+        .filter((lane) => lane.replanned)
+        .map((lane) => lane.id)
+        .sort(),
+    ).toEqual(['bay_to_west_bypass', 'west_bypass_to_transfer']);
+    expect(before.tracks).toHaveLength(0);
+    expect(after.marks).toHaveLength(0);
   });
 
   it('marks the missing marker and the core interruption where the rover was at those times', () => {

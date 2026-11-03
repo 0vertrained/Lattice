@@ -285,3 +285,22 @@ export function singleScene(run: Walkthrough): Scene {
 export function markPose(scene: Scene, mark: Mark): Pose | undefined {
   return poseAt(scene.tracks[mark.track]?.samples ?? [], mark.t);
 }
+
+/**
+ * The route alone, before or after a replan: `original` shows the approved route with nothing yet
+ * closed; `detour` shows the reviewed remainder with the closed lane hatched and unfilled.
+ */
+export function routeScene(scene: Scene, stage: 'original' | 'detour'): Scene {
+  return {
+    ...scene,
+    tracks: [],
+    marks: [],
+    lanes: scene.lanes.map((lane) =>
+      stage === 'original'
+        ? { ...lane, blocked: false, replanned: false }
+        : lane.blocked
+          ? { ...lane, planned: false }
+          : lane,
+    ),
+  };
+}

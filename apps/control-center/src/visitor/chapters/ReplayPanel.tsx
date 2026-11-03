@@ -1,7 +1,8 @@
 import { Component, type ReactNode, Suspense, useEffect, useState } from 'react';
+import { sampleAt } from '../drawing/geometry';
 import { LatticeDrawing } from '../drawing/LatticeDrawing';
 import type { Scene } from '../drawing/scenes';
-import { minutes as fmt } from '../format';
+import { minutes as fmt, signed } from '../format';
 import { ReplayTrace } from './ReplayTrace';
 
 export interface RecordedEvent {
@@ -25,6 +26,20 @@ class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean
       this.props.children
     );
   }
+}
+
+/** Where each body on the map was at a recorded time, as replay readouts. */
+export function bodyReadouts(scene: Scene, time: number): [string, string][] {
+  return scene.tracks.map((track) => {
+    const first = track.samples[0];
+    const pose = sampleAt(track.samples, time);
+    return [
+      track.label,
+      !first || !pose || time < first.t
+        ? 'Not yet reporting'
+        : `${signed(pose.x, 2)}, ${signed(pose.y, 2)} m`,
+    ];
+  });
 }
 
 /** A recorded run on the map (or in 3D), scrubbed on its speed trace, with live readouts and events. */
@@ -54,7 +69,8 @@ export function ReplayPanel({
   readonly twin?: (time: number) => ReactNode;
   readonly duration: number;
   readonly events: readonly RecordedEvent[];
-  readonly series: readonly { t: number; v: number }[];
+  /** Speed over time for each body on the map. */
+  readonly series: readonly (readonly { t: number; v: number }[])[];
   /** The slider's name, such as "Recorded mission time". */
   readonly name: string;
   readonly play: string;

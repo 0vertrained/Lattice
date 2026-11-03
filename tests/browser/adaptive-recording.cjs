@@ -67,7 +67,10 @@ const { chromium } = require('../../apps/control-center/node_modules/playwright'
     await page.getByRole('heading', { name: 'A new route condition', exact: true }).waitFor();
     await page.getByText(/Original scan hash verified/).waitFor();
     await page.getByRole('img', { name: 'Original route with measured blockage scan returns', exact: true }).waitFor();
-    assert.ok(await page.locator('.adaptive-map .adaptive-scan-returns circle').count() > 0);
+    // The scan plot reproduces the gateway's corridor test from the recorded ranges.
+    const scanPlot = page.getByRole('img', { name: /^Recorded lidar scan around the rover/ });
+    assert.equal(await scanPlot.locator('.polar-return.hit').count(), run.condition_observation.evidence.blocked_samples);
+    await page.getByRole('img', { name: /^Detail of the route corridor ahead of the rover/ }).waitFor();
     await page.getByRole('button', { name: 'Reviewed detour', exact: true }).click();
     await page.getByRole('img', { name: 'Reviewed detour with measured blockage scan returns', exact: true }).waitFor();
     const chapters = ['A new route condition', 'Reviewed continuity', 'Measured continuation', 'Evidence and limits'];
@@ -101,9 +104,8 @@ const { chromium } = require('../../apps/control-center/node_modules/playwright'
         await chapter(name);
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, `Adaptive overflow ${width} ${name}`);
         if (name === chapters[0]) {
-          const legend = page.getByRole('list', { name: 'Route place key', exact: true });
-          assert.equal(await legend.isVisible(), width <= 680);
-          if (width <= 680) assert.equal(await legend.getByRole('listitem').count(), run.map.places.length);
+          // Every place is labelled on the route drawing itself, at every width.
+          assert.equal(await page.locator('.adaptive-story .replay-plate .d-label').count(), run.map.places.length);
         }
       }
     }

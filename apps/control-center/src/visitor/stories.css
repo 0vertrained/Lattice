@@ -1,3 +1,155 @@
+/* Blocked aisle: the recorded scan as a plan-position plot, with a detail of the tested corridor. */
+.polar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 32px;
+  margin: 32px 0 12px;
+}
+.polar figure {
+  container: polar / inline-size;
+  margin: 0;
+}
+.polar svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  font-size: 13px;
+}
+.polar figcaption {
+  padding: 12px 20px;
+  border-top: 1px solid var(--rule);
+  color: var(--graphite);
+  font-size: 0.8125rem;
+}
+.polar svg :is(circle, path, polygon) {
+  fill: none;
+}
+.polar-ring circle {
+  stroke: var(--rule);
+}
+.polar :where(svg text) {
+  fill: var(--graphite);
+  font-variant-numeric: tabular-nums;
+}
+.polar-bearings {
+  stroke: var(--graphite);
+}
+.polar-cardinal text {
+  text-anchor: middle;
+}
+.polar-ray {
+  stroke: var(--graphite);
+  stroke-opacity: 0.3;
+  stroke-width: 0.8;
+}
+.polar-ray.hit {
+  stroke: var(--stop);
+  stroke-opacity: 0.8;
+  stroke-width: 1.2;
+}
+.polar svg .polar-return {
+  fill: var(--ink);
+}
+.polar svg .polar-return.hit {
+  fill: var(--stop);
+}
+.polar svg .polar-corridor {
+  fill: color-mix(in srgb, var(--stop) 10%, transparent);
+  stroke: var(--stop);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+.polar-route path {
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-dasharray: 2 5;
+}
+.polar svg :is(.polar-route, .polar-nearest, .polar-detail-mark) text {
+  fill: var(--ink);
+  font-weight: 600;
+}
+.polar-nearest path {
+  stroke: var(--ink);
+  stroke-width: 1.5;
+}
+.polar svg .polar-nearest circle,
+.polar svg .polar-sensor {
+  fill: var(--ink);
+}
+.polar-detail-mark circle {
+  stroke: var(--ink);
+  stroke-dasharray: 4 3;
+}
+/* On a phone the plot is drawn at half size, so its marks are drawn twice as heavy. */
+@container polar (max-width: 440px) {
+  .polar svg {
+    font-size: 24px;
+  }
+  .polar-ray {
+    stroke-width: 1.4;
+  }
+  .polar [data-view="full"] .polar-return {
+    r: 3px;
+  }
+  .polar [data-view="full"] .polar-return.hit {
+    r: 4.5px;
+  }
+  .polar [data-view="detail"] .polar-return {
+    r: 5px;
+  }
+  .polar [data-view="detail"] .polar-return.hit {
+    r: 6.5px;
+  }
+}
+@media (max-width: 760px) {
+  .polar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* The rays draw outward in one turn of the recorded sweep; returns in the corridor then turn red. */
+@media (prefers-reduced-motion: no-preference) {
+  .polar-ray {
+    stroke-dasharray: 1;
+    animation: polar-ray 0.3s linear calc(var(--b) * 3.2ms) backwards;
+  }
+  .polar-ray.hit {
+    animation:
+      polar-ray 0.3s linear calc(var(--b) * 3.2ms) backwards,
+      polar-hit-ray 0.4s 1.45s backwards;
+  }
+  .polar svg .polar-return {
+    animation: polar-dot 0.2s calc(var(--b) * 3.2ms + 0.2s) backwards;
+  }
+  .polar svg .polar-return.hit {
+    animation:
+      polar-dot 0.2s calc(var(--b) * 3.2ms + 0.2s) backwards,
+      polar-hit-dot 0.4s 1.45s backwards;
+  }
+  .polar svg .polar-corridor,
+  .polar-nearest {
+    animation: polar-dot 0.4s 1.3s backwards;
+  }
+}
+@keyframes polar-ray {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+@keyframes polar-dot {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes polar-hit-ray {
+  from {
+    stroke: var(--graphite);
+  }
+}
+@keyframes polar-hit-dot {
+  from {
+    fill: var(--ink);
+  }
+}
 /* Chapter parts of the adaptive, capability and handoff stories, loaded with those stories.
    They use the shared tokens now and get their own redesign in a later phase. */
 .view-switch {

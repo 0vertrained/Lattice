@@ -812,6 +812,103 @@
 .engineering-notes p {
   color: var(--graphite);
 }
+/* Shared parts used across stories */
+.section-title {
+  margin: 40px 0 16px;
+}
+.link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+}
+.sheet-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 32px;
+  align-items: start;
+  margin: 32px 0;
+}
+.sheet-layout > .sheet {
+  margin: 0;
+}
+/* A completed step stays on the sheet, ruled in the verified colour. */
+.route-sheet [data-done] td:first-child {
+  box-shadow: inset 3px 0 var(--clear);
+}
+.route-sheet [data-done] td:last-child {
+  color: var(--clear);
+}
+.trace-second {
+  stroke: var(--body);
+  stroke-dasharray: 4 3;
+}
+.capability-video {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  max-width: 1040px;
+  margin: 32px 0 16px;
+}
+.capability-video video {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #0f1a22;
+}
+.capability-video figcaption {
+  padding: 16px 20px;
+  border-left: 1px solid var(--rule);
+  color: var(--graphite);
+}
+.limits p {
+  max-width: 45em;
+}
+/* A measured profile under the replay, ruled every 5 cm. */
+.profile {
+  container: profile / inline-size;
+  margin: 24px 0 0;
+}
+.profile figcaption {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--rule);
+  color: var(--graphite);
+  font-size: 0.8125rem;
+}
+.profile svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  font-size: 12px;
+}
+.profile path {
+  fill: none;
+}
+.profile-rule path {
+  stroke: var(--rule);
+}
+.profile-zero path {
+  stroke: var(--graphite);
+}
+.profile text {
+  fill: var(--graphite);
+  font-variant-numeric: tabular-nums;
+}
+.profile .profile-full {
+  stroke: var(--graphite);
+  stroke-dasharray: 3 4;
+}
+.profile .profile-played {
+  stroke: var(--body);
+  stroke-width: 2.5;
+}
+.profile .profile-head {
+  stroke: var(--ink);
+  stroke-width: 1.5;
+}
+@container profile (max-width: 480px) {
+  .profile svg {
+    font-size: 22px;
+  }
+}
 /* Parts of the stories still awaiting their own redesign; already on the new tokens. */
 .brief-steps,
 .recovery-sequence {
@@ -898,6 +995,7 @@
 }
 @media (max-width: 1023px) {
   .replay,
+  .sheet-layout,
   .schematic-layout {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -938,8 +1036,13 @@
   }
   .camera-grid,
   .engineering-notes,
+  .capability-video,
   .recovery-metrics {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .capability-video figcaption {
+    border-left: 0;
+    border-top: 1px solid var(--rule);
   }
   .schematic {
     padding: 16px;

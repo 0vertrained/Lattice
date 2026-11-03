@@ -25,7 +25,12 @@ const bodyName = (id: string, run: Pick<CapabilityRecording, 'handoff'>) =>
       : id;
 const artifact = `${import.meta.env.BASE_URL}demo/capability-route.json`;
 
-export default function CapabilityStory({ run }: { readonly run: CapabilityRecording }) {
+export default function CapabilityStory({
+  run,
+}: {
+  readonly run: CapabilityRecording;
+  readonly opened?: unknown;
+}) {
   const [chapter, setChapter] = useState(0);
   const [time, setTime] = useState(0);
   const [playing, setPlaying] = useState(false);

@@ -36,7 +36,12 @@ class ReplayBoundary extends Component<{ children: ReactNode }, { failed: boolea
   }
 }
 
-export default function HandoffStory({ run }: { readonly run: HandoffRecording }) {
+export default function HandoffStory({
+  run,
+}: {
+  readonly run: HandoffRecording;
+  readonly opened?: unknown;
+}) {
   const [chapter, setChapter] = useState(0);
   const [time, setTime] = useState(0);
   const [playing, setPlaying] = useState(false);

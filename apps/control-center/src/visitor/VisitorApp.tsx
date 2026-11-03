@@ -81,7 +81,8 @@ export function VisitorApp() {
   const adaptive = useRecording('adaptive-route.json', acceptAdaptive);
   const run = single.data;
   const [story, setStory] = useState<StoryId>(storyFromHash);
-  // Set when the visitor opens the single-rover walkthrough, so it can show the chosen chapter.
+  // Set when the visitor chooses a story, so its chapters open at the right one and take focus.
+  // A story shown on first load leaves focus where the browser put it.
   const [opened, setOpened] = useState<Opened | null>(null);
   const loads = { single, handoff, capability, adaptive };
   // A story whose recording is still loading keeps its place; one that failed falls back to the single rover.
@@ -103,7 +104,7 @@ export function VisitorApp() {
   function select(next: StoryId) {
     setStory(next);
     // The page stays put so the opening can redraw for the chosen story.
-    if (next === 'single') setOpened({ chapter: 0, scroll: false });
+    setOpened({ chapter: 0, scroll: false });
   }
   return (
     <div className="visitor-app">
@@ -134,7 +135,7 @@ export function VisitorApp() {
             {shown === 'adaptive' ? (
               adaptive.data ? (
                 <Suspense fallback={<p role="status">Loading the recorded adaptive route…</p>}>
-                  <AdaptiveStory run={adaptive.data} />
+                  <AdaptiveStory run={adaptive.data} opened={opened} />
                 </Suspense>
               ) : (
                 <p role="status">Loading the recorded adaptive route…</p>
@@ -142,7 +143,7 @@ export function VisitorApp() {
             ) : shown === 'capability' ? (
               capability.data ? (
                 <Suspense fallback={<p role="status">Loading the recorded capability route…</p>}>
-                  <CapabilityStory run={capability.data} />
+                  <CapabilityStory run={capability.data} opened={opened} />
                 </Suspense>
               ) : (
                 <p role="status">Loading the recorded capability route…</p>
@@ -152,7 +153,7 @@ export function VisitorApp() {
                 <Suspense
                   fallback={<p role="status">Loading the recorded two-rover continuation…</p>}
                 >
-                  <HandoffStory run={handoff.data} />
+                  <HandoffStory run={handoff.data} opened={opened} />
                 </Suspense>
               ) : (
                 <p role="status">Loading the recorded two-rover continuation…</p>

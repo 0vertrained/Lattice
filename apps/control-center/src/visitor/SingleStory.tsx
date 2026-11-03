@@ -170,6 +170,7 @@ export default function SingleStory({
   const scene = useMemo(() => singleScene(run), [run]);
   const samples = scene.tracks[0]?.samples ?? [];
   const series = useMemo(() => speeds(samples), [samples]);
+  const traces = useMemo(() => [series], [series]);
   const started = Date.parse(run.recorded_at);
   return (
     <ChapterShell
@@ -211,7 +212,7 @@ export default function SingleStory({
               title: step.title,
               command: step.command,
               continues: step.continue_on_missing_marker,
-              policy: step.continue_on_missing_marker
+              detail: step.continue_on_missing_marker
                 ? 'A validated image with no marker is recorded as an anomaly; the round may continue.'
                 : 'Failure stops the round for review.',
               ...(index === run.steps.length - 1 ? { note: 1 } : {}),
@@ -240,7 +241,7 @@ export default function SingleStory({
           twin={(time) => <RecordedTwin run={run} time={time} />}
           duration={run.duration_s}
           events={run.events}
-          series={series}
+          series={traces}
           name="Recorded mission time"
           play="Play replay"
           pause="Pause replay"

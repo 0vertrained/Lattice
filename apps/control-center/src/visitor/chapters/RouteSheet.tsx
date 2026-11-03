@@ -2,11 +2,13 @@ import type { ReactNode } from 'react';
 
 export interface SheetStep {
   readonly title: string;
-  readonly command: unknown;
-  /** What the reviewed plan does if this step fails. */
-  readonly policy: string;
+  readonly command?: unknown;
+  /** The last column: a failure policy, an assignment or a status. */
+  readonly detail: ReactNode;
   /** Marks the step whose failure the round is allowed to continue past. */
   readonly continues?: boolean;
+  /** A step already completed, kept on the sheet as a record. */
+  readonly done?: boolean;
   /** Number of the sheet note that applies to this step. */
   readonly note?: number;
 }
@@ -32,11 +34,13 @@ export function TitleBlock({
 /** The reviewed round as a route sheet: each step, its command and its failure policy. */
 export function RouteSheet({
   caption,
+  columns = ['Step', 'Operation and command', 'If it fails'],
   steps,
   block,
   notes = [],
 }: {
   readonly caption: string;
+  readonly columns?: readonly [string, string, string];
   readonly steps: readonly SheetStep[];
   readonly block: readonly (readonly [string, ReactNode, 'wide'?])[];
   readonly notes?: readonly ReactNode[];
@@ -47,14 +51,20 @@ export function RouteSheet({
         <caption>{caption}</caption>
         <thead>
           <tr>
-            <th scope="col">Step</th>
-            <th scope="col">Operation and command</th>
-            <th scope="col">If it fails</th>
+            {columns.map((column) => (
+              <th scope="col" key={column}>
+                {column}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
           {steps.map((step, index) => (
-            <tr key={step.title} data-continues={step.continues ? '' : undefined}>
+            <tr
+              key={step.title}
+              data-continues={step.continues ? '' : undefined}
+              data-done={step.done ? '' : undefined}
+            >
               <td className="figures">{index + 1}</td>
               <td>
                 <strong>
@@ -66,9 +76,11 @@ export function RouteSheet({
                     </a>
                   )}
                 </strong>
-                <code>{JSON.stringify(step.command, null, 1).replace(/\n\s*/g, ' ')}</code>
+                {step.command !== undefined && (
+                  <code>{JSON.stringify(step.command, null, 1).replace(/\n\s*/g, ' ')}</code>
+                )}
               </td>
-              <td>{step.policy}</td>
+              <td>{step.detail}</td>
             </tr>
           ))}
         </tbody>
