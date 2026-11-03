@@ -15,14 +15,16 @@ from render import https
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
-    # The core does not follow redirects, so a moved document must fail here too.
     def redirect_request(self, *args, **kwargs):
         return None
 
 
-def fetch(url, limit):
+def fetch(url, limit, redirects=False):
+    # The core fetches only the key set and does not follow redirects, so a moved key set must
+    # fail here too. Discovery is read only by this check and browsers, which both follow them.
+    opener = urllib.request.build_opener() if redirects else urllib.request.build_opener(NoRedirect)
     try:
-        with urllib.request.build_opener(NoRedirect).open(url, timeout=15) as response:
+        with opener.open(url, timeout=15) as response:
             body = response.read(limit + 1)
     except urllib.error.HTTPError as error:
         raise ValueError(f"{url} answered HTTP {error.code} {error.reason}") from None
@@ -51,7 +53,7 @@ def signing_keys(key_set):
 
 
 def check(issuer, jwks_url, fetch=fetch):
-    discovery = fetch(issuer.rstrip("/") + "/.well-known/openid-configuration", 64 * 1024)
+    discovery = fetch(issuer.rstrip("/") + "/.well-known/openid-configuration", 64 * 1024, redirects=True)
     if not isinstance(discovery, dict) or discovery.get("issuer") != issuer:
         raise ValueError(f"discovery at {issuer} names a different issuer; check LATTICE_OIDC_ISSUER")
     if discovery.get("jwks_uri") != jwks_url:

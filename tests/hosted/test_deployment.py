@@ -178,7 +178,7 @@ class DeploymentTests(unittest.TestCase):
                      jwks: {'keys': [{**rsa, 'kid': 'enc', 'use': 'enc', 'alg': 'RSA-OAEP'},
                                      {'kty': 'oct', 'kid': 'shared', 'k': 'c2VjcmV0'},
                                      {**rsa, 'use': 'sig'}, {**rsa, 'kid': 'sig', 'use': 'sig', 'alg': 'RS256'}]}}
-        fetch = lambda url, limit: documents[url]
+        fetch = lambda url, limit, redirects=False: documents[url]
         self.assertEqual(identity_check.check(issuer, jwks, fetch), ['sig'])
         documents[jwks] = {'keys': [{**rsa, 'kid': 'enc', 'use': 'enc'}]}
         with self.assertRaisesRegex(ValueError, 'none of its 1 keys is an RSA signing key'):
@@ -228,6 +228,7 @@ class DeploymentTests(unittest.TestCase):
             self.assertEqual(identity_check.fetch(base + '/keys', 1024), {'keys': []})
             with self.assertRaisesRegex(ValueError, 'answered HTTP 302'):
                 identity_check.fetch(base + '/moved', 1024)
+            self.assertEqual(identity_check.fetch(base + '/moved', 1024, redirects=True), {'keys': []})
             with self.assertRaisesRegex(ValueError, 'answered HTTP 404'):
                 identity_check.fetch(base + '/realms/missing/.well-known/openid-configuration', 1024)
             with self.assertRaisesRegex(ValueError, 'returned more than'):
