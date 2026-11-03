@@ -11,15 +11,6 @@
   src: url("./fonts/b612-mono-400.woff2") format("woff2");
   font-display: swap;
 }
-/* Arial-metric stand-in sized to Archivo, so the swap barely moves text. */
-@font-face {
-  font-family: "Archivo fallback";
-  src: local("Arial"), local("Arimo"), local("Liberation Sans");
-  size-adjust: 99%;
-  ascent-override: 88.7%;
-  descent-override: 21.2%;
-  line-gap-override: 0%;
-}
 :root {
   color-scheme: light;
   --paper: #f3f5f6;
@@ -32,7 +23,7 @@
   --stop: #c3262a;
   --clear: #17784a;
   --body: #1c5bcb;
-  --sans: Archivo, "Archivo fallback", ui-sans-serif, system-ui, sans-serif;
+  --sans: Archivo, ui-sans-serif, system-ui, sans-serif;
   --mono: "B612 Mono", ui-monospace, Menlo, Consolas, monospace;
   --edge: clamp(16px, 4vw, 56px);
   font: 400 1rem / 1.6 var(--sans);
@@ -40,21 +31,6 @@
   background: var(--paper);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --paper: #0b1118;
-    --film: #0e1620;
-    --ink: #e6edf1;
-    --graphite: #8e9faa;
-    --rule: #1c2832;
-    --lane: #ffd23f;
-    --hold: #ff9b42;
-    --stop: #ff6159;
-    --clear: #45d48d;
-    --body: #78a6ff;
-  }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
@@ -316,6 +292,17 @@ details code {
   letter-spacing: -0.015em;
   margin-bottom: 24px;
 }
+.opening h1 .line {
+  display: block;
+  clip-path: inset(-25% 100% -25% 0);
+}
+.opening h1 .line[data-shown] {
+  clip-path: inset(-25% -6% -25% 0);
+}
+.plate-actions {
+  display: flex;
+  gap: 20px;
+}
 .lead {
   font-size: 1.25rem;
   line-height: 1.5;
@@ -403,9 +390,7 @@ details code {
 .replay-plate .lattice-drawing {
   max-height: max(360px, calc(100svh - 380px));
 }
-.lattice-drawing path,
-.lattice-drawing circle,
-.lattice-drawing polygon {
+.lattice-drawing :is(path, circle, polygon) {
   fill: none;
 }
 .d-film,
@@ -499,7 +484,9 @@ details code {
 }
 .d-label,
 .d-note,
-.d-dim {
+.d-dim,
+.d-cost,
+.d-clock {
   paint-order: stroke;
   stroke: var(--film);
   stroke-linejoin: round;
@@ -563,6 +550,69 @@ details code {
 [data-plotting] [data-pen] {
   stroke-dasharray: 1 1;
 }
+/* Motion layers stay hidden until the drawing's engine shows them. */
+.d-probe,
+.d-front,
+.d-pulse,
+.d-closed,
+.d-glow,
+.d-beam,
+.d-head,
+.d-clock,
+.d-measure {
+  opacity: 0;
+}
+.lattice-drawing .d-pulse {
+  stroke: var(--ink);
+  stroke-width: 2;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.lattice-drawing .d-stop-pulse,
+.lattice-drawing .d-pulse-stop {
+  stroke: var(--stop);
+  stroke-width: 3;
+}
+.lattice-drawing .d-pulse-hold {
+  stroke: var(--hold);
+}
+.lattice-drawing .d-pulse-transfer {
+  stroke: var(--body);
+}
+.d-trail {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+[data-living] .d-track {
+  stroke-opacity: 0.32;
+}
+[data-living] .d-casing {
+  stroke-opacity: 0.5;
+}
+.d-cost,
+.d-clock,
+.d-measure-text {
+  font-stretch: 112%;
+  font-variant-numeric: tabular-nums;
+}
+.d-cost,
+.d-clock {
+  font-size: 12px;
+  fill: var(--graphite);
+  stroke-width: 4px;
+}
+/* The measuring crosshair */
+.lattice-drawing {
+  cursor: crosshair;
+}
+.d-measure {
+  pointer-events: none;
+  transition: opacity 0.12s;
+}
+.d-measure-text {
+  font-size: 13px;
+  fill: var(--ink);
+}
 @container drawing (max-width: 560px) {
   .d-label {
     font-size: 25px;
@@ -576,14 +626,41 @@ details code {
   .d-minor {
     display: none;
   }
+  .d-cost,
+  .d-clock {
+    font-size: 20px;
+  }
+  .d-measure-text {
+    font-size: 22px;
+  }
 }
 /* Stories as stations on one line */
 .story-line ul {
+  --n: 4;
+  --at: 0;
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--n), minmax(0, 1fr));
   margin: 0 0 48px;
   padding: 0;
   list-style: none;
+}
+/* The "you are here" marker travels along the line to the chosen story. */
+.story-line ul::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: calc(var(--at) * 100% / var(--n));
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--lane);
+  box-shadow:
+    0 0 0 3px var(--paper),
+    0 0 0 5px var(--ink);
+  pointer-events: none;
 }
 .story-line li,
 .chapter-nav nav button {
@@ -626,7 +703,6 @@ details code {
 .chapter-nav [aria-current] {
   font-weight: 650;
 }
-.story-line [aria-pressed="true"]::before,
 .chapter-nav [aria-current]::before {
   background: var(--lane);
   box-shadow:
@@ -657,9 +733,41 @@ details code {
   display: none;
 }
 .chapter-nav nav {
+  --n: 4;
+  --at: 0;
+  position: relative;
   display: flex;
   flex: 1 1 auto;
   max-width: 900px;
+}
+.chapter-nav nav:has(> :nth-child(5)) {
+  --n: 5;
+}
+.chapter-nav nav:has(> :nth-child(2)[aria-current]) {
+  --at: 1;
+}
+.chapter-nav nav:has(> :nth-child(3)[aria-current]) {
+  --at: 2;
+}
+.chapter-nav nav:has(> :nth-child(4)[aria-current]) {
+  --at: 3;
+}
+.chapter-nav nav:has(> :nth-child(5)[aria-current]) {
+  --at: 4;
+}
+.chapter-nav nav::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  top: 6px;
+  left: 8px;
+  width: calc(var(--at) * 100% / var(--n));
+  height: 4px;
+  background: var(--ink);
+  pointer-events: none;
+}
+.chapter-nav nav button::before {
+  z-index: 2;
 }
 .chapter-nav nav button {
   flex: 1 1 0;
@@ -670,11 +778,6 @@ details code {
 }
 .chapter-nav nav button::after {
   background: var(--rule);
-}
-.chapter-nav nav button:has(~ [aria-current])::after {
-  top: 6px;
-  height: 4px;
-  background: var(--ink);
 }
 .chapter-nav nav button:has(~ [aria-current])::before {
   background: var(--ink);
@@ -1139,6 +1242,10 @@ details code {
   .story-line ul {
     display: block;
   }
+  .story-line ul::before {
+    top: calc(var(--at) * 100% / var(--n));
+    left: 0;
+  }
   .story-line li:not(:last-child)::after {
     top: 16px;
     bottom: -2px;
@@ -1184,10 +1291,38 @@ details code {
     font-size: 0;
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  * {
-    scroll-behavior: auto;
-    transition: none;
-    animation: none;
+/* Motion that answers a choice; none of it runs for visitors who ask for reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  /* Only the writing-in animates; a replaced headline disappears at once. */
+  .opening h1 .line[data-shown] {
+    transition: clip-path 0.8s cubic-bezier(0.65, 0, 0.25, 1);
+  }
+  .story-line ul::before,
+  .chapter-nav nav::before {
+    transition: 0.6s cubic-bezier(0.65, 0, 0.25, 1);
+    transition-property: left, top, width;
+  }
+  .chapter-nav nav button::before {
+    transition: 0.2s 0.3s;
+  }
+  .chapter-nav [aria-current]::before {
+    transition-delay: 0.45s;
+  }
+  .d-head {
+    transition: opacity 0.15s;
+  }
+  /* A new chapter's heading and parts sweep in from the left, like a pass of the plotter. */
+  .chapter-heading h2,
+  .chapter-content > :not(.chapter-heading, .chapter-footer) {
+    animation: sweep-in 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+  }
+  .chapter-content > :not(.chapter-heading, .chapter-footer) {
+    animation-delay: 0.08s;
+  }
+}
+@keyframes sweep-in {
+  from {
+    clip-path: inset(0 100% 0 0);
+    opacity: 0.3;
   }
 }

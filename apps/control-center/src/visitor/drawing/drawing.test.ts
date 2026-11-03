@@ -1,14 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import scanJson from '../../../public/demo/adaptive-blockage-scan.json';
 import adaptiveJson from '../../../public/demo/adaptive-route.json';
+import capabilityJson from '../../../public/demo/capability-route.json';
 import walkthroughJson from '../../../public/demo/walkthrough.json';
 import { adaptiveRecordingSchema } from '../adaptiveTypes';
+import { capabilityRecordingSchema } from '../capabilityTypes';
 import type { Walkthrough } from '../types';
+import { living, opening } from './director';
 import { along, cumulative, type Scan, scanReturns, simplify, voronoiCell } from './geometry';
-import { adaptiveScene, markPose, singleScene } from './scenes';
+import { layout } from './layout';
+import { adaptiveScene, capabilityScene, markPose, singleScene } from './scenes';
+import { searchRoute } from './search';
 
 const recorded = {
   'adaptive-route.json': adaptiveJson,
+  'capability-route.json': capabilityJson,
   'adaptive-blockage-scan.json': scanJson,
   'walkthrough.json': walkthroughJson,
 } as const;
@@ -85,5 +91,51 @@ describe('story scenes', () => {
     // The anomaly is recorded at the loading dock (3.5, 0).
     expect(pose && Math.hypot(pose.x - 3.5, pose.y)).toBeLessThan(0.6);
     expect(scene.tracks[0]?.samples).toHaveLength(run.poses.length);
+  });
+});
+
+describe('the opening animation', () => {
+  const adaptive = adaptiveRecordingSchema.parse(demo('adaptive-route.json'));
+  const capability = capabilityRecordingSchema.parse(demo('capability-route.json'));
+  const scan = demo('adaptive-blockage-scan.json') as Scan;
+
+  it('shows a search that finds the route and distance each recorded plan approved', () => {
+    for (const [scene, plan] of [
+      [adaptiveScene(adaptive, scan), adaptive.plan],
+      [capabilityScene(capability), capability.plan],
+    ] as const) {
+      const search = searchRoute(scene);
+      expect(search?.route.map((lane) => scene.lanes[lane]?.id)).toEqual(
+        plan.legs.map((leg) => leg.segment_id),
+      );
+      expect(search?.total).toBeCloseTo(plan.distance_m, 6);
+    }
+    const closed = searchRoute(adaptiveScene(adaptive, scan))?.closed ?? [];
+    expect(closed.map((item) => item.lane)).toEqual([0]);
+  });
+
+  it('tells the story in order: blockage, then the continuing objective', () => {
+    for (const scene of [adaptiveScene(adaptive, scan), capabilityScene(capability)]) {
+      const script = opening(layout(scene), false);
+      const first = script.cues.find((cue) => cue.cue === 'first')?.at ?? Number.NaN;
+      const second = script.cues.find((cue) => cue.cue === 'second')?.at ?? Number.NaN;
+      expect(first).toBeLessThan(second);
+      expect(second).toBeLessThanOrEqual(script.end);
+      for (const step of script.steps) expect(step.end).toBeGreaterThanOrEqual(step.start);
+    }
+  });
+
+  it('loops the recorded run in about eleven seconds without running time backwards', () => {
+    const view = layout(adaptiveScene(adaptive, scan));
+    const loop = living(view);
+    expect(loop?.duration).toBeGreaterThan(8000);
+    expect(loop?.duration).toBeLessThan(16000);
+    let previous = Number.NEGATIVE_INFINITY;
+    for (let ms = 0; loop && ms <= loop.duration; ms += 50) {
+      const t = loop.at(ms);
+      expect(t).toBeGreaterThanOrEqual(previous);
+      previous = t;
+    }
+    expect(previous).toBeLessThanOrEqual(adaptive.duration_s);
   });
 });

@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AdaptiveRecording } from './adaptiveTypes';
 import type { CapabilityRecording } from './capabilityTypes';
+import type { Cue } from './drawing/director';
 import type { Scan } from './drawing/geometry';
 import { LatticeDrawing } from './drawing/LatticeDrawing';
 import {
@@ -131,6 +132,19 @@ function sceneFor(story: StoryId, recordings: Recordings, scan: Scan | null): Sc
   return recordings.single && singleScene(recordings.single);
 }
 
+function useReducedMotion() {
+  const [reduce, setReduce] = useState(
+    () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  );
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const follow = () => setReduce(media.matches);
+    media.addEventListener('change', follow);
+    return () => media.removeEventListener('change', follow);
+  }, []);
+  return reduce;
+}
+
 export function StoryOpening({
   story,
   recordings,
@@ -143,22 +157,58 @@ export function StoryOpening({
   /** Opens the single-rover walkthrough at its replay; other stories link to their chapters. */
   readonly onExplore: () => void;
 }) {
-  const text = copy[story];
-  const scan = useVerifiedScan(story === 'adaptive' ? recordings.adaptive : null);
-  const scene = useMemo(() => sceneFor(story, recordings, scan), [story, recordings, scan]);
+  const still = useReducedMotion();
+  // A newly chosen story waits while the drawing on screen is erased, then draws in its place.
+  const [shown, setShown] = useState(story);
+  const [erasing, setErasing] = useState(false);
+  const [continued, setContinued] = useState(false);
+  const wanted = useRef(story);
+  const text = copy[shown];
+  const scan = useVerifiedScan(shown === 'adaptive' ? recordings.adaptive : null);
+  const scene = useMemo(() => sceneFor(shown, recordings, scan), [shown, recordings, scan]);
+  const drawn = scene !== null;
+  useEffect(() => {
+    wanted.current = story;
+    if (story === shown) return;
+    if (still || !drawn) setShown(story);
+    else setErasing(true);
+  }, [story, shown, still, drawn]);
+  const erased = useCallback(() => {
+    setShown(wanted.current);
+    setErasing(false);
+    setContinued(true);
+  }, []);
   const [again, setAgain] = useState(0);
-  const values = readouts(story, recordings);
+  const [paused, setPaused] = useState(false);
+  // The headline's two lines appear on the story's beats in the drawing; with reduced motion they are
+  // simply there. They stay in the document throughout, so screen readers always have them.
+  const [lines, setLines] = useState(still ? 2 : 0);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: each new drawing hides the lines again.
+  useEffect(() => {
+    if (still) return setLines(2);
+    setLines(0);
+    const fallback = window.setTimeout(() => setLines(2), 9000);
+    return () => window.clearTimeout(fallback);
+  }, [shown, again, still]);
+  const cue = useCallback(
+    (beat: Cue) => setLines((count) => Math.max(count, beat === 'first' ? 1 : 2)),
+    [],
+  );
+  const values = readouts(shown, recordings);
   return (
     <section className="opening" aria-labelledby="opening-title">
       <div className="opening-text">
         <h1 id="opening-title">
-          {text.title[0]}
-          <br />
-          {text.title[1]}
+          <span className="line" data-shown={lines >= 1 ? '' : undefined}>
+            {text.title[0]}
+          </span>{' '}
+          <span className="line" data-shown={lines >= 2 ? '' : undefined}>
+            {text.title[1]}
+          </span>
         </h1>
         <p className="lead">{text.lead}</p>
         <div className="actions">
-          {story === 'single' ? (
+          {shown === 'single' ? (
             <button type="button" className="button primary" onClick={onExplore}>
               Explore this recording
             </button>
@@ -178,7 +228,18 @@ export function StoryOpening({
       <figure className="plate opening-plate">
         <div className="drawing-frame">
           {scene ? (
-            <LatticeDrawing scene={scene} label={text.drawing} mode="plot" run={again} />
+            <LatticeDrawing
+              scene={scene}
+              label={text.drawing}
+              mode="plot"
+              run={again}
+              paused={paused}
+              live
+              erasing={erasing}
+              continued={continued}
+              onCue={cue}
+              onErased={erased}
+            />
           ) : (
             <p role="status">Loading the recording…</p>
           )}
@@ -194,10 +255,23 @@ export function StoryOpening({
               ))}
             </dl>
           )}
-          {scene && (
-            <button type="button" className="text-button" onClick={() => setAgain(again + 1)}>
-              Draw it again
-            </button>
+          {scene && !still && (
+            <div className="plate-actions">
+              <button type="button" className="text-button" onClick={() => setPaused(!paused)}>
+                {paused ? 'Resume motion' : 'Pause motion'}
+              </button>
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => {
+                  setPaused(false);
+                  setContinued(false);
+                  setAgain(again + 1);
+                }}
+              >
+                Draw it again
+              </button>
+            </div>
           )}
         </figcaption>
       </figure>

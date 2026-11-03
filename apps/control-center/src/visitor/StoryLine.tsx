@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { StoryId } from './drawing/scenes';
 import { minutes } from './format';
 
@@ -23,7 +24,17 @@ export function StoryLine({
   if (shown.length < 2) return null;
   return (
     <nav id="stories" className="story-line" aria-label="Recorded stories">
-      <ul>
+      <ul
+        style={
+          {
+            '--n': shown.length,
+            '--at': Math.max(
+              0,
+              shown.findIndex((station) => station.id === current),
+            ),
+          } as CSSProperties
+        }
+      >
         {shown.map((station) => (
           <li key={station.id}>
             <button

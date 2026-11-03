@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-// public/theme.js applies a stored choice before first paint; keep the key and values in step with it.
+// public/theme.js sets the theme before first paint; keep the key and values in step with it.
 const key = 'lattice-theme';
 export type Theme = 'light' | 'dark';
 
@@ -14,31 +14,33 @@ function stored(): Theme | null {
     return null;
   }
 }
+const apply = (theme: Theme) => {
+  document.documentElement.dataset.theme = theme;
+};
 
 /** The theme follows the device until the visitor picks the other one; picking the device's theme again clears the choice. */
 export function useTheme(): readonly [Theme, () => void] {
   const [theme, setTheme] = useState<Theme>(() => stored() ?? device());
   useEffect(() => {
-    const saved = stored();
-    if (saved && saved !== device()) document.documentElement.dataset.theme = saved;
+    apply(stored() ?? device());
     const media = query();
     const follow = () => {
-      if (!stored()) setTheme(device());
+      if (stored()) return;
+      apply(device());
+      setTheme(device());
     };
     media.addEventListener('change', follow);
     return () => media.removeEventListener('change', follow);
   }, []);
   function toggle() {
     const next: Theme = theme === 'dark' ? 'light' : 'dark';
-    const root = document.documentElement;
     try {
       if (next === device()) localStorage.removeItem(key);
       else localStorage.setItem(key, next);
     } catch {
       /* Storage can be unavailable; the choice then lasts for this page only. */
     }
-    if (next === device()) delete root.dataset.theme;
-    else root.dataset.theme = next;
+    apply(next);
     setTheme(next);
   }
   return [theme, toggle] as const;
