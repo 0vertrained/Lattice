@@ -186,15 +186,16 @@ export function VisitorApp() {
   useEffect(() => {
     if (run && time >= run.duration_s) setPlaying(false);
   }, [run, time]);
-  function go(index: number) {
+  function go(index: number, scroll = true) {
     setChapter(index);
     setPlaying(false);
-    setTimeout(() => heading.current?.focus(), 0);
+    setTimeout(() => heading.current?.focus({ preventScroll: !scroll }), 0);
   }
   function select(next: StoryId) {
     setStory(next);
     setPlaying(false);
-    if (next === 'single') go(0);
+    // The page stays put so the opening can redraw for the chosen story.
+    if (next === 'single') go(0, false);
   }
   const pose = run?.poses.findLast((p) => p.t <= time) ?? run?.poses[0];
   const event = run?.events.findLast((e) => e.t <= time);

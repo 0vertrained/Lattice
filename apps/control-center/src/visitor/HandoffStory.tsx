@@ -43,7 +43,7 @@ export default function HandoffStory({ run }: { readonly run: HandoffRecording }
   const [view, setView] = useState<'map' | '3d'>('map');
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
-    heading.current?.focus();
+    heading.current?.focus({ preventScroll: true });
   }, []);
   const event = run.events.findLast((item) => item.t <= time);
   useEffect(() => {

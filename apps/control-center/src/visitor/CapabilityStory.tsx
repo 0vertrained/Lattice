@@ -56,7 +56,7 @@ export default function CapabilityStory({ run }: { readonly run: CapabilityRecor
   const placeName = (id: string) =>
     run.map.places.find((place) => place.id === id)?.label ?? id.replaceAll('_', ' ');
   useEffect(() => {
-    heading.current?.focus();
+    heading.current?.focus({ preventScroll: true });
   }, []);
   useEffect(() => {
     const abort = new AbortController();
