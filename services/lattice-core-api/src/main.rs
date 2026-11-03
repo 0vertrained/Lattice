@@ -9,7 +9,7 @@ mod oidc;
 
 use std::sync::Arc;
 
-use lattice_application::{CommandSigner, LatticeService, ServiceConfig};
+use lattice_application::{ApplicationError, CommandSigner, LatticeService, ServiceConfig};
 use lattice_infrastructure::{
     Ed25519CommandSigner, InMemoryPlatform, PostgresPlatform, SystemClock,
 };
@@ -18,25 +18,69 @@ use tracing::info;
 use crate::config::AppConfig;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> std::process::ExitCode {
     init_tracing();
-    let config = AppConfig::from_env()?;
+    match run().await {
+        Ok(()) => std::process::ExitCode::SUCCESS,
+        Err(reason) => {
+            // A host such as Cloud Run reports only that the container stopped or failed its
+            // startup probe. This line says which step stopped it; no reason quotes a secret.
+            tracing::error!(%reason, "Lattice Core stopped");
+            std::process::ExitCode::FAILURE
+        }
+    }
+}
+
+async fn run() -> Result<(), String> {
+    let config = AppConfig::from_env().map_err(|error| format!("configuration: {error}"))?;
 
     let signer = Arc::new(match (&config.signing_key_file, &config.signing_seed) {
-        (Some(path), _) => Ed25519CommandSigner::load_file(path)?,
-        (_, Some(seed)) => Ed25519CommandSigner::from_base64(seed)?,
+        (Some(path), _) => Ed25519CommandSigner::load_file(path)
+            .map_err(|_| format!("signing key: {} could not be loaded", path.display()))?,
+        (_, Some(seed)) => Ed25519CommandSigner::from_base64(seed).map_err(|_| {
+            "signing key: LATTICE_SIGNING_SEED_BASE64 must be standard base64 of exactly 32 bytes"
+                .to_owned()
+        })?,
         _ => Ed25519CommandSigner::generate_ephemeral("lattice-dev-key-1"),
     });
     let oidc = match &config.oidc {
-        Some(c) => Some(crate::oidc::OidcVerifier::new(c.clone()).await?),
+        Some(c) => Some(
+            crate::oidc::OidcVerifier::new(c.clone())
+                .await
+                .map_err(|error| format!("identity provider: {error}"))?,
+        ),
         None => None,
     };
     let epoch = uuid::Uuid::new_v4().to_string();
     let postgres = match &config.database_url {
         Some(url) => {
-            let db = PostgresPlatform::connect_for_runtime(url, config.allow_takeover).await?;
-            db.recover(&signer.verification_key().await?.public_key_base64, &epoch)
-                .await?;
+            let db = PostgresPlatform::connect_for_runtime(url, config.allow_takeover)
+                .await
+                .map_err(|error| match error {
+                    ApplicationError::Infrastructure => {
+                        "database: connection or schema setup failed; the PostgreSQL line \
+                         before this one names the cause"
+                            .to_owned()
+                    }
+                    error => format!("database: {error}"),
+                })?;
+            let public_key = signer
+                .verification_key()
+                .await
+                .map_err(|error| format!("signing key: {error}"))?
+                .public_key_base64;
+            db.recover(&public_key, &epoch)
+                .await
+                .map_err(|error| match error {
+                    // The database records the key its history was signed with and refuses
+                    // any other, whose signatures that history would not verify against.
+                    ApplicationError::Security => {
+                        "database: its history is signed with a different key than \
+                         LATTICE_SIGNING_SEED_BASE64 holds; restore the seed it first started with"
+                            .to_owned()
+                    }
+                    error => format!("database recovery: {error}"),
+                })?;
             Some(db)
         }
         None => {
@@ -59,13 +103,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     if let Some(path) = &config.navigation_map_file {
-        if std::fs::metadata(path)?.len() > 65_536 {
-            return Err("semantic navigation map exceeds 64 KiB".into());
-        }
-        let map: lattice_domain::navigation::SemanticMap =
-            serde_json::from_slice(&std::fs::read(path)?)?;
-        map.validate()?;
-        info!(map_id = %map.id, revision = map.revision, digest = %map.digest()?, "trusted semantic navigation map loaded");
+        let map = load_navigation_map(path)
+            .map_err(|error| format!("navigation map {}: {error}", path.display()))?;
+        info!(map_id = %map.id, revision = map.revision, digest = %map.digest().map_err(|error| error.to_string())?, "trusted semantic navigation map loaded");
         service = service.with_navigation_map(Arc::new(map));
     }
 
@@ -73,8 +113,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let monitor_db = postgres
         .clone()
         .filter(|_| config.navigation_map_file.is_some());
-    let app = api::router(service, config.clone(), postgres, epoch, oidc)?;
-    let listener = tokio::net::TcpListener::bind(config.bind_address).await?;
+    let app = api::router(service, config.clone(), postgres, epoch, oidc)
+        .map_err(|error| format!("routes: {error}"))?;
+    let listener = tokio::net::TcpListener::bind(config.bind_address)
+        .await
+        .map_err(|error| format!("listening on {}: {error}", config.bind_address))?;
     info!(address = %config.bind_address, "Lattice Core listening");
 
     // Route availability changes are observed independently of UI reads. Each
@@ -116,8 +159,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(monitor) = monitor {
         monitor.abort();
     }
-    result?;
-    Ok(())
+    result.map_err(|error| format!("serving: {error}"))
+}
+
+fn load_navigation_map(
+    path: &std::path::Path,
+) -> Result<lattice_domain::navigation::SemanticMap, Box<dyn std::error::Error>> {
+    if std::fs::metadata(path)?.len() > 65_536 {
+        return Err("exceeds 64 KiB".into());
+    }
+    let map: lattice_domain::navigation::SemanticMap =
+        serde_json::from_slice(&std::fs::read(path)?)?;
+    map.validate()?;
+    Ok(map)
 }
 
 fn init_tracing() {
