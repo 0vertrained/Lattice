@@ -5,6 +5,7 @@ mod auth;
 mod config;
 mod devices;
 mod error;
+mod logging;
 mod oidc;
 
 use std::sync::Arc;
@@ -182,6 +183,7 @@ fn init_tracing() {
         .json()
         .with_current_span(true)
         .with_span_list(true)
+        .with_writer(logging::WithSeverity)
         .init();
 }
 
