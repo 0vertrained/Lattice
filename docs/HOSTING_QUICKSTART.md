@@ -187,9 +187,19 @@ The workflow artifact includes the reviewed map and deployed service manifest.
 It does not prove that a physical simulator is online; that is the last step.
 
 Before building anything, the job checks that the realm's key set holds an RSA
-signing key, which the core needs to start. If the deploy fails later with
-"failed the configured startup probe checks", open the **Logs URL** printed under
-that error and search for `Lattice Core stopped`. Its reason names the step:
+signing key, which the core needs to start, and before pushing, that each image
+can read its own files as the user it runs as. If the deploy fails later with
+"failed the configured startup probe checks", print the core's own lines for the
+failed revision named in that error, in Cloud Shell:
+
+```bash
+gcloud logging read \
+  'resource.labels.revision_name="REVISION" AND labels.container_name="core"' \
+  --project "$LATTICE_PROJECT_ID" --freshness 1d --order asc \
+  --format 'value(timestamp.date("%H:%M:%S"), textPayload, jsonPayload.fields.message, jsonPayload.fields.reason, jsonPayload.fields.error)'
+```
+
+The last line, `Lattice Core stopped`, names the step:
 
 | Reason begins with | Check |
 | --- | --- |
@@ -197,6 +207,7 @@ that error and search for `Lattice Core stopped`. Its reason names the step:
 | `database` | The `PostgreSQL operation failed` line just before it: `No such file or directory` means the Cloud SQL connection (instance `lattice-db` running, `lattice-runtime` holding Cloud SQL Client); `SQLSTATE 28P01` means the `lattice-database-url` secret's password doesn't match the `lattice` user |
 | `database: its history is signed with a different key` | The `lattice-signing-seed` secret changed; deploy the version the database first started with |
 | `signing key` | The `lattice-signing-seed` secret must be base64 of 32 bytes |
+| `navigation map` | The core image's route maps; the image check before pushing should have caught this |
 
 Logs stay in your Google Cloud project; the workflow does not copy them.
 
