@@ -1,3 +1,65 @@
+/* Two-rover handoff: the run as a logic analyser, one channel per body. */
+.logic {
+  container: logic / inline-size;
+  max-width: 1040px;
+  margin: 32px 0 12px;
+}
+.logic svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  font-size: 14px;
+}
+.logic path {
+  fill: none;
+}
+.logic-axis path {
+  stroke: var(--rule);
+}
+.logic :where(svg text) {
+  fill: var(--graphite);
+  font-variant-numeric: tabular-nums;
+}
+.logic-axis text {
+  text-anchor: middle;
+}
+.logic svg :is(.logic-label, .logic-marker text) {
+  fill: var(--ink);
+  font-weight: 600;
+}
+.logic-base {
+  stroke: var(--rule);
+  stroke-dasharray: 2 4;
+}
+.logic-wave {
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+.logic-ink .logic-wave {
+  stroke: var(--ink);
+}
+.logic-body .logic-wave {
+  stroke: var(--body);
+  stroke-dasharray: 8 3;
+}
+/* The hold, hatched in the inspection colour as on the ladder. */
+.logic pattern path,
+.logic-held {
+  stroke: var(--hold);
+  stroke-width: 2;
+}
+.logic-held {
+  stroke-width: 1;
+}
+.logic-marker path {
+  stroke: var(--ink);
+  stroke-dasharray: 4 3;
+}
+@container logic (max-width: 600px) {
+  .logic svg {
+    font-size: 30px;
+  }
+}
 /* Rover to quadruped: each segment's needs against the bodies the planner assessed. */
 .matrix-plate {
   margin: 32px 0;
@@ -218,60 +280,16 @@
 }
 /* Chapter parts of the adaptive, capability and handoff stories, loaded with those stories.
    They use the shared tokens now and get their own redesign in a later phase. */
-.view-switch {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 0 0 16px;
-  padding: 0;
-  border: 0;
-}
-.view-switch [aria-pressed="true"] {
-  background: var(--ink);
-  color: var(--paper);
-}
-.replay-caption {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-  color: var(--graphite);
-  font-size: 0.8125rem;
-}
-.replay-caption p {
-  margin: 0;
-}
-.replay-caption > span {
-  padding: 2px 8px;
-  border: 1px solid var(--rule);
-}
-.replay-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 16px;
-  margin: 20px 0 16px;
-}
-.replay-controls > label {
-  flex: 1 1 200px;
-  color: var(--graphite);
-  font-size: 0.8125rem;
-}
-.replay-controls output {
-  float: right;
-  font-stretch: 112%;
-  font-variant-numeric: tabular-nums;
-}
-.replay-controls input {
+/* Two-rover handoff: the recorded memory query. */
+.recorded-memory-select {
   display: block;
-  width: 100%;
-  margin: 12px 0 0;
-  accent-color: var(--ink);
+  max-width: 400px;
+  margin: 24px 0;
+  color: var(--graphite);
 }
-.replay-controls select,
 .recorded-memory-select select {
   display: block;
+  width: 100%;
   min-height: 40px;
   margin-top: 4px;
   padding: 0 8px;
@@ -280,234 +298,8 @@
   background: var(--paper);
   color: var(--ink);
 }
-.replay-controls .speed-label {
-  flex: 0 0 auto;
-}
-.current-event {
-  margin: 24px 0;
-}
-.current-event p {
-  color: var(--graphite);
-  min-height: 3.2em;
-}
-.warehouse-map {
-  display: block;
-  width: 100%;
-  height: auto;
-  border: 1px solid var(--rule);
-  background: var(--film);
-}
-.warehouse-map text {
-  font-family: var(--sans);
-}
-.warehouse-floor {
-  fill: var(--film);
-  stroke: var(--ink);
-  stroke-width: 2;
-}
-.warehouse-shelf {
-  fill: var(--rule);
-  stroke: var(--ink);
-}
-.map-label {
-  fill: var(--graphite);
-  font-size: 12px;
-}
-.adaptive-map-label {
-  paint-order: stroke;
-  stroke: var(--film);
-  stroke-width: 4px;
-  stroke-linejoin: round;
-}
-.map-station {
-  fill: var(--film);
-  stroke: var(--ink);
-  stroke-width: 1.5;
-}
-.route-full {
-  fill: none;
-  stroke: var(--graphite);
-  stroke-width: 1.5;
-  stroke-dasharray: 2 5;
-}
-.route-played {
-  fill: none;
-  stroke: var(--ink);
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.map-rover,
-.rover-arrow {
-  fill: var(--ink);
-  stroke: var(--film);
-  stroke-width: 2;
-}
-.rover-halo {
-  fill: none;
-  stroke: var(--rule);
-}
-.capability-planned-edge {
-  stroke: var(--graphite);
-  stroke-width: 1.5;
-}
-.capability-elevation,
-.capability-video video {
-  border: 1px solid var(--rule);
-  background: var(--film);
-}
-.capability-elevation {
-  margin: 24px 0;
-}
-.capability-elevation svg,
-.capability-video video,
-.adaptive-retained img {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-.capability-elevation figcaption {
-  padding: 12px 16px 0;
-}
-.capability-video {
-  margin: 0 0 24px;
-}
-.capability-video figcaption,
-.adaptive-map figcaption,
-.adaptive-retained figcaption,
-.capability-elevation figcaption,
-.capability-video figcaption p {
-  color: var(--graphite);
-  font-size: 0.8125rem;
-  margin-top: 12px;
-}
-.capability-assessments,
-.capability-proof {
-  margin: 24px 0;
-}
-.capability-proof dt {
-  margin-top: 12px;
-  color: var(--graphite);
-}
-.capability-proof dd {
-  margin: 4px 0 0;
-  overflow-wrap: anywhere;
-}
-.adaptive-map,
-.adaptive-retained {
-  margin: 16px 0;
-}
-.adaptive-retained img {
-  border: 1px solid var(--rule);
-}
-.adaptive-place-number,
-.adaptive-place-legend {
-  display: none;
-}
-.adaptive-work-columns {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px;
-}
-.handoff-body-flow {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  margin: 24px 0;
-  padding: 20px;
-  border: 1px solid var(--rule);
-}
-.handoff-body-flow > div {
-  flex: 1;
-}
-.handoff-body-flow small,
-.handoff-story .event-track small {
-  display: block;
-  margin-top: 8px;
-  color: var(--graphite);
-}
-.body-a-dot,
-.body-b-dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  margin-right: 8px;
-  background: var(--ink);
-}
-.body-b-dot {
-  background: var(--body);
-}
-.handoff-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px 24px;
-  margin: 16px 0;
-  color: var(--graphite);
-  font-size: 0.8125rem;
-}
-.recorded-memory-select {
-  display: block;
-  max-width: 400px;
-  margin: 24px 0;
-  color: var(--graphite);
-}
-.recorded-memory-select select {
-  width: 100%;
-}
 .recorded-memory-empty {
   padding: 12px 16px;
   border-left: 3px solid var(--hold);
   color: var(--hold);
-}
-@media (max-width: 680px) {
-  .adaptive-map-label {
-    display: none;
-  }
-  .adaptive-map-station {
-    r: 23px;
-  }
-  .adaptive-place-number {
-    display: block;
-    fill: var(--ink);
-    font-size: 30px;
-  }
-  .adaptive-place-legend {
-    display: grid;
-    gap: 8px;
-    padding-left: 24px;
-  }
-  .adaptive-place-legend span {
-    color: var(--graphite);
-    white-space: nowrap;
-  }
-  .adaptive-work-columns {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .handoff-body-flow {
-    padding: 16px;
-    gap: 12px;
-  }
-}
-/* Until each story moves onto the shared chapter shell. */
-.chapter-nav > .eyebrow,
-.chapter-nav nav button > span,
-.chapter-heading .eyebrow {
-  display: none;
-}
-.chapter-nav nav:has(> :nth-child(2)[aria-current]) {
-  --at: 1;
-}
-.chapter-nav nav:has(> :nth-child(3)[aria-current]) {
-  --at: 2;
-}
-.chapter-nav nav:has(> :nth-child(4)[aria-current]) {
-  --at: 3;
-}
-.chapter-heading h2 {
-  font-size: 1.9375rem;
-  margin-bottom: 24px;
-}
-.chapter-content > p:not(.chapter-lead) {
-  color: var(--graphite);
-  max-width: 45em;
 }

@@ -1,6 +1,13 @@
-import './chapters/chapters.css';
 import './stories.css';
-import { Component, lazy, type ReactNode, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, useMemo, useState } from 'react';
+import { ChapterShell, type Opened, useChapters } from './chapters/ChapterShell';
+import { EvidencePlate } from './chapters/EvidencePlate';
+import { LogicTrace } from './chapters/LogicTrace';
+import { bodyReadouts, ReplayPanel } from './chapters/ReplayPanel';
+import { speeds } from './chapters/ReplayTrace';
+import { RouteSheet, TitleBlock } from './chapters/RouteSheet';
+import { handoffScene } from './drawing/scenes';
+import { minutes as fmt } from './format';
 import type { HandoffRecording } from './handoffTypes';
 
 const RecordedTwin = lazy(() => import('./RecordedTwin'));
@@ -10,11 +17,13 @@ const chapters = [
   'Shared memory',
   'Handoff proof',
 ] as const;
-const fmt = (time: number) =>
-  `${Math.floor(time / 60)}:${Math.floor(time % 60)
-    .toString()
-    .padStart(2, '0')}`;
-const stationName = (value: string) => value.replaceAll('_', ' ');
+const asset = (file: string) => `${import.meta.env.BASE_URL}demo/${file}`;
+const when = (iso: string) => new Date(iso).toLocaleString();
+const seconds = (value: number) => `${value.toFixed(1)} s`;
+const stationName = (value: string) => {
+  const name = value.replaceAll('_', ' ');
+  return name.charAt(0).toUpperCase() + name.slice(1);
+};
 const bodyName = (id: string, run: HandoffRecording) =>
   id === run.handoff.source_body_id
     ? 'Rover A'
@@ -22,392 +31,228 @@ const bodyName = (id: string, run: HandoffRecording) =>
       ? 'Rover B'
       : id;
 
-class ReplayBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
-  override state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  override render() {
-    return this.state.failed ? (
-      <p>3D rendering is unavailable. Choose Map view to continue the replay.</p>
-    ) : (
-      this.props.children
-    );
-  }
-}
-
 export default function HandoffStory({
   run,
+  opened,
 }: {
   readonly run: HandoffRecording;
-  readonly opened?: unknown;
+  readonly opened: Opened | null;
 }) {
-  const [chapter, setChapter] = useState(0);
-  const [time, setTime] = useState(0);
-  const [playing, setPlaying] = useState(false);
-  const [speed, setSpeed] = useState(2);
-  const [view, setView] = useState<'map' | '3d'>('map');
-  const heading = useRef<HTMLHeadingElement>(null);
-  useEffect(() => {
-    heading.current?.focus({ preventScroll: true });
-  }, []);
-  const event = run.events.findLast((item) => item.t <= time);
-  useEffect(() => {
-    if (!playing) return;
-    let frame = 0;
-    let previous = performance.now();
-    const tick = (now: number) => {
-      setTime((current) => Math.min(run.duration_s, current + ((now - previous) / 1000) * speed));
-      previous = now;
-      frame = requestAnimationFrame(tick);
-    };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [playing, run.duration_s, speed]);
-  useEffect(() => {
-    if (time >= run.duration_s) setPlaying(false);
-  }, [run.duration_s, time]);
-  function go(index: number) {
-    setChapter(index);
-    setPlaying(false);
-    setTimeout(() => heading.current?.focus(), 0);
-  }
+  const { chapter, go, heading } = useChapters(opened);
+  const scene = useMemo(() => handoffScene(run), [run]);
+  const series = useMemo(() => scene.tracks.map((track) => speeds(track.samples)), [scene]);
+  const since = (iso: string) => (Date.parse(iso) - Date.parse(run.recorded_at)) / 1000;
+  const held = run.events.find((event) => event.kind === 'handoff')?.t;
+  const approved = since(run.handoff.approved_at);
   return (
-    <section
-      className="visitor-workspace handoff-story"
-      aria-label="Two-rover continuation walkthrough"
-    >
-      <aside className="chapter-nav">
-        <p className="eyebrow">One objective, two bodies</p>
-        <nav aria-label="Two-rover chapters">
-          {chapters.map((name, index) => (
-            <button
-              type="button"
-              key={name}
-              aria-current={chapter === index ? 'step' : undefined}
-              className={chapter === index ? 'selected' : ''}
-              onClick={() => go(index)}
-            >
-              <span>{String(index + 1).padStart(2, '0')}</span>
-              {name}
-              <span aria-hidden="true">→</span>
-            </button>
-          ))}
-        </nav>
-        <div className="run-facts">
+    <ChapterShell
+      label="Two-rover continuation walkthrough"
+      className="handoff-story"
+      navLabel="Two-rover chapters"
+      chapters={chapters}
+      chapter={chapter}
+      go={go}
+      heading={heading}
+      back="Back to objective"
+      facts={
+        <>
           <span>Recorded {new Date(run.recorded_at).toLocaleDateString()}</span>
-          <span>
-            {fmt(run.duration_s)} elapsed · {run.outcome}
-          </span>
+          <span>{fmt(run.duration_s)} elapsed</span>
           {Object.entries(run.distance_by_body_m).map(([id, distance]) => (
             <span key={id}>
-              {bodyName(id, run)} · {distance.toFixed(1)} m reported path
+              {bodyName(id, run)}: {distance.toFixed(1)} m reported path
             </span>
           ))}
-          <a href={`${import.meta.env.BASE_URL}demo/handoff.json`} download>
-            Download the handoff run →
+          <a href={asset('handoff.json')} download>
+            Download the handoff run
           </a>
-        </div>
-      </aside>
-      <div className="chapter-content" id="chapter">
-        <div className="chapter-heading">
-          <p className="eyebrow">{String(chapter + 1).padStart(2, '0')} / 04</p>
-          <h2 ref={heading} tabIndex={-1}>
-            {chapters[chapter]}
-          </h2>
-        </div>
-        {chapter === 0 && (
-          <>
-            <p className="chapter-lead">
-              The body changes. The objective and its evidence survive.
-            </p>
-            <p>
-              Rover A inspects the bay, then begins the next leg. An operator holds its round and
-              reviews a transfer. After A’s execution window closes, rover B receives the remaining
-              steps and acknowledges the retained observation context.
-            </p>
-            <div className="handoff-body-flow">
-              <div>
-                <span className="body-a-dot" />
-                Rover A<small>Observes the bay · retires its command</small>
-              </div>
-              <span aria-hidden="true">→</span>
-              <div>
-                <span className="body-b-dot" />
-                Rover B<small>Acknowledges context · completes the round</small>
-              </div>
+        </>
+      }
+    >
+      {chapter === 0 && (
+        <>
+          <p className="chapter-lead">The body changes. The objective and its evidence survive.</p>
+          <p>
+            Rover A inspects the bay, then begins the next leg. An operator holds its round and
+            reviews a transfer. After A’s execution window closes, rover B receives the remaining
+            steps and acknowledges the retained observation context.
+          </p>
+          <RouteSheet
+            caption="One objective, two bodies"
+            columns={['Step', 'Operation and command', 'Carried out by']}
+            steps={run.steps.map((step, index) => {
+              const before = index < run.handoff.completed_steps;
+              return {
+                title: step.title,
+                command: step.command,
+                done: before,
+                continues: !before && step.continue_on_missing_marker,
+                detail: (
+                  <>
+                    <strong>{before ? 'Rover A' : 'Rover B'}</strong>
+                    {before
+                      ? 'Completed before the handoff; its evidence stays in shared memory'
+                      : step.continue_on_missing_marker
+                        ? 'A validated no-marker image records an anomaly and the round continues'
+                        : 'Continued under the reviewed transfer'}
+                  </>
+                ),
+              };
+            })}
+            block={[
+              ['Round', <code key="r">{run.round_id}</code>],
+              ['Plan digest, SHA-256', <code key="d">{run.digest}</code>, 'wide'],
+            ]}
+            notes={[
+              <>
+                <strong>What this demonstrates.</strong> Continuity between two independently
+                executing simulated rover instances in one warehouse. This run uses the same body
+                type and adapter; transfer to a quadruped, drone or physical robot requires separate
+                validation.
+              </>,
+            ]}
+          />
+        </>
+      )}
+      {chapter === 1 && (
+        <>
+          <ReplayPanel
+            caption="Recorded map-frame telemetry from both body instances"
+            scene={scene}
+            label="Recorded paths of rover A and rover B in the shared warehouse map"
+            twin={(time) => <RecordedTwin run={run} time={time} />}
+            duration={run.duration_s}
+            events={run.events}
+            series={series}
+            name="Handoff replay time"
+            play="Play handoff replay"
+            pause="Pause handoff replay"
+            eventsLabel="Jump to a handoff event"
+            speeds={[1, 2, 4]}
+            initialSpeed={2}
+            idle={{
+              title: 'Two bodies registered',
+              detail: 'The operator-authored round is ready for explicit approval.',
+            }}
+            readouts={(time) => bodyReadouts(scene, time)}
+          />
+          <p className="scope-note">
+            Interactive replay of measured simulation poses. The reconstructed scene does not show
+            live robots or generate new camera observations.
+          </p>
+        </>
+      )}
+      {chapter === 2 && <RecordedMemory run={run} />}
+      {chapter === 3 && (
+        <>
+          <p className="chapter-lead">The second body receives an objective with a past.</p>
+          <LogicTrace
+            label={`Rover A moves until the handoff hold at ${seconds(held ?? 0)}, then stands; rover B starts after the approval at ${seconds(approved)}`}
+            duration={run.duration_s}
+            channels={scene.tracks.map((track, index) => ({
+              label: track.label,
+              tone: track.tone,
+              speeds: series[index] ?? [],
+            }))}
+            held={held === undefined ? null : { from: held, to: approved }}
+            markers={[
+              ...(held === undefined
+                ? []
+                : [{ t: held, label: `Held for handoff, ${seconds(held)}` }]),
+              { t: approved, label: `Approved, ${seconds(approved)}` },
+            ]}
+          />
+          <p className="scope-note">
+            Each channel is high while that rover’s recorded poses show it moving. The hatched band
+            is the time rover A’s work was held for review.
+          </p>
+          <dl className="readouts">
+            <div>
+              <dt>Rover A stopped in</dt>
+              <dd>{run.handoff.source_stop_observed_after_s.toFixed(2)} s</dd>
             </div>
-            <ol className="brief-steps">
-              {run.steps.map((step, index) => (
-                <li key={step.title}>
-                  <span className="step-number">{index + 1}</span>
-                  <div>
-                    <h3>{step.title}</h3>
-                    <p>
-                      {index < run.handoff.completed_steps
-                        ? 'Completed before handoff; its evidence stays in shared memory.'
-                        : step.continue_on_missing_marker
-                          ? 'Continued by rover B; a validated no-marker image records an anomaly.'
-                          : 'Continued by rover B under the reviewed transfer.'}
-                    </p>
-                    <code>{JSON.stringify(step.command)}</code>
-                  </div>
-                </li>
-              ))}
-            </ol>
-            <div className="callout">
-              <strong>What this demonstrates</strong>
-              <p>
-                Continuity between two independently executing simulated rover instances in one
-                warehouse. This run uses the same body type and adapter; transfer to a quadruped,
-                drone or physical robot requires separate validation.
-              </p>
+            <div>
+              <dt>Drift after stopping</dt>
+              <dd>{(run.handoff.post_stop_drift_m * 100).toFixed(1)} cm</dd>
             </div>
-            <button type="button" className="visitor-button primary" onClick={() => go(1)}>
-              Watch the two-body continuation →
-            </button>
-          </>
-        )}
-        {chapter === 1 && (
-          <>
-            <div className="replay-caption">
-              <p>Recorded map-frame telemetry · both body instances</p>
-              <span>{run.outcome}</span>
+            <div>
+              <dt>Steps transferred</dt>
+              <dd>{run.handoff.remaining_steps}</dd>
             </div>
-            <fieldset className="view-switch" aria-label="Two-rover replay view">
-              <button
-                type="button"
-                className="visitor-button quiet"
-                aria-pressed={view === 'map'}
-                onClick={() => setView('map')}
-              >
-                Map view
-              </button>
-              <button
-                type="button"
-                className="visitor-button quiet"
-                aria-pressed={view === '3d'}
-                onClick={() => setView('3d')}
-              >
-                3D replay
-              </button>
-            </fieldset>
-            {view === 'map' ? (
-              <HandoffMap run={run} time={time} />
-            ) : (
-              <ReplayBoundary>
-                <Suspense fallback={<p>Loading the two-rover reconstruction…</p>}>
-                  <RecordedTwin run={run} time={time} />
-                </Suspense>
-              </ReplayBoundary>
-            )}
-            <div className="handoff-legend">
-              <span>
-                <i className="body-a-dot" />
-                Rover A · source
-              </span>
-              <span>
-                <i className="body-b-dot" />
-                Rover B · continuation
-              </span>
+            <div>
+              <dt>Anomalies recorded</dt>
+              <dd>{run.anomaly_count}</dd>
             </div>
-            <div className="replay-controls">
-              <button
-                type="button"
-                className="visitor-button"
-                onClick={() => {
-                  if (time >= run.duration_s) setTime(0);
-                  setPlaying((value) => !value);
-                }}
-              >
-                {playing ? 'Pause handoff replay' : 'Play handoff replay'}
-              </button>
-              <label>
-                Handoff replay time
-                <output>
-                  {fmt(time)} / {fmt(run.duration_s)}
-                </output>
-                <input
-                  aria-label="Handoff replay time"
-                  type="range"
-                  min={0}
-                  max={run.duration_s}
-                  step="any"
-                  value={time}
-                  onChange={(event) => {
-                    setTime(Number(event.target.value));
-                    setPlaying(false);
-                  }}
-                />
-              </label>
-              <label className="speed-label">
-                Speed
-                <select value={speed} onChange={(event) => setSpeed(Number(event.target.value))}>
-                  <option value={1}>1×</option>
-                  <option value={2}>2×</option>
-                  <option value={4}>4×</option>
-                </select>
-              </label>
-            </div>
-            <div className="current-event">
-              <p className="eyebrow">Recorded event</p>
-              <h3>{event?.title ?? 'Two bodies registered'}</h3>
-              <p>
-                {event?.detail ?? 'The operator-authored round is ready for explicit approval.'}
-              </p>
-            </div>
-            <nav className="event-track" aria-label="Jump to a handoff event">
-              {run.events.map((item) => (
-                <button
-                  type="button"
-                  key={`${item.t}-${item.kind}-${item.title}-${item.detail}`}
-                  className={item.t <= time ? 'reached' : ''}
-                  onClick={() => {
-                    setTime(item.t);
-                    setPlaying(false);
-                  }}
-                >
-                  <time>{fmt(item.t)}</time>
-                  <span>{item.title}</span>
-                  <small>{item.kind}</small>
-                </button>
-              ))}
-            </nav>
-            <p className="scope-note">
-              Interactive replay of measured simulation poses. The reconstructed scene does not show
-              live robots or generate new camera observations.
-            </p>
-          </>
-        )}
-        {chapter === 2 && <RecordedMemory run={run} />}
-        {chapter === 3 && (
-          <>
-            <p className="chapter-lead">The second body receives an objective with a past.</p>
-            <div className="recovery-metrics">
-              <div>
-                <strong>
-                  {run.handoff.source_stop_observed_after_s.toFixed(2)}
-                  <small> s</small>
-                </strong>
-                <span>until source motion was observed stopped</span>
-              </div>
-              <div>
-                <strong>
-                  {(run.handoff.post_stop_drift_m * 100).toFixed(1)}
-                  <small> cm</small>
-                </strong>
-                <span>reported source drift after stopping</span>
-              </div>
-              <div>
-                <strong>{run.handoff.remaining_steps}</strong>
-                <span>remaining reviewed steps transferred</span>
-              </div>
-            </div>
-            <ol className="recovery-sequence">
-              <li>
-                <span>01</span>
-                <div>
-                  <h3>Hold the round and retire A’s command</h3>
-                  <p>
-                    The proposal freezes source, target, completed steps and observation references.
-                    The old body loses execution renewal; approval waits through its signed command
-                    window and stop margin.
-                  </p>
-                </div>
-              </li>
-              <li>
-                <span>02</span>
-                <div>
-                  <h3>Approve the exact continuation</h3>
-                  <p>
-                    An operator approves the immutable digest. The core rechecks B’s availability
-                    and capabilities before dispatching the remaining task.
-                  </p>
-                </div>
-              </li>
-              <li>
-                <span>03</span>
-                <div>
-                  <h3>B acknowledges the shared context</h3>
-                  <p>
-                    The target checks the signed context and acknowledges its digest. The original
-                    image remains historical evidence; the new inspection produces its own frame and
-                    result.
-                  </p>
-                </div>
-              </li>
-            </ol>
-            <div className="callout">
-              <strong>
-                {run.outcome === 'completed'
-                  ? 'The recorded round completed.'
-                  : `Recorded outcome: ${run.outcome}.`}
-              </strong>
-              <p>
-                {run.anomaly_count} recorded {run.anomaly_count === 1 ? 'anomaly' : 'anomalies'}.{' '}
-                {run.observations.length} camera observations retained across the two bodies.
-              </p>
-            </div>
-            <details>
-              <summary>Inspect the recorded approval and acknowledgement</summary>
-              <dl>
-                <dt>Round</dt>
-                <dd>
-                  <code>{run.round_id}</code>
-                </dd>
-                <dt>Plan digest</dt>
-                <dd>
-                  <code>{run.digest}</code>
-                </dd>
-                <dt>Handoff</dt>
-                <dd>
-                  <code>{run.handoff.id}</code>
-                </dd>
-                <dt>Context digest acknowledged by B</dt>
-                <dd>
-                  <code>{run.handoff.context_digest}</code>
-                </dd>
-                <dt>Source / target</dt>
-                <dd>
-                  <code>
-                    {run.handoff.source_body_id} → {run.handoff.target_body_id}
-                  </code>
-                </dd>
-                <dt>Earliest approval</dt>
-                <dd>{new Date(run.handoff.not_before_at).toLocaleString()}</dd>
-                <dt>Approved</dt>
-                <dd>{new Date(run.handoff.approved_at).toLocaleString()}</dd>
-                <dt>Context acknowledged</dt>
-                <dd>{new Date(run.handoff.context_acknowledged_at).toLocaleString()}</dd>
-              </dl>
-            </details>
-            <p className="scope-note">
-              Measured in this simulator run. Reported stop time and drift are observations from
-              this recording, not hardware timing guarantees. Shared context contains retained
-              observation references, not a learned world model.
-            </p>
-          </>
-        )}
-        <div className="chapter-footer">
-          <button
-            type="button"
-            className="visitor-button quiet"
-            disabled={chapter === 0}
-            onClick={() => go(chapter - 1)}
-          >
-            ← Previous
-          </button>
-          <span>{chapters[chapter]}</span>
-          <button
-            type="button"
-            className="visitor-button"
-            onClick={() => go(chapter === chapters.length - 1 ? 0 : chapter + 1)}
-          >
-            {chapter === chapters.length - 1 ? 'Back to objective' : 'Next chapter'} →
-          </button>
-        </div>
-      </div>
-    </section>
+          </dl>
+          <RouteSheet
+            caption="Transfer record"
+            columns={['Step', 'Check', 'Recorded']}
+            steps={[
+              {
+                title: 'Hold the round and retire A’s command',
+                text: 'The proposal freezes source, target, completed steps and observation references. The old body loses execution renewal; approval waits through its signed command window and stop margin.',
+                detail: (
+                  <>
+                    {held !== undefined && (
+                      <span className="sheet-line">Held at {seconds(held)}</span>
+                    )}
+                    <span className="sheet-line">
+                      Window closed at {seconds(since(run.handoff.not_before_at))}
+                    </span>
+                  </>
+                ),
+              },
+              {
+                title: 'Approve the exact continuation',
+                text: 'An operator approves the immutable digest. The core rechecks B’s availability and capabilities before dispatching the remaining task.',
+                detail: `Approved at ${seconds(approved)}`,
+              },
+              {
+                title: 'B acknowledges the shared context',
+                text: 'The target checks the signed context and acknowledges its digest. The original image remains historical evidence; the new inspection produces its own frame and result.',
+                detail: `Acknowledged at ${seconds(since(run.handoff.context_acknowledged_at))}`,
+              },
+            ]}
+            block={[
+              ['Handoff', <code key="h">{run.handoff.id}</code>],
+              [
+                'Outcome',
+                run.outcome === 'completed'
+                  ? `Completed, with ${run.observations.length} camera observations kept across both bodies`
+                  : `Recorded outcome: ${run.outcome}`,
+              ],
+            ]}
+          />
+          <details>
+            <summary>Inspect the recorded approval and acknowledgement</summary>
+            <TitleBlock
+              cells={[
+                ['Round', <code key="r">{run.round_id}</code>],
+                [
+                  'Source and target',
+                  <code key="s">
+                    {run.handoff.source_body_id}, then {run.handoff.target_body_id}
+                  </code>,
+                ],
+                [
+                  'Context digest acknowledged by B',
+                  <code key="c">{run.handoff.context_digest}</code>,
+                  'wide',
+                ],
+                ['Earliest approval', when(run.handoff.not_before_at)],
+                ['Approved', when(run.handoff.approved_at)],
+                ['Context acknowledged', when(run.handoff.context_acknowledged_at)],
+              ]}
+            />
+          </details>
+          <p className="scope-note">
+            Measured in this simulator run. Reported stop time and drift are observations from this
+            recording, not hardware timing guarantees. Shared context contains retained observation
+            references, not a learned world model.
+          </p>
+        </>
+      )}
+    </ChapterShell>
   );
 }
 
@@ -440,7 +285,7 @@ function RecordedMemory({ run }: { readonly run: HandoffRecording }) {
         >
           {stations.map((location) => (
             <option value={location} key={location}>
-              Safety marker at {stationName(location)}
+              Safety marker at {location.replaceAll('_', ' ')}
             </option>
           ))}
         </select>
@@ -452,150 +297,75 @@ function RecordedMemory({ run }: { readonly run: HandoffRecording }) {
       )}
       <div className="camera-grid">
         {shown.map((observation) => (
-          <figure key={observation.id}>
-            <div className="camera-label">
-              <span className={observation.outcome === 'detected' ? 'success' : 'anomaly'}>
-                {observation.outcome === 'detected'
-                  ? 'Last positive sighting'
-                  : 'No supported marker'}
-              </span>
-              <span>{bodyName(observation.body_id, run)}</span>
-            </div>
-            <img
-              src={`${import.meta.env.BASE_URL}demo/${observation.image}`}
-              width={320}
-              height={240}
-              alt={`Recorded ${bodyName(observation.body_id, run)} camera at ${stationName(observation.location)}; ${observation.outcome === 'detected' ? 'marker detected' : 'no supported marker detected'}`}
-            />
-            <figcaption>
-              <h3>{stationName(observation.location)}</h3>
+          <EvidencePlate
+            key={observation.id}
+            src={asset(observation.image)}
+            alt={`Recorded ${bodyName(observation.body_id, run)} camera at ${observation.location.replaceAll('_', ' ')}; ${observation.outcome === 'detected' ? 'marker detected' : 'no supported marker detected'}`}
+            title={stationName(observation.location)}
+            status={
+              observation.outcome === 'detected' ? 'Last positive sighting' : 'No supported marker'
+            }
+            found={observation.outcome === 'detected'}
+            box={observation.detections?.[0]?.box}
+            label={bodyName(observation.body_id, run)}
+            block={[
+              ['Captured', when(observation.captured_at)],
+              [
+                'Detector score',
+                observation.confidence === null
+                  ? 'No detection score'
+                  : `${(observation.confidence * 100).toFixed(1)}%`,
+              ],
+            ]}
+          >
+            {observation.confidence === null && (
+              <p>This image does not establish absence across the entire station.</p>
+            )}
+            <p className="scope-note">{observation.confidence_domain}</p>
+            <details>
+              <summary>Shared observation provenance</summary>
               <p>
-                {observation.confidence === null
-                  ? 'No detection score. This image does not establish absence across the entire station.'
-                  : `Detector score ${(observation.confidence * 100).toFixed(1)}%.`}
+                Subject: <code>{observation.subject_key}</code>
               </p>
-              <p className="scope-note">{observation.confidence_domain}</p>
               <p>
-                Captured{' '}
-                <time dateTime={observation.captured_at}>
-                  {new Date(observation.captured_at).toLocaleString()}
-                </time>
+                Model: <code>{observation.model_id}</code>
               </p>
-              <details>
-                <summary>Shared observation provenance</summary>
-                <p>
-                  Subject: <code>{observation.subject_key}</code>
-                </p>
-                <p>
-                  Model: <code>{observation.model_id}</code>
-                </p>
-                <p>
-                  Body: <code>{observation.body_id}</code>
-                </p>
-                <p>
-                  Observation: <code>{observation.id}</code>
-                </p>
-                <p>
-                  Mission: <code>{observation.mission_id}</code>
-                </p>
-                <p>
-                  Command: <code>{observation.command_id}</code>
-                </p>
-                <p>Received: {new Date(observation.received_at).toLocaleString()}</p>
-                <p>
-                  Observer pose in {observation.map_frame}:{' '}
-                  {observation.observer_pose
-                    ? `x ${observation.observer_pose.x.toFixed(2)} m, y ${observation.observer_pose.y.toFixed(2)} m, yaw ${observation.observer_pose.yaw.toFixed(2)} rad`
-                    : 'not available'}
-                </p>
-                <code>JPEG SHA-256: {observation.image_sha256}</code>
-                <code>Frame SHA-256: {observation.frame_sha256}</code>
-              </details>
-              <a href={`${import.meta.env.BASE_URL}demo/${observation.image}`} download>
-                Original recorded image →
-              </a>
-            </figcaption>
-          </figure>
+              <p>
+                Body: <code>{observation.body_id}</code>
+              </p>
+              <p>
+                Observation: <code>{observation.id}</code>
+              </p>
+              <p>
+                Mission: <code>{observation.mission_id}</code>
+              </p>
+              <p>
+                Command: <code>{observation.command_id}</code>
+              </p>
+              <p>Received: {when(observation.received_at)}</p>
+              <p>
+                Observer pose in {observation.map_frame}:{' '}
+                {observation.observer_pose
+                  ? `x ${observation.observer_pose.x.toFixed(2)} m, y ${observation.observer_pose.y.toFixed(2)} m, yaw ${observation.observer_pose.yaw.toFixed(2)} rad`
+                  : 'not available'}
+              </p>
+              <code>JPEG SHA-256: {observation.image_sha256}</code>
+              <code>Frame SHA-256: {observation.frame_sha256}</code>
+            </details>
+            <a href={asset(observation.image)} download>
+              Original recorded image
+            </a>
+          </EvidencePlate>
         ))}
       </div>
-      <div className="callout">
-        <strong>History with provenance</strong>
+      <section className="limits" aria-labelledby="memory-title">
+        <h3 id="memory-title">History with provenance</h3>
         <p>
           These images were captured during the recorded missions. Scrubbing the replay does not
           create a new frame. The map position belongs to the observing rover; it does not locate
           the marker in 3D.
         </p>
-      </div>
+      </section>
     </>
-  );
-}
-
-function HandoffMap({ run, time }: { readonly run: HandoffRecording; readonly time: number }) {
-  const xy = (pose: { x: number; y: number }) =>
-    `${(pose.x + 5) * 68 + 30},${(4 - pose.y) * 48 + 28}`;
-  return (
-    <svg
-      className="warehouse-map"
-      viewBox="0 0 740 440"
-      role="img"
-      aria-label="Recorded paths of rover A and rover B in the shared warehouse map"
-    >
-      <rect x="30" y="28" width="680" height="384" className="warehouse-floor" />
-      <rect
-        x={30 + 6.65 * 68}
-        y={28 + 3.1 * 48}
-        width={0.7 * 68}
-        height={1.8 * 48}
-        className="warehouse-shelf"
-      />
-      <text x="506" y="279" className="map-label" textAnchor="middle">
-        Occupied shelf
-      </text>
-      {[
-        { x: 0, y: 2.5, name: 'Inspection bay' },
-        { x: 3.5, y: 0, name: 'Loading dock' },
-        { x: -3, y: -2, name: 'Charging station' },
-      ].map((station) => (
-        <g key={station.name} transform={`translate(${xy(station)})`}>
-          <circle r="10" className="map-station" />
-          <text y="-20" textAnchor="middle" className="map-label">
-            {station.name}
-          </text>
-        </g>
-      ))}
-      {[run.handoff.source_body_id, run.handoff.target_body_id].map((id, index) => {
-        const poses = run.poses.filter((pose) => pose.body_id === id);
-        const current = poses.findLast((pose) => pose.t <= time) ?? poses[0];
-        const color = index === 0 ? 'var(--ink)' : 'var(--body)';
-        return (
-          <g key={id}>
-            <polyline points={poses.map(xy).join(' ')} className="route-full" />
-            <polyline
-              points={poses
-                .filter((pose) => pose.t <= time)
-                .map(xy)
-                .join(' ')}
-              className="route-played"
-              style={{ stroke: color }}
-            />
-            {current && (
-              <g transform={`translate(${xy(current)})`}>
-                <circle r="20" className="rover-halo" />
-                <g transform={`rotate(${(-current.yaw * 180) / Math.PI})`}>
-                  <circle r="9" className="map-rover" style={{ fill: color }} />
-                  <path d="M0 -5L19 0L0 5" className="rover-arrow" style={{ fill: color }} />
-                </g>
-                <text y="32" textAnchor="middle" className="map-label" style={{ fill: color }}>
-                  {bodyName(id, run)}
-                </text>
-              </g>
-            )}
-          </g>
-        );
-      })}
-      <text x="47" y="395" className="map-label">
-        10 × 8 m · shared map frame · recorded poses
-      </text>
-    </svg>
   );
 }
