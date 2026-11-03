@@ -12,6 +12,10 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 10001 lattice
 COPY --from=build /workspace/target/release/${PACKAGE} /usr/local/bin/service
-COPY --from=build --chmod=0444 /workspace/simulation/routes/*.json /app/routes/
+# The maps stay owned by root and read-only. Their modes are set here, not with COPY --chmod:
+# current BuildKit applies that mode to the directories the copy creates too, and a 0444
+# /app/routes cannot be entered, so the service user could not open any map.
+COPY --from=build /workspace/simulation/routes/*.json /app/routes/
+RUN chmod 0755 /app /app/routes && chmod 0444 /app/routes/*.json
 USER lattice
 ENTRYPOINT ["/usr/local/bin/service"]
