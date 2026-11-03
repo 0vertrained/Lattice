@@ -1088,11 +1088,22 @@
       fill 0.15s,
       stroke 0.15s;
   }
+  /* A newly held round's hatching slides in across its coil. */
+  .coil[data-hold][data-in] .hatch {
+    transform-box: fill-box;
+    animation: hatch-in 0.2s ease-out calc(var(--i) * 0.11s) backwards;
+  }
   .block,
   .link::before {
     transition:
       background-color 0.15s,
       border-color 0.15s;
+  }
+}
+@keyframes hatch-in {
+  from {
+    transform: translateX(-40%);
+    opacity: 0;
   }
 }
 @keyframes sweep-in {
