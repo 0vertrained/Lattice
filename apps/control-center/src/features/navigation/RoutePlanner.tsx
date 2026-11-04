@@ -16,6 +16,7 @@ import { ReplanPanel } from './ReplanPanel';
 import { CandidateAssessments } from './RouteAssessments';
 import { RouteConditionsPanel } from './RouteConditions';
 import { RouteGraph } from './RouteGraph';
+import './navigation.css';
 
 export function RoutePlanner({
   bodies,

@@ -1,5 +1,7 @@
 import { Canvas } from '@react-three/fiber';
 import type { Body } from '../../core/api/schemas';
+import { type Tokens, useTokens } from '../../ink/tokens';
+import './twin.css';
 
 interface DigitalTwinProps {
   readonly bodies: readonly Body[];
@@ -8,12 +10,15 @@ interface DigitalTwinProps {
 function BodyMesh({
   body,
   position,
+  tone,
 }: {
   readonly body: Body;
   readonly position: [number, number, number];
+  readonly tone: Tokens;
 }) {
   const active = body.status === 'online';
-  const color = active ? '#55c4ff' : '#536171';
+  // Body blue says which body; a body that is not online is drawn in graphite.
+  const color = active ? tone.body : tone.graphite;
 
   return (
     <group position={position} rotation={[0, body.pose?.yaw ?? 0, 0]} scale={0.45}>
@@ -75,7 +80,7 @@ function BodyMesh({
             [-0.38, 0.38].map((z) => (
               <mesh key={`${x}:${z}`} position={[x, -0.25, z]} rotation={[Math.PI / 2, 0, 0]}>
                 <cylinderGeometry args={[0.18, 0.18, 0.16, 20]} />
-                <meshStandardMaterial color="#1e2936" />
+                <meshStandardMaterial color={tone.ink} />
               </mesh>
             )),
           )}
@@ -83,28 +88,30 @@ function BodyMesh({
       )}
       <mesh position={[0, -0.39, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.45, 0.58, 32]} />
-        <meshBasicMaterial color={active ? '#2c9bd2' : '#343f4b'} transparent opacity={0.55} />
+        <meshBasicMaterial color={active ? tone.clear : tone.graphite} transparent opacity={0.6} />
       </mesh>
     </group>
   );
 }
 
 export function DigitalTwin({ bodies }: DigitalTwinProps) {
+  const tone = useTokens();
   return (
-    <section className="panel digital-twin" aria-labelledby="digital-twin-title">
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">Normalized fleet state</p>
-          <h2 id="digital-twin-title">Digital twin</h2>
-        </div>
-        <span>Warehouse · map frame · metres</span>
-      </div>
-      <div className="twin-canvas" role="img" aria-label="Three-dimensional fleet overview">
-        <Canvas camera={{ position: [6, 6, 8], fov: 42 }}>
-          <color attach="background" args={['#071019']} />
-          <ambientLight intensity={0.8} />
-          <directionalLight position={[4, 8, 5]} intensity={1.6} />
-          <gridHelper args={[12, 12, '#29465d', '#172837']} />
+    <section className="plate twin-plate" aria-labelledby="digital-twin-title">
+      <header className="plate-head">
+        <h2 id="digital-twin-title">3D view</h2>
+        <p className="note">Measured poses in the warehouse map frame, in metres.</p>
+      </header>
+      <div
+        className="twin-canvas"
+        role="img"
+        aria-label="Three-dimensional view of the warehouse with each body at its last reported pose"
+      >
+        <Canvas frameloop="demand" camera={{ position: [6, 6, 8], fov: 42 }}>
+          <color attach="background" args={[tone.film]} />
+          <ambientLight intensity={0.9} />
+          <directionalLight position={[4, 8, 5]} intensity={1.4} />
+          <gridHelper key={tone.graphite} args={[12, 12, tone.graphite, tone.rule]} />
           {/* ROS map x/y becomes Three.js x/-z; only measured poses are rendered. */}
           {bodies
             .filter((body) => body.pose != null)
@@ -112,12 +119,13 @@ export function DigitalTwin({ bodies }: DigitalTwinProps) {
               <BodyMesh
                 key={body.id}
                 body={body}
+                tone={tone}
                 position={[body.pose?.x ?? 0, (body.pose?.z ?? 0) + 0.25, -(body.pose?.y ?? 0)]}
               />
             ))}
           <mesh position={[2, 0.5, 0]}>
             <boxGeometry args={[0.7, 1, 1.8]} />
-            <meshStandardMaterial color="#475569" />
+            <meshStandardMaterial color={tone.graphite} />
           </mesh>
           {[
             [3.5, 0],
@@ -130,22 +138,21 @@ export function DigitalTwin({ bodies }: DigitalTwinProps) {
               rotation={[-Math.PI / 2, 0, 0]}
             >
               <ringGeometry args={[0.25, 0.35, 24]} />
-              <meshBasicMaterial color="#7dd3fc" />
+              <meshBasicMaterial color={tone.ink} />
             </mesh>
           ))}
         </Canvas>
       </div>
-      <div className="twin-legend">
+      <ul className="twin-legend">
         {bodies.map((body) => (
-          <span key={body.id}>
-            <i className={body.status === 'online' ? 'online-dot' : 'offline-dot'} />
+          <li key={body.id} data-online={body.status === 'online' ? '' : undefined}>
             {body.display_name}
-            {body.pose == null ? ' · no localization' : ''}
-            {body.pose?.z != null ? ` · z ${body.pose.z.toFixed(2)} m` : ''}
-          </span>
+            {body.pose == null && ', no pose reported'}
+            {body.pose?.z != null && `, ${body.pose.z.toFixed(2)} m up`}
+          </li>
         ))}
-        {bodies.length === 0 && <span>Start a body adapter to populate the scene.</span>}
-      </div>
+        {bodies.length === 0 && <li>Start a body adapter to see it here.</li>}
+      </ul>
     </section>
   );
 }

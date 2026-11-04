@@ -1,0 +1,233 @@
+/* Route planning, conditions and replans; loads with the routes section. Redrawn in phase 6. */
+.route-planner {
+  overflow-wrap: anywhere;
+}
+.route-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr);
+  align-items: start;
+  gap: 24px;
+  margin: 24px 0;
+}
+.route-map-pane,
+.route-form-pane {
+  min-width: 0;
+}
+.route-note,
+.route-graph figcaption,
+.route-map-legend {
+  color: var(--graphite);
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+.route-map-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 0.875rem;
+}
+.route-map-heading span {
+  color: var(--graphite);
+}
+.route-graph {
+  margin: 0;
+}
+.route-graph svg {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+}
+.route-graph figcaption {
+  margin-top: 10px;
+  font-size: 0.8125rem;
+}
+.route-edge {
+  stroke: var(--graphite);
+  stroke-width: 3;
+}
+.route-edge.stairs {
+  stroke: var(--hold);
+}
+.route-edge.selected {
+  stroke: var(--ink);
+  stroke-width: 6;
+}
+.route-edge.closed {
+  stroke: var(--stop);
+  stroke-dasharray: 8 7;
+}
+.route-direction {
+  fill: var(--ink);
+}
+.route-place > circle {
+  fill: var(--film);
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+.route-place .route-transfer-ring {
+  fill: none;
+  stroke: var(--body);
+}
+.route-place text {
+  fill: var(--ink);
+  font-size: 14px;
+}
+.route-place .route-elevation {
+  fill: var(--graphite);
+  font-size: 12px;
+}
+.route-map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+.route-controls {
+  display: grid;
+  gap: 12px;
+}
+.route-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.route-review,
+.route-transfer-recommendation {
+  min-width: 0;
+  margin: 16px 0;
+  padding: 20px;
+  border: 1px solid var(--ink);
+  border-top-width: 3px;
+  background: var(--paper);
+}
+.route-review h3,
+.route-review h4,
+.route-plan-history h3 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+.route-review h4 {
+  margin-top: 20px;
+}
+.route-explanation,
+.route-assignments,
+.route-candidates ul {
+  padding-left: 22px;
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+.route-assignments li {
+  margin: 10px 0;
+}
+.route-assignments span,
+.route-assignments small,
+.route-plan-history small {
+  display: block;
+  margin-top: 4px;
+  color: var(--graphite);
+}
+.route-transfer-list,
+.route-candidate-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.route-transfer-list article,
+.route-candidates article,
+.route-condition-cards article,
+.route-condition-history article {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+.route-candidates article p,
+.route-transfer-list article p {
+  margin: 8px 0;
+}
+.route-candidates article small,
+.route-transfer-list article small {
+  color: var(--graphite);
+}
+.route-candidates,
+.route-binding {
+  margin: 16px 0;
+}
+.route-conditions,
+.route-replanning {
+  min-width: 0;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--rule);
+}
+.route-condition-cards,
+.route-condition-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+}
+.route-condition-history article {
+  margin-top: 12px;
+}
+.route-condition-form {
+  max-width: 700px;
+  margin: 24px 0;
+}
+.route-condition-form h4 {
+  margin: 0;
+}
+.route-replan-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+.route-replan-summary strong {
+  display: block;
+  font-size: 1.5625rem;
+  font-stretch: 112%;
+  font-variant-numeric: tabular-nums;
+}
+.route-replan-summary span {
+  color: var(--graphite);
+  font-size: 0.8125rem;
+}
+.route-retained-missions {
+  padding-left: 20px;
+  overflow-wrap: anywhere;
+}
+.route-plan-history {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--rule);
+}
+.route-plan-history article {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: 0.875rem;
+}
+@media (max-width: 900px) {
+  .route-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 480px) {
+  .route-plan-history article,
+  .route-review .actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .route-replan-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -112,7 +112,7 @@ async function startPage(browser, role, scenario = {}) {
     );
     return reply({ code: 'unknown_fixture_endpoint', message: endpoint }, 404);
   });
-  await page.goto(new URL('operator.html', base).href);
+  await page.goto(new URL('operator.html#continuity', base).href);
   await page.getByLabel('Development API key').fill('browser-fixture-key-'.repeat(3));
   await page.getByRole('button', { name: 'Connect to local core', exact: true }).click();
   await page.getByRole('heading', { name: 'Observation memory', exact: true }).waitFor();

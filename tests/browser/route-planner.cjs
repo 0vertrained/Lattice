@@ -149,7 +149,7 @@ async function startPage(browser, role, options = {}) {
     if (endpoint === '/observations/last-seen') return reply({ subject_key: 'fixture', last_seen: null, later_negative: null, queried_at: iso(), explanation: 'No fixture observation.' });
     return reply({ code: 'unknown_fixture_endpoint', message: endpoint }, 404);
   });
-  await page.goto(new URL('operator.html', base).href);
+  await page.goto(new URL('operator.html#routes', base).href);
   await page.getByLabel('Development API key').fill('isolated-browser-fixture-key-'.repeat(3));
   await page.getByRole('button', { name: 'Connect to local core', exact: true }).click();
   const panel = page.getByRole('region', { name: 'Capability route planner', exact: true });
@@ -158,6 +158,11 @@ async function startPage(browser, role, options = {}) {
   return { page, panel, context, state };
 }
 
+/** Opens a console section from the rail and waits for its heading. */
+async function openSection(page, name) {
+  await page.getByRole('navigation', { name: 'Console sections' }).getByRole('link', { name: new RegExp(`^${name}`) }).click();
+  await page.getByRole('heading', { level: 1, name, exact: true }).waitFor();
+}
 async function prepareRoute(test) {
   await test.panel.getByLabel('Starting body').selectOption('rover');
   await test.panel.getByLabel('Starting place').selectOption('bay');
@@ -183,8 +188,11 @@ async function finish(test) {
     assert.equal(await viewer.panel.getByRole('button', { name: 'Approve reviewed route', exact: true }).count(), 0);
     await viewer.panel.getByText(/Missing stairs for/).waitFor();
     await viewer.panel.getByText('Heartbeat is stale.', { exact: true }).waitFor();
+    await openSection(viewer.page, 'Continuity');
     await viewer.page.getByRole('heading', { name: 'Recommended capability transfer', exact: true }).waitFor();
     assert.equal(await viewer.page.getByRole('button', { name: 'Pause source and review handoff', exact: true }).count(), 0);
+    await openSection(viewer.page, 'Rounds');
+    await viewer.page.getByRole('region', { name: 'Inspection round', exact: true }).getByText('Recovery required').first().waitFor();
     assert.equal(await viewer.page.getByRole('button', { name: 'Abandon held round', exact: true }).count(), 0);
     assert.equal(viewer.state.mutations.length, 0, 'Viewing recommendation must never pause or approve');
     await finish(viewer);
@@ -247,6 +255,7 @@ async function finish(test) {
 
     for (const absent of [false, true]) {
       const unavailable = await startPage(browser, 'operator', { active: true, unstaged: true, absent });
+      await openSection(unavailable.page, 'Continuity');
       const handoffs = unavailable.page.getByRole('region', { name: 'Reviewed handoff', exact: true });
       await handoffs.getByText('Planned receiving body is not at the transfer point.', { exact: true }).waitFor();
       assert.equal(await handoffs.getByRole('button', { name: 'Pause source and review handoff', exact: true }).isDisabled(), true);
@@ -255,6 +264,7 @@ async function finish(test) {
     }
 
     const ready = await startPage(browser, 'operator', { active: true });
+    await openSection(ready.page, 'Continuity');
     const handoffs = ready.page.getByRole('region', { name: 'Reviewed handoff', exact: true });
     await handoffs.getByRole('heading', { name: 'Recommended capability transfer', exact: true }).waitFor();
     assert.equal(await handoffs.getByLabel('Receiving body').inputValue(), 'quadruped');
@@ -268,6 +278,7 @@ async function finish(test) {
     await finish(ready);
 
     const held = await startPage(browser, 'operator', { active: true, held: true });
+    await openSection(held.page, 'Rounds');
     const roundPanel = held.page.getByRole('region', { name: 'Inspection round', exact: true });
     await roundPanel.getByRole('button', { name: 'Abandon held round', exact: true }).click();
     await roundPanel.getByText(/abandoning does not authorize new motion/).waitFor();

@@ -5,11 +5,7 @@ import { useApproveProposal } from '../../core/api/queries';
 import type { Proposal, SkillCommand } from '../../core/api/schemas';
 import { missionApprovalMachine } from './missionApprovalMachine';
 
-interface MissionComposerProps {
-  readonly onCreated: () => void;
-}
-
-export function MissionComposer({ onCreated }: MissionComposerProps) {
+export function MissionComposer() {
   const approve = useApproveProposal();
   const [snapshot, send] = useMachine(missionApprovalMachine);
   const [mode, setMode] = useState<'language' | 'manual'>('language');
@@ -176,10 +172,7 @@ export function MissionComposer({ onCreated }: MissionComposerProps) {
                   if (snapshot.matches('failed')) send({ type: 'RETRY' });
                   send({ type: 'AUTHORIZE' });
                   approve.mutate(proposal, {
-                    onSuccess: () => {
-                      send({ type: 'SUCCESS' });
-                      onCreated();
-                    },
+                    onSuccess: () => send({ type: 'SUCCESS' }),
                     onError: () => send({ type: 'FAILURE' }),
                   });
                 }}
