@@ -32,6 +32,13 @@ export function HandoffPanel({
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, []);
+  // The once-a-second clock can leave approval closed for up to a second after it may open.
+  useEffect(() => {
+    const wait = review ? Date.parse(review.not_before_at) - Date.now() : 0;
+    if (wait <= 0) return;
+    const timer = window.setTimeout(() => setNow(Date.now()), wait + 20);
+    return () => window.clearTimeout(timer);
+  }, [review]);
   const rounds = useQuery({
     queryKey: ['rounds', 'handoff'],
     queryFn: async () => z.array(handoffRoundSchema).parse(await apiClient.request('/rounds')),
