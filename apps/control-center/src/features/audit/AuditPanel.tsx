@@ -14,11 +14,8 @@ export function AuditPanel({ records }: AuditPanelProps) {
   return (
     <section className="panel" aria-labelledby="audit-title">
       <div className="section-heading">
-        <div>
-          <p className="eyebrow">Decision provenance</p>
-          <h2 id="audit-title">Audit trail</h2>
-        </div>
-        <span>Latest {Math.min(records.length, 8)}</span>
+        <h2 id="audit-title">Audit trail</h2>
+        <span className="figures">Latest {Math.min(records.length, 8)}</span>
       </div>
       <div className="audit-list">
         {records

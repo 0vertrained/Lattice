@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { apiClient } from '../../core/api/apiClient';
 import { useApproveProposal } from '../../core/api/queries';
 import type { Body, Mission, Proposal } from '../../core/api/schemas';
+import { GuardedAction } from '../guard/GuardedAction';
+import { humanize, StatusChip } from '../status';
 
 interface MissionListProps {
   readonly missions: readonly Mission[];
@@ -15,11 +17,8 @@ export function MissionList({ missions, bodies, canOperate }: MissionListProps) 
   return (
     <section className="panel mission-panel" aria-labelledby="missions-title">
       <div className="section-heading">
-        <div>
-          <p className="eyebrow">Durable objectives</p>
-          <h2 id="missions-title">Missions</h2>
-        </div>
-        <span>{missions.length} total</span>
+        <h2 id="missions-title">Mission list</h2>
+        <span className="figures">{missions.length} total</span>
       </div>
 
       <div className="mission-list">
@@ -30,9 +29,7 @@ export function MissionList({ missions, bodies, canOperate }: MissionListProps) 
                 <strong>{mission.title}</strong>
                 <small>{bodyNames.get(mission.assigned_body_id ?? '') ?? 'Awaiting body'}</small>
               </div>
-              <span className={`status-pill ${mission.status}`}>
-                {mission.status.replaceAll('_', ' ')}
-              </span>
+              <StatusChip status={mission.status} />
             </div>
             <div className="command-summary">
               <code>{mission.command.type}</code>
@@ -40,10 +37,10 @@ export function MissionList({ missions, bodies, canOperate }: MissionListProps) 
             </div>
             {mission.command.type === 'traverse_route' && (
               <p className="mission-detail">
-                {mission.command.traversal.from.id.replaceAll('_', ' ')} →{' '}
-                {mission.command.traversal.to.id.replaceAll('_', ' ')} ·{' '}
-                {mission.command.traversal.required_capabilities.join(', ')} required ·{' '}
-                {mission.command.traversal.max_speed_mps} m/s maximum
+                From {mission.command.traversal.from.id.replaceAll('_', ' ')} to{' '}
+                {mission.command.traversal.to.id.replaceAll('_', ' ')}, needs{' '}
+                {mission.command.traversal.required_capabilities.join(' and ')}, at most{' '}
+                {mission.command.traversal.max_speed_mps} m/s
               </p>
             )}
             <progress value={mission.progress_pct} max={100} />
@@ -59,11 +56,14 @@ export function MissionList({ missions, bodies, canOperate }: MissionListProps) 
                   {mission.evidence.detections.length === 0
                     ? 'No supported marker detected.'
                     : mission.evidence.detections
-                        .map((d) => `${d.label}: ${(d.confidence * 100).toFixed(1)}%`)
+                        .map(
+                          (d) =>
+                            `${humanize(d.label)} found, ${(d.confidence * 100).toFixed(1)}% confidence`,
+                        )
                         .join(', ')}
                   <small>{mission.evidence.confidence_domain}</small>
                   <small>
-                    Captured {new Date(mission.evidence.captured_at_ms).toLocaleTimeString()} ·{' '}
+                    Captured {new Date(mission.evidence.captured_at_ms).toLocaleTimeString()} by{' '}
                     {mission.evidence.model_id}
                   </small>
                 </figcaption>
@@ -134,13 +134,16 @@ function RecoveryReview({ mission }: { readonly mission: Mission }) {
           {busy ? 'Preparing review…' : proposal ? 'Refresh recovery review' : 'Review recovery'}
         </button>
         {proposal && (
-          <button
-            type="button"
-            disabled={busy || approve.isPending || expired}
-            onClick={() => approve.mutate(proposal)}
-          >
-            {approve.isPending ? 'Authorizing…' : 'Approve recovery'}
-          </button>
+          <GuardedAction
+            label="Approve recovery"
+            confirmLabel="Confirm recovery"
+            consequence="Approving sends this recovery command to the held body and resumes its work."
+            pending={approve.isPending}
+            pendingLabel="Authorizing…"
+            disabled={busy || expired}
+            confirmDisabled={busy || expired}
+            onConfirm={() => approve.mutate(proposal)}
+          />
         )}
       </div>
       {(error || approve.error) && (

@@ -1,0 +1,46 @@
+/* An armed action sits in a frame under caution tape: lane yellow and ink to approve, red and paper to retire. */
+.guard {
+  --tape: var(--lane);
+  --tape-ground: #0f1a22;
+  position: relative;
+  margin: 12px 0 0;
+  padding: 26px 20px 20px;
+  border: 1px solid var(--ink);
+  background: var(--paper);
+}
+.guard[data-danger] {
+  --tape: var(--stop);
+  --tape-ground: var(--paper);
+}
+.guard::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 8px;
+  background: repeating-linear-gradient(-45deg, var(--tape) 0 8px, var(--tape-ground) 8px 16px);
+}
+.guard-consequence {
+  max-width: 44em;
+}
+.console-main .guard-confirm:enabled {
+  outline-offset: 3px;
+}
+.console-main .guard[data-danger] .guard-confirm {
+  border-color: var(--stop);
+  background: var(--stop);
+  color: var(--paper);
+}
+.console-main .guard[data-danger] .guard-confirm:hover:enabled {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .guard::before {
+    animation: tape-in 0.2s ease-out;
+  }
+  @keyframes tape-in {
+    from {
+      clip-path: inset(0 100% 0 0);
+    }
+  }
+}

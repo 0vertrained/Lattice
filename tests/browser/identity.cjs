@@ -32,6 +32,7 @@ const {chromium}=require('../../apps/control-center/node_modules/playwright');
   if(headerBypass.status()!==401)throw new Error('Development authentication accepted in OIDC mode');
   await admin.page.getByRole('button',{name:'Hide credential',exact:true}).click();
   await admin.page.getByRole('button',{name:'Revoke Warehouse simulator',exact:true}).first().click();
+  await admin.page.getByRole('button',{name:'Confirm revoke',exact:true}).click();await admin.page.getByText('Revoked',{exact:true}).first().waitFor();
   const revoked=await http.get('http://localhost:5173/api/v1/security/verification-key',{headers:deviceHeaders});
   if(revoked.status()!==401)throw new Error(`Revoked credential: ${revoked.status()}`);
   const viewer=await login('viewer');await open(viewer.page,'Missions');await viewer.page.getByRole('heading',{name:'Observe the fleet'}).waitFor();
