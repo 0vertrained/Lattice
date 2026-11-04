@@ -1,8 +1,9 @@
 import './twin.css';
 import { Canvas, useThree } from '@react-three/fiber';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { BufferGeometry, Line, LineBasicMaterial, Vector3 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { useTokens } from '../ink/tokens';
 
 interface RecordedPath {
   poses: { t: number; x: number; y: number; yaw: number; body_id?: string }[];
@@ -46,28 +47,6 @@ function Trail({
   );
   return <primitive object={line} />;
 }
-const tokenNames = ['film', 'paper', 'ink', 'graphite', 'rule', 'clear', 'hold', 'body'] as const;
-type Tokens = Record<(typeof tokenNames)[number], string>;
-const readTokens = (): Tokens => {
-  const style = getComputedStyle(document.documentElement);
-  return Object.fromEntries(
-    tokenNames.map((name) => [name, style.getPropertyValue(`--${name}`).trim() || '#808080']),
-  ) as Tokens;
-};
-/** The page's colour tokens, read again whenever the theme changes. */
-function useTokens() {
-  const [tokens, setTokens] = useState(readTokens);
-  useEffect(() => {
-    const observer = new MutationObserver(() => setTokens(readTokens()));
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['data-theme'],
-    });
-    return () => observer.disconnect();
-  }, []);
-  return tokens;
-}
-
 export default function RecordedTwin({ run, time }: { run: RecordedPath; time: number }) {
   const tone = useTokens();
   const bodies = useMemo(

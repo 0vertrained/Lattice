@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from 'react';
-import { LatticeMark } from './LatticeMark';
-import { useTheme } from './theme';
+import { LatticeMark } from '../ink/LatticeMark';
+import { ThemeToggle } from '../ink/ThemeToggle';
 
 export function SiteHeader({
   source,
@@ -9,7 +9,6 @@ export function SiteHeader({
   readonly source: string;
   readonly operator: boolean;
 }) {
-  const [theme, toggleTheme] = useTheme();
   const [open, setOpen] = useState(false);
   const menu = useId();
   useEffect(() => {
@@ -54,19 +53,7 @@ export function SiteHeader({
       >
         Menu
       </button>
-      <button
-        type="button"
-        className="theme-toggle"
-        aria-pressed={theme === 'dark'}
-        title="Dark theme"
-        onClick={toggleTheme}
-      >
-        <svg viewBox="0 0 20 20" aria-hidden="true">
-          <circle cx="10" cy="10" r="7.25" />
-          <path d="M10 2.75a7.25 7.25 0 0 1 0 14.5z" />
-        </svg>
-        <span className="visually-hidden">Dark theme</span>
-      </button>
+      <ThemeToggle />
     </header>
   );
 }
