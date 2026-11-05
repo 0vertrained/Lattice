@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { apiClient } from '../../core/api/apiClient';
 import { evidenceSchema } from '../../core/api/schemas';
+import { StatusChip } from '../status';
 import { locationLabel, type Observation, observationTime } from './observation';
 
 export function ObservationCard({
@@ -26,9 +27,10 @@ export function ObservationCard({
     <article className="observation-card" id={`observation-${observation.id}`}>
       <div className="card-title-row">
         <strong>{locationLabel(observation.location)}</strong>
-        <span className={`status-pill ${detected ? 'succeeded' : 'interrupted'}`}>
-          {detected ? 'Marker detected' : 'No marker detected'}
-        </span>
+        <StatusChip
+          status={detected ? 'succeeded' : 'interrupted'}
+          label={detected ? 'Marker detected' : 'No marker detected'}
+        />
       </div>
       <dl>
         <div>
@@ -63,7 +65,7 @@ export function ObservationCard({
           <dt>Observer position in {observation.map_frame}</dt>
           <dd>
             {observation.observer_pose
-              ? `x ${observation.observer_pose.x.toFixed(2)} m · y ${observation.observer_pose.y.toFixed(2)} m · yaw ${observation.observer_pose.yaw.toFixed(2)} rad`
+              ? `x ${observation.observer_pose.x.toFixed(2)} m, y ${observation.observer_pose.y.toFixed(2)} m, yaw ${observation.observer_pose.yaw.toFixed(2)} rad`
               : 'No observer pose recorded'}
           </dd>
         </div>
@@ -99,7 +101,7 @@ export function ObservationCard({
               alt={`${bodyName} camera at ${locationLabel(observation.location)}; ${detected ? 'safety marker detected' : 'no supported marker detected'}`}
             />
             <figcaption>
-              Original inspection evidence ·{' '}
+              Original inspection evidence,{' '}
               <time dateTime={observation.captured_at}>
                 {observationTime(observation.captured_at)}
               </time>

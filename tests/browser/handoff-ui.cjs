@@ -139,7 +139,7 @@ async function startPage(browser, role, scenario = {}) {
     await memory.getByText(evidence.image_sha256, { exact: true }).first().waitFor();
     assert.equal(viewer.mutations.length, 0, 'Viewer must never mutate memory or execution');
     const viewerHandoff = viewer.page.getByRole('region', { name: 'Reviewed handoff', exact: true });
-    await viewerHandoff.getByText('Warehouse rover A → Warehouse rover B', { exact: true }).waitFor();
+    await viewerHandoff.getByText('Warehouse rover A to Warehouse rover B', { exact: true }).waitFor();
     assert.equal(await viewerHandoff.getByRole('button').count(), 0, 'Viewer must have no handoff controls');
     await viewer.page.setViewportSize({ width: 390, height: 844 });
     assert.equal(await viewer.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, 'Mobile layout must not overflow');
@@ -160,12 +160,16 @@ async function startPage(browser, role, scenario = {}) {
     await operator.page.waitForTimeout(3300);
     assert.equal(await approve.isEnabled(), true);
     assert.equal(operator.mutations.length, 1, 'Proposing a handoff must not automatically approve it');
-    await review.getByText(`Retained image · ${positive.id}`, { exact: true }).click();
+    await review.getByText(`Retained image from ${positive.id}`, { exact: true }).click();
     await review.getByRole('img').waitFor();
     await approve.click();
+    assert.equal(operator.mutations.length, 1, 'Arming a handoff sends nothing');
+    const confirm = review.getByRole('button', { name: 'Confirm handoff', exact: true });
+    await confirm.click();
     await handoffs.getByRole('alert').filter({ hasText: 'Receiving body heartbeat is stale' }).waitFor();
     assert.equal(operator.mutations.length, 2);
     await approve.click();
+    await confirm.click();
     await handoffs.getByText(/Handoff approved\. Follow/).waitFor();
     await handoffs.getByText(/Context acknowledged/).waitFor();
     assert.equal(operator.mutations.length, 3);
