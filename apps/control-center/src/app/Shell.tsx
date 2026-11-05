@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useBodies, useMissions } from '../core/api/queries';
 import type { Body, Mission } from '../core/api/schemas';
 import type { AuthConfig } from '../core/auth/oidc';
+import { SectionActivity } from '../core/sectionActivity';
 import { useRounds } from '../features/missions/rounds';
 import { LatticeMark } from '../ink/LatticeMark';
 import { ThemeToggle } from '../ink/ThemeToggle';
@@ -187,15 +188,17 @@ export function Shell({
                     </h1>
                     <p>{section.summary}</p>
                   </header>
-                  <Suspense
-                    fallback={
-                      <p className="section-loading" role="status">
-                        Loading {section.title.toLowerCase()}…
-                      </p>
-                    }
-                  >
-                    <SectionContent id={section.id} {...props} />
-                  </Suspense>
+                  <SectionActivity.Provider value={section.id === current}>
+                    <Suspense
+                      fallback={
+                        <p className="section-loading" role="status">
+                          Loading {section.title.toLowerCase()}…
+                        </p>
+                      }
+                    >
+                      <SectionContent id={section.id} {...props} />
+                    </Suspense>
+                  </SectionActivity.Provider>
                 </section>
               ),
           )}

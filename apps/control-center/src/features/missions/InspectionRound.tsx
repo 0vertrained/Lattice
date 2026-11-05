@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { apiClient } from '../../core/api/apiClient';
+import { useSectionActive } from '../../core/sectionActivity';
 import { GuardedAction } from '../guard/GuardedAction';
 import { StatusChip } from '../status';
 import { type Round, type RoundStep, roundSchema, useRounds } from './rounds';
@@ -43,7 +44,7 @@ export function InspectionRound({ canOperate }: { readonly canOperate: boolean }
   const [review, setReview] = useState<Round | null>(null);
   const [abandonReview, setAbandonReview] = useState<Round | null>(null);
   const [abandoned, setAbandoned] = useState(false);
-  const rounds = useRounds(true, 2_000);
+  const rounds = useRounds(useSectionActive(), 2_000);
   const refresh = async () => {
     await client.invalidateQueries({ queryKey: ['rounds'] });
     await client.invalidateQueries({ queryKey: ['missions'] });

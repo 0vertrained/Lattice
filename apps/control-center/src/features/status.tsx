@@ -23,6 +23,10 @@ const tones: Readonly<Record<string, Tone>> = {
   approving: 'lane',
   approved: 'clear',
   expired: 'off',
+  blocked: 'stop',
+  clear: 'clear',
+  ready: 'clear',
+  excluded: 'off',
 };
 
 export const toneOf = (status: string): Tone => tones[status] ?? 'off';

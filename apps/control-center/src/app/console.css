@@ -357,6 +357,15 @@ progress {
   margin: 0;
   font-size: 0.8125rem;
 }
+/* A plate's text and controls sit inside its frame, under its head. */
+.plate-intro,
+.plate-body {
+  margin: 0;
+  padding: 0 24px 24px;
+}
+.plate-intro {
+  max-width: 46em;
+}
 .card-title-row strong,
 .card-title-row small {
   display: block;
@@ -734,6 +743,10 @@ progress {
   .body-head,
   .plate-head {
     padding: 16px 16px 12px;
+  }
+  .plate-intro,
+  .plate-body {
+    padding: 0 16px 16px;
   }
   .body-readouts {
     padding: 14px 16px 20px;

@@ -82,9 +82,6 @@
   margin-bottom: 12px;
   font-size: 1.25rem;
 }
-.actions > .guard {
-  flex-basis: 100%;
-}
 .round-log {
   padding: 24px 24px 8px;
 }
