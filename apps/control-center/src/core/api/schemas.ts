@@ -178,6 +178,14 @@ export const auditRecordSchema = z.object({
   event_type: z.string(),
   object_id: z.string(),
   metadata: z.unknown(),
+  /** The record's place in the hash-chained log, from 1. */
+  position: z.number().int().positive().optional(),
+  /** Stored hash of the record before, as hex; null for the first record. */
+  previous_hash: z.string().nullable().optional(),
+  /** Stored hash of this record, as hex. */
+  record_hash: z.string().optional(),
+  /** The core recomputed this record's hash and its link to the record before. */
+  verified: z.boolean().optional(),
 });
 
 export type Body = z.infer<typeof bodySchema>;
