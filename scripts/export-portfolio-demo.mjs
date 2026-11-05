@@ -19,7 +19,8 @@ if (existsSync(destination) && !existsSync(marker)) throw new Error('Refusing to
 mkdirSync(destination, { recursive: true });
 // This directory contains only this script's generated build; source portfolio files are untouched.
 for (const file of readdirSync(destination)) rmSync(path.join(destination, file), { recursive: true, force: true });
-for (const file of ['index.html', 'assets', 'demo']) cpSync(path.join(output, file), path.join(destination, file), { recursive: true });
+// theme.js must be a same-origin file (the CSP forbids inline scripts) and sets the theme before first paint.
+for (const file of ['index.html', 'theme.js', 'favicon.svg', 'assets', 'demo']) cpSync(path.join(output, file), path.join(destination, file), { recursive: true });
 writeFileSync(marker, 'Generated from 0vertrained/Lattice using scripts/export-portfolio-demo.mjs\n');
 writeFileSync(path.join(destination, 'operator.html'), '<!doctype html><html lang="en"><meta charset="utf-8"><title>Lattice operator service</title><main><h1>Operator hosting is being connected.</h1><a href="./">Explore the public recorded tour</a></main></html>');
 console.log(`Exported public walkthrough to ${destination}`);
