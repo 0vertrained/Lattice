@@ -61,9 +61,11 @@ export function RouteRanking({
         </tbody>
       </table>
       <p className="route-note">
-        {routes.length === 1
-          ? 'The search reached no other route to the destination that avoids revisiting a place.'
-          : 'In the planner’s own order: fewer body changes first, then the shorter summed straight-line distance between places. Only the selected route can be approved.'}
+        {plan.search.length === 0
+          ? 'This plan was made before the planner recorded its search, so it lists no alternatives.'
+          : routes.length === 1
+            ? 'The search reached no other route to the destination that avoids revisiting a place.'
+            : 'In the planner’s own order: fewer body changes first, then the shorter summed straight-line distance between places. Only the selected route can be approved.'}
       </p>
     </section>
   );

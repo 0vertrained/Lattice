@@ -77,8 +77,10 @@ export function AuditPanel({ records, page, loading, failure }: AuditPanelProps)
       </header>
       <p className="plate-intro">
         Each record carries the SHA-256 of the record before it, so changing or removing one breaks
-        every link after it. The core recomputed each hash below from the stored record and the one
-        before it.
+        every link after it.{' '}
+        {rows.length > 0 && chained.length === 0
+          ? 'This core returns no links. Deploy the current core to draw and check the chain.'
+          : 'The core recomputed each hash below from the stored record and the one before it.'}
       </p>
       {failure && (
         <p className="plate-intro notice error" role="alert">
