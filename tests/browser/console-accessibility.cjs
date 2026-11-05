@@ -117,7 +117,12 @@ async function open(browser, viewport, colorScheme, polled = []) {
         for (const section of ['Fleet', 'Rounds', 'Missions', 'Routes', 'Continuity', 'Audit', 'Devices']) {
           await rail.getByRole('link', { name: new RegExp(`^${section}`) }).click();
           await page.getByRole('heading', { level: 1, name: section, exact: true }).waitFor();
-          // Focus follows the operator's move to the section's heading.
+          // Focus follows the operator's move to the section's heading. The move arrives with the
+          // hashchange event, a task after the click, and the open section's heading is already
+          // showing, so wait for the focus rather than read it before the event.
+          await page
+            .waitForFunction((name) => document.activeElement?.textContent === name, section, { timeout: 5_000 })
+            .catch(() => {});
           assert.equal(await page.evaluate(() => document.activeElement?.textContent), section);
           await page.waitForTimeout(400);
           await check(page, `${where} ${section}`);
