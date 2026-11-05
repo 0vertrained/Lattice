@@ -124,7 +124,7 @@ async function openReview(test) { await test.continuity.getByRole('button', { na
   try {
     const viewer = await startPage(browser, 'viewer', { saved: true });
     assert.equal(await viewer.conditions.getByRole('button').count(), 0);
-    await viewer.conditions.getByText(/Laser scan · nearest reported obstacle 0.52 m · 17 blocked samples/).first().waitFor();
+    await viewer.conditions.getByText(/Laser scan: nearest reported obstacle 0.52 m, 17 blocked samples/).first().waitFor();
     await viewer.conditions.getByText('Condition provenance', { exact: true }).first().click();
     await viewer.conditions.getByText(sensorReport.evidence.scan_sha256, { exact: true }).first().waitFor();
     await openReview(viewer);
@@ -141,12 +141,14 @@ async function openReview(test) { await test.continuity.getByRole('button', { na
     assert.equal(await review.locator('.route-assignments').first().locator('li').count(), 1, 'Completed prefix stays separate');
     assert.equal(await review.locator('.route-assignments').nth(1).locator('li').count(), 4, 'New suffix shows the detour and future transfer');
     await review.getByText('Retained evidence and mission history', { exact: true }).click();
-    await review.getByText('Retained image · observation-bay', { exact: true }).click();
+    await review.getByText('Retained image from observation-bay', { exact: true }).click();
     await review.getByRole('img', { name: 'Retained camera evidence from observation observation-bay', exact: true }).waitFor();
     await operator.page.setViewportSize({ width: 390, height: 844 });
     assert.equal(await operator.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false);
     await operator.continuity.screenshot({ path: '/tmp/lattice-adaptive-review-mobile.png' });
     await review.getByRole('button', { name: 'Approve reviewed continuation', exact: true }).click();
+    assert.equal(operator.state.mutations.length, 1, 'Arming a continuation sends nothing');
+    await review.getByRole('button', { name: 'Confirm continuation', exact: true }).click();
     await operator.continuity.getByText(/The updated route was approved for the same objective/).waitFor();
     assert.deepEqual(operator.state.mutations.map((item) => item.endpoint), [`/rounds/${round.id}/replan-proposal`, `/replans/${replan.id}/approve`]);
     assert.equal(operator.state.rounds[0].id, round.id);
@@ -220,8 +222,12 @@ async function openReview(test) { await test.continuity.getByRole('button', { na
     await openReview(fenced);
     const approve = fenced.continuity.getByRole('button', { name: 'Approve reviewed continuation', exact: true });
     assert.equal(await approve.isDisabled(), true, 'Source fence blocks approval');
+    await fenced.continuity.getByText(/Execution fence until/).waitFor();
+    assert.match(await fenced.continuity.locator('.fence [role="status"]').textContent(), /^This continuation can be approved in 10 seconds or less\.$/, 'The fence speaks at ten-second marks');
     await fenced.page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent === 'Approve reviewed continuation' && !button.disabled));
+    await fenced.continuity.getByText(/The execution fence ended at/).waitFor();
     await approve.click();
+    await fenced.continuity.getByRole('button', { name: 'Confirm continuation', exact: true }).click();
     await fenced.continuity.getByRole('alert').filter({ hasText: 'fresh source heartbeat after the stop fence' }).waitFor();
     assert.equal(fenced.state.mutations.length, 1, 'Readiness rejection must not retry automatically');
     fenced.state.replans[0].status = 'invalidated';
@@ -236,6 +242,6 @@ async function openReview(test) { await test.continuity.getByRole('button', { na
     assert.equal(await roundChanged.continuity.getByRole('button', { name: 'Approve reviewed continuation', exact: true }).isDisabled(), true);
     assert.equal(roundChanged.state.mutations.length, 0);
     await finish(roundChanged);
-    console.log('PASS: read-only sensor provenance, explicit condition reporting, compare-and-clear revision freeze, no auto-resume/replan, preserved completed prefix and evidence, new detour assignments, exact digest approval, source fence/readiness rejection, condition/round revision invalidation, expiry, ungrounded-source refusal and 390px layout');
+    console.log('PASS: read-only sensor provenance, explicit condition reporting, compare-and-clear revision freeze, no auto-resume/replan, preserved completed prefix and evidence, new detour assignments, exact digest approval, source fence timer and readiness rejection, armed and confirmed approval, condition/round revision invalidation, expiry, ungrounded-source refusal and 390px layout');
   } finally { await browser.close(); }
 })().catch((error) => { console.error(error); process.exitCode = 1; });

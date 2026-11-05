@@ -1,21 +1,28 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { z } from 'zod';
 import { apiClient } from '../../core/api/apiClient';
 import type { Body } from '../../core/api/schemas';
+import { useSectionActive } from '../../core/sectionActivity';
+import { FenceTimer } from '../guard/FenceTimer';
+import { GuardedAction } from '../guard/GuardedAction';
+import { useReached } from '../guard/useReached';
 import type { HandoffStep } from '../handoff/handoff';
 import { RetainedEvidence } from '../handoff/RetainedEvidence';
 import { observationTime } from '../memory/observation';
+import { StatusChip } from '../status';
 import type { RouteConditions } from './conditions';
 import type { SemanticMap } from './navigation';
 import { CandidateAssessments } from './RouteAssessments';
-import { RouteGraph } from './RouteGraph';
+import { RouteMap, SearchSteps } from './RouteMap';
+import { RouteRanking } from './RouteRanking';
 import {
   type ReplanRound,
   type RouteReplan,
   replanRoundSchema,
   routeReplanSchema,
 } from './replans';
+import { routeNames, speed } from './routeNames';
 
 export function ReplanPanel({
   map,
@@ -31,22 +38,20 @@ export function ReplanPanel({
   readonly conditionsUnavailable: boolean;
 }) {
   const client = useQueryClient();
+  const active = useSectionActive();
   const [roundId, setRoundId] = useState('');
   const [review, setReview] = useState<RouteReplan | null>(null);
   const [approved, setApproved] = useState(false);
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
   const rounds = useQuery({
     queryKey: ['rounds', 'replan'],
     queryFn: async () => z.array(replanRoundSchema).parse(await apiClient.request('/rounds')),
+    enabled: active,
     refetchInterval: 2000,
   });
   const history = useQuery({
     queryKey: ['route-replans'],
     queryFn: async () => z.array(routeReplanSchema).parse(await apiClient.request('/replans')),
+    enabled: active,
     refetchInterval: 2000,
     retry: false,
   });
@@ -94,6 +99,8 @@ export function ReplanPanel({
     },
     onError: refresh,
   });
+  const expired = useReached(review?.expires_at);
+  const fenceOpen = useReached(review?.not_before_at);
   const held =
     rounds.data?.filter((round) => round.route_plan_id && round.status === 'recovery_required') ??
     [];
@@ -106,10 +113,6 @@ export function ReplanPanel({
       currentRound &&
       (currentRound.digest !== review.round_digest || currentRound.status !== 'recovery_required'),
   );
-  const expired = review !== null && now >= Date.parse(review.expires_at);
-  const waitSeconds = review
-    ? Math.max(0, Math.ceil((Date.parse(review.not_before_at) - now) / 1000))
-    : 0;
   const conditionsChanged = Boolean(
     review &&
       (conditionsUnavailable ||
@@ -120,87 +123,96 @@ export function ReplanPanel({
   const mapChanged = Boolean(
     review?.plan && (review.plan.map_id !== map.id || review.plan.map_revision !== map.revision),
   );
-  const bodyName = (id: string) => bodies.find((body) => body.id === id)?.display_name ?? id;
+  const names = routeNames(map, bodies);
+  const { bodyName, placeName } = names;
   const liveSource = bodies.find((body) => body.id === review?.source_body_id);
-  const placeName = (id: string) =>
-    map.places.find((place) => place.id === id)?.label ?? id.replaceAll('_', ' ');
   const error = prepare.error ?? approve.error ?? rounds.error ?? history.error;
+  const blockedApproval =
+    expired ||
+    !fenceOpen ||
+    conditionsChanged ||
+    mapChanged ||
+    roundChanged ||
+    !currentRound ||
+    status !== 'pending';
   return (
-    <section className="route-replanning" aria-labelledby="route-replanning-heading">
-      <div className="section-heading">
+    <section className="plate route-replanning" aria-labelledby="route-replanning-heading">
+      <header className="plate-head">
         <div>
-          <p className="eyebrow">Keep completed work when the route changes</p>
-          <h3 id="route-replanning-heading">Continue a held objective</h3>
+          <h2 id="route-replanning-heading">Continue a held objective</h2>
+          <p className="note">A fresh review of the remaining route; completed work is kept</p>
         </div>
-        <span className="status-pill">Fresh review required</span>
-      </div>
-      <p className="route-note">
-        Prepare a new route for the remaining work while preserving the original destination,
-        completed steps and observation history. The objective stays held until an operator approves
-        the exact new review. A later body change still requires its own handoff approval.
-      </p>
-      {!canOperate && (
+      </header>
+      <div className="plate-body">
         <p className="route-note">
-          Viewer access: inspect saved continuity reviews and retained evidence. An operator
-          prepares and approves a replacement route.
+          Prepare a new route for the remaining work while keeping the original destination,
+          completed steps and observation history. The objective stays held until an operator
+          approves the exact new review. A later change of body still needs its own handoff
+          approval.
         </p>
-      )}
-      {canOperate &&
-        !review &&
-        (held.length ? (
-          <div className="route-controls">
-            <label>
-              Held route objective
-              <select
-                value={selected?.id ?? ''}
-                disabled={prepare.isPending}
-                onChange={(event) => {
-                  setRoundId(event.target.value);
-                  prepare.reset();
-                  approve.reset();
-                  setApproved(false);
+        {!canOperate && (
+          <p className="route-note">
+            Viewer access: inspect saved continuity reviews and retained evidence. An operator
+            prepares and approves a replacement route.
+          </p>
+        )}
+        {canOperate &&
+          !review &&
+          (held.length ? (
+            <div className="route-controls">
+              <label>
+                Held route objective
+                <select
+                  value={selected?.id ?? ''}
+                  disabled={prepare.isPending}
+                  onChange={(event) => {
+                    setRoundId(event.target.value);
+                    prepare.reset();
+                    approve.reset();
+                    setApproved(false);
+                  }}
+                >
+                  {held.map((round) => (
+                    <option key={round.id} value={round.id}>
+                      Round {round.id.slice(-8)}, {round.current_step} of {round.steps.length} steps
+                      completed
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <p className="route-note">
+                The source must be fresh and localized at a known place. Preparing a review moves
+                nothing and discards no evidence.
+              </p>
+              <button
+                type="button"
+                disabled={prepare.isPending || !selected || conditionsUnavailable || !conditions}
+                onClick={() => {
+                  if (selected) {
+                    approve.reset();
+                    setApproved(false);
+                    prepare.mutate(selected);
+                  }
                 }}
               >
-                {held.map((round) => (
-                  <option key={round.id} value={round.id}>
-                    Round {round.id.slice(-8)} · {round.current_step} completed /{' '}
-                    {round.steps.length} steps
-                  </option>
-                ))}
-              </select>
-            </label>
-            <p className="route-note">
-              The source must be fresh and localized at a known place. Preparing a review does not
-              move it or discard the previous evidence.
-            </p>
-            <button
-              type="button"
-              disabled={prepare.isPending || !selected || conditionsUnavailable || !conditions}
-              onClick={() => {
-                if (selected) {
-                  approve.reset();
-                  setApproved(false);
-                  prepare.mutate(selected);
-                }
-              }}
-            >
-              {prepare.isPending ? 'Preparing updated route…' : 'Prepare updated route review'}
-            </button>
-          </div>
-        ) : (
-          <p className="empty-state">No route objective is currently held for a new plan.</p>
-        ))}
+                {prepare.isPending ? 'Preparing updated route…' : 'Prepare updated route review'}
+              </button>
+            </div>
+          ) : (
+            <p className="empty-state">No route objective is currently held for a new plan.</p>
+          ))}
+      </div>
       {review && (
-        <div className="route-review replan-review">
+        <div className="review-box replan-review">
           <div className="card-title-row">
-            <h4>
+            <h3>
               {review.plan ? 'Review the remaining route' : 'Remaining route cannot be approved'}
-            </h4>
-            <span className={`status-pill ${status}`}>{status}</span>
+            </h3>
+            {status && <StatusChip status={status} />}
           </div>
           <p>
             <strong>Original objective:</strong>{' '}
-            {placeName(review.original_objective.route.source_place_id)} →{' '}
+            {placeName(review.original_objective.route.source_place_id)} to{' '}
             {placeName(review.original_objective.route.destination_place_id)}
             {review.original_objective.inspect_destination
               ? ', including the destination inspection'
@@ -213,42 +225,58 @@ export function ReplanPanel({
           </p>
           {liveSource && (
             <p className="route-note">
-              Latest displayed source telemetry: {liveSource.status.replaceAll('_', ' ')} ·
-              heartbeat {observationTime(liveSource.last_seen)}.
+              Latest source telemetry: {liveSource.status.replaceAll('_', ' ')}, heartbeat{' '}
+              {observationTime(liveSource.last_seen)}.
               {liveSource.pose
-                ? ` Reported position x ${liveSource.pose.x.toFixed(2)}, y ${liveSource.pose.y.toFixed(2)}${liveSource.pose.z != null ? `, z ${liveSource.pose.z.toFixed(2)}` : '; elevation not reported'} m.`
+                ? ` Reported at x ${liveSource.pose.x.toFixed(2)} m, y ${liveSource.pose.y.toFixed(2)} m${liveSource.pose.z != null ? `, z ${liveSource.pose.z.toFixed(2)} m` : ', elevation not reported'}.`
                 : ' No localization is reported.'}{' '}
-              This live update does not replace the frozen review; the core rechecks it at approval.
+              This live update does not change the frozen review; the core rechecks it at approval.
             </p>
           )}
-          <div className="route-replan-summary">
+          <dl className="route-readouts">
             <div>
-              <strong>{review.completed_steps.length}</strong>
-              <span>Completed steps preserved</span>
+              <dt>Completed steps kept</dt>
+              <dd className="figures">{review.completed_steps.length}</dd>
             </div>
             <div>
-              <strong>{review.remaining_steps.length}</strong>
-              <span>Remaining reviewed steps</span>
+              <dt>Remaining reviewed steps</dt>
+              <dd className="figures">{review.remaining_steps.length}</dd>
             </div>
             <div>
-              <strong>{review.retained_observation_ids.length}</strong>
-              <span>Retained observations</span>
+              <dt>Retained observations</dt>
+              <dd className="figures">{review.retained_observation_ids.length}</dd>
             </div>
-          </div>
+          </dl>
           {review.blocked_segment_ids.length > 0 && (
             <p className="route-note">
-              This review excludes reported blocked segments:{' '}
-              {review.blocked_segment_ids.map((id) => id.replaceAll('_', ' ')).join(', ')}.
-              Condition revision {review.conditions_revision}.
+              This review leaves out the reported blocked{' '}
+              {review.blocked_segment_ids.length === 1 ? 'segment' : 'segments'}{' '}
+              {review.blocked_segment_ids.map(names.segmentName).join(', ')}, from condition
+              revision {review.conditions_revision}.
             </p>
           )}
           {review.failure && <p className="notice error">{review.failure.message}</p>}
           {review.plan && (
             <>
-              <RouteGraph
+              <RouteMap
                 map={map}
                 plan={review.plan}
+                playKey={review.id}
                 blockedSegmentIds={review.blocked_segment_ids}
+                placeName={placeName}
+                bodyName={bodyName}
+              />
+              <RouteRanking
+                plan={review.plan}
+                map={map}
+                placeName={placeName}
+                bodyName={bodyName}
+              />
+              <SearchSteps
+                plan={review.plan}
+                placeName={placeName}
+                bodyName={bodyName}
+                segmentName={names.segmentName}
               />
               <ul className="route-explanation">
                 {review.plan.explanation.map((reason) => (
@@ -256,13 +284,13 @@ export function ReplanPanel({
                 ))}
               </ul>
               <p className="route-note">
-                {review.plan.distance_m.toFixed(2)} m of semantic graph edges. This is a planning
-                cost, not measured travel. Any planned body transfer remains subject to its separate
-                review.
+                {review.plan.distance_m.toFixed(2)} m of straight lines between places, the
+                planner’s cost rather than measured travel. Any planned change of body still needs
+                its own review.
               </p>
             </>
           )}
-          <h4>Completed work retained</h4>
+          <h4>Completed work kept</h4>
           {review.completed_steps.length ? (
             <ReplanSteps steps={review.completed_steps} start={1} />
           ) : (
@@ -290,7 +318,7 @@ export function ReplanPanel({
           <details className="route-binding">
             <summary>Retained evidence and mission history</summary>
             <p className="route-note">
-              Previous attempts and accepted observations remain attached to the same objective.
+              Previous attempts and accepted observations stay attached to the same objective.
             </p>
             {review.retained_observation_ids.map((id) => (
               <RetainedEvidence key={id} observationId={id} imageHash={undefined} />
@@ -311,7 +339,7 @@ export function ReplanPanel({
             <dl className="handoff-facts">
               <div>
                 <dt>Condition revision</dt>
-                <dd>{review.conditions_revision}</dd>
+                <dd className="figures">{review.conditions_revision}</dd>
               </div>
               <div>
                 <dt>Review expires</dt>
@@ -363,23 +391,36 @@ export function ReplanPanel({
               continuation.
             </p>
           )}
-          {waitSeconds > 0 && (
-            <p className="notice" role="status">
-              The source execution fence remains active for approximately {waitSeconds} s. Approval
-              also requires a fresh heartbeat after that fence ends.
-            </p>
-          )}
-          <p className="route-note">
-            Approval rechecks the source’s position, capabilities, battery, availability and
-            heartbeat after the stop fence. A clear report alone never resumes execution.
-          </p>
           {status !== 'pending' && status !== 'blocked' && (
             <p className="route-note">
               This continuity review is now {status}. Its original content remains available for
               inspection.
             </p>
           )}
+          {review.plan && status === 'pending' && (
+            <FenceTimer
+              from={review.created_at}
+              until={review.not_before_at}
+              what="This continuation"
+            />
+          )}
+          <p className="route-note">
+            Approval rechecks the source’s position, capabilities, battery, availability and
+            heartbeat after the stop fence. A clear report alone never resumes execution.
+          </p>
           <div className="actions">
+            {canOperate && review.plan && (
+              <GuardedAction
+                label="Approve reviewed continuation"
+                confirmLabel="Confirm continuation"
+                consequence={`The held objective resumes on this route with ${review.remaining_steps.length} remaining ${review.remaining_steps.length === 1 ? 'step' : 'steps'}; completed work and evidence are kept. The core rechecks the source first.`}
+                pending={approve.isPending}
+                pendingLabel="Approving updated route…"
+                disabled={blockedApproval}
+                confirmDisabled={blockedApproval}
+                onConfirm={() => approve.mutate(review)}
+              />
+            )}
             <button
               type="button"
               className="secondary"
@@ -392,67 +433,58 @@ export function ReplanPanel({
             >
               Close updated route review
             </button>
-            {canOperate && review.plan && (
-              <button
-                type="button"
-                disabled={
-                  approve.isPending ||
-                  expired ||
-                  waitSeconds > 0 ||
-                  conditionsChanged ||
-                  mapChanged ||
-                  roundChanged ||
-                  !currentRound ||
-                  status !== 'pending'
-                }
-                onClick={() => approve.mutate(review)}
-              >
-                {approve.isPending ? 'Approving updated route…' : 'Approve reviewed continuation'}
-              </button>
-            )}
           </div>
         </div>
       )}
-      {approved && (
-        <p className="notice" role="status">
-          The updated route was approved for the same objective. Completed work and evidence are
-          preserved; any upcoming body transfer still requires separate approval.
-        </p>
-      )}
-      {error && (
-        <p className="notice error" role="alert">
-          {error.message}
-        </p>
+      {(approved || error) && (
+        <div className="plate-body">
+          {approved && (
+            <p className="notice" role="status">
+              The updated route was approved for the same objective. Completed work and evidence are
+              kept; any upcoming change of body still needs its own approval.
+            </p>
+          )}
+          {error && (
+            <p className="notice error" role="alert">
+              {error.message}
+            </p>
+          )}
+        </div>
       )}
       {history.data && history.data.length > 0 && (
-        <div className="route-plan-history">
-          <h4>Continuity review history</h4>
-          {history.data.slice(0, 6).map((proposal) => (
-            <article key={proposal.id}>
-              <div>
-                <strong>
-                  Continue to {placeName(proposal.original_objective.route.destination_place_id)}
-                </strong>
-                <small>
-                  {proposal.status} · condition revision {proposal.conditions_revision} ·{' '}
-                  {observationTime(proposal.created_at)}
-                </small>
-              </div>
-              <button
-                type="button"
-                className="secondary"
-                disabled={prepare.isPending || approve.isPending}
-                onClick={() => {
-                  setReview(proposal);
-                  prepare.reset();
-                  approve.reset();
-                  setApproved(false);
-                }}
-              >
-                View continuity review
-              </button>
-            </article>
-          ))}
+        <div className="route-plan-history plate-body">
+          <h3>Continuity reviews</h3>
+          <ul>
+            {history.data.slice(0, 6).map((proposal) => (
+              <li key={proposal.id}>
+                <div>
+                  <strong>
+                    Continue to {placeName(proposal.original_objective.route.destination_place_id)}
+                  </strong>
+                  <small>
+                    Condition revision {proposal.conditions_revision},{' '}
+                    <time dateTime={proposal.created_at}>
+                      {observationTime(proposal.created_at)}
+                    </time>
+                  </small>
+                </div>
+                <StatusChip status={proposal.status} />
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={prepare.isPending || approve.isPending}
+                  onClick={() => {
+                    setReview(proposal);
+                    prepare.reset();
+                    approve.reset();
+                    setApproved(false);
+                  }}
+                >
+                  View continuity review
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </section>
@@ -479,8 +511,8 @@ function ReplanSteps({
           {bodyIds && bodyName && <span>{bodyName(bodyIds[index] ?? '')}</span>}
           {step.command.type === 'traverse_route' && (
             <small>
-              {step.command.traversal.required_capabilities.join(', ')} required · maximum{' '}
-              {step.command.traversal.max_speed_mps} m/s
+              Needs {step.command.traversal.required_capabilities.join(', ')}, at most{' '}
+              {speed(step.command.traversal.max_speed_mps)}
             </small>
           )}
         </li>

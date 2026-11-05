@@ -45,11 +45,15 @@ The runner cleans up its own processes; persistent database state remains.
 
 1. Choose an available source body at a known semantic place and a destination.
 2. Review the immutable route: map revision, exact legs, assigned bodies,
-   required capabilities, transfer reasons, and approval expiry.
-3. Approve that digest. Each step rechecks the relevant map, body and location.
+   required capabilities, transfer reasons, and approval expiry. The console draws
+   the planner's recorded search on the map, traces the selected route back from
+   the destination, and ranks any alternatives the search reached.
+3. Approve that digest: arm the approval, read what it will do, then confirm.
+   Each step rechecks the relevant map, body and location.
 4. At a body change, the round holds before issuing a target command. The
    transfer recommendation is read-only. Prepare and explicitly approve the
-   handoff once its source fence and target staging checks pass.
+   handoff once its source fence and target staging checks pass; a timer shows
+   when the fence ends.
 5. The target retrieves and verifies retained evidence and acknowledges its
    signed continuation context before submitting a local goal.
 
