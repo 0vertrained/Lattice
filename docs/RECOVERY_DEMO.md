@@ -120,6 +120,8 @@ This local runner uses a single core and a development identity. The hosted conf
 file-based development signer are not multi-user authorization or a hardware key
 store. Bounded inspection images currently live in mission JSONB; larger artifacts
 need object storage and retention controls. Audit entries have a hash chain, but
-there is no external integrity anchor. Outbox rows are committed; a NATS publisher,
+there is no external integrity anchor. The core recomputes each link it returns
+(`GET /v1/audit?limit=N` returns the latest N records, at most 500), and the
+console's audit ledger draws the chain. Outbox rows are committed; a NATS publisher,
 retention jobs, paginated history, remote database TLS and physical-robot testing
 remain later work.

@@ -1,6 +1,8 @@
 #![doc = "Lattice application use cases. Infrastructure is accessed only through ports."]
 
 mod adaptive;
+mod audit;
+pub use audit::{AuditEntry, MAX_AUDIT_PAGE, verify_chain};
 mod error;
 pub use adaptive::{
     AdaptiveRouteContext, AdaptiveRouteRepository, RouteConditionEvidence, RouteConditionInput,
@@ -26,7 +28,7 @@ pub use round::{InspectionRound, RoundStep};
 pub use error::ApplicationError;
 pub use ports::{
     AuditSink, BodyRepository, Clock, CommandQueue, CommandSigner, MissionRepository,
-    ProposalRepository, RoundRepository,
+    ProposalRepository, RoundRepository, StoredAuditRecord,
 };
 pub use service::{
     CreateMissionRequest, HeartbeatRequest, LatticeService, RegisterBodyRequest, ServiceConfig,

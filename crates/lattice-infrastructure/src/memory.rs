@@ -2,9 +2,11 @@ use std::collections::{HashMap, VecDeque};
 
 use async_trait::async_trait;
 use lattice_application::{
-    ApplicationError, AuditSink, BodyRepository, CommandQueue, MissionRepository,
+    ApplicationError, AuditSink, BodyRepository, CommandQueue, MissionRepository, StoredAuditRecord,
 };
-use lattice_domain::{AuditRecord, BodyId, BodySnapshot, Mission, MissionId, SignedCommand};
+use lattice_domain::{
+    AuditRecord, BodyId, BodySnapshot, Mission, MissionId, SignedCommand, chain_hash,
+};
 use tokio::sync::{Mutex, RwLock};
 
 /// Shared deterministic development adapter implementing all persistence ports.
@@ -16,7 +18,7 @@ pub struct InMemoryPlatform {
     missions: RwLock<HashMap<MissionId, Mission>>,
     queues: Mutex<HashMap<BodyId, VecDeque<SignedCommand>>>,
     sequences: Mutex<HashMap<BodyId, u64>>,
-    audit: RwLock<Vec<AuditRecord>>,
+    audit: RwLock<Vec<StoredAuditRecord>>,
 }
 
 #[async_trait]
@@ -88,11 +90,37 @@ impl CommandQueue for InMemoryPlatform {
 #[async_trait]
 impl AuditSink for InMemoryPlatform {
     async fn append(&self, record: AuditRecord) -> Result<(), ApplicationError> {
-        self.audit.write().await.push(record);
+        // The same chain the database keeps, so development mode shows real links too.
+        let mut log = self.audit.write().await;
+        let previous_hash = log.last().map(|row| row.record_hash.clone());
+        let record_hash = chain_hash(previous_hash.as_deref(), &record)
+            .map_err(|_| ApplicationError::Infrastructure)?;
+        let position = log.len() as u64 + 1;
+        log.push(StoredAuditRecord {
+            position,
+            record,
+            previous_hash,
+            record_hash,
+        });
         Ok(())
     }
 
     async fn list(&self) -> Result<Vec<AuditRecord>, ApplicationError> {
-        Ok(self.audit.read().await.clone())
+        Ok(self
+            .audit
+            .read()
+            .await
+            .iter()
+            .map(|row| row.record.clone())
+            .collect())
+    }
+
+    async fn chain(
+        &self,
+        latest: Option<usize>,
+    ) -> Result<Vec<StoredAuditRecord>, ApplicationError> {
+        let log = self.audit.read().await;
+        let start = latest.map_or(0, |count| log.len().saturating_sub(count));
+        Ok(log[start..].to_vec())
     }
 }

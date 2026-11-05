@@ -26,7 +26,7 @@ pub use traversal::{RouteEndpoint, RouteTraversal};
 /// Closed, typed robot capability and skill vocabulary.
 pub mod skill;
 
-pub use audit::{AuditActor, AuditRecord};
+pub use audit::{AuditActor, AuditRecord, chain_hash};
 pub use body::{BatteryPercent, BodyKind, BodyPose, BodySnapshot, BodyStatus};
 pub use command::{
     CommandEnvelope, CommandResult, CommandResultStatus, SignedCommand, VerificationKey,

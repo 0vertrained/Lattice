@@ -697,10 +697,18 @@ async fn verification_key(
     Ok(Json(state.service.verification_key().await?))
 }
 
+/// `limit` asks for the latest records only; without it every record is returned.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AuditQuery {
+    limit: Option<usize>,
+}
+
 async fn list_audit(
     Extension(state): Extension<ApiState>,
-) -> Result<Json<Vec<lattice_domain::AuditRecord>>, ApiError> {
-    Ok(Json(state.service.list_audit().await?))
+    Query(query): Query<AuditQuery>,
+) -> Result<Json<Vec<lattice_application::AuditEntry>>, ApiError> {
+    Ok(Json(state.service.audit_ledger(query.limit).await?))
 }
 
 #[cfg(test)]
@@ -712,7 +720,9 @@ mod tests {
     use lattice_infrastructure::{Ed25519CommandSigner, InMemoryPlatform, SystemClock};
     use tower::ServiceExt;
     fn app() -> Router {
-        let p = Arc::new(InMemoryPlatform::default());
+        app_on(Arc::new(InMemoryPlatform::default()))
+    }
+    fn app_on(p: Arc<InMemoryPlatform>) -> Router {
         let service = LatticeService::new(
             p.clone(),
             p.clone(),
@@ -744,6 +754,67 @@ mod tests {
         )
         .unwrap()
     }
+    #[tokio::test]
+    async fn the_audit_ledger_returns_rechecked_links_in_bounded_pages() {
+        use lattice_application::AuditSink;
+        let platform = Arc::new(InMemoryPlatform::default());
+        for index in 0..3 {
+            platform
+                .append(lattice_domain::AuditRecord {
+                    occurred_at: chrono::Utc::now(),
+                    actor: lattice_domain::AuditActor::Operator("operator-a".into()),
+                    event_type: "round.approved".into(),
+                    object_id: format!("round-{index}"),
+                    metadata: serde_json::json!({}),
+                })
+                .await
+                .unwrap();
+        }
+        let app = app_on(platform);
+        let get = |uri: &'static str| {
+            let app = app.clone();
+            async move {
+                let response = app
+                    .oneshot(
+                        Request::builder()
+                            .uri(uri)
+                            .header("x-lattice-api-key", "a".repeat(32))
+                            .body(Body::empty())
+                            .unwrap(),
+                    )
+                    .await
+                    .unwrap();
+                let status = response.status();
+                let bytes = axum::body::to_bytes(response.into_body(), 1 << 20)
+                    .await
+                    .unwrap();
+                (
+                    status,
+                    serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null),
+                )
+            }
+        };
+        let (status, all) = get("/v1/audit").await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(all.as_array().unwrap().len(), 3);
+        let (status, page) = get("/v1/audit?limit=2").await;
+        assert_eq!(status, StatusCode::OK);
+        let page = page.as_array().unwrap();
+        assert_eq!(page.len(), 2);
+        assert_eq!(page[0]["position"], 2);
+        assert_eq!(page[0]["object_id"], "round-1");
+        assert_eq!(page[0]["previous_hash"], all[0]["record_hash"]);
+        assert!(page.iter().all(|entry| entry["verified"] == true));
+        for (uri, expected) in [
+            ("/v1/audit?limit=0", StatusCode::UNPROCESSABLE_ENTITY),
+            ("/v1/audit?limit=501", StatusCode::UNPROCESSABLE_ENTITY),
+            ("/v1/audit?limit=many", StatusCode::BAD_REQUEST),
+            ("/v1/audit?offset=2", StatusCode::BAD_REQUEST),
+        ] {
+            assert_eq!(get(uri).await.0, expected, "{uri}");
+        }
+    }
+
     #[tokio::test]
     async fn direct_dispatch_and_mutable_approval_payloads_are_rejected() {
         let app = app();

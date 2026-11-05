@@ -4,14 +4,13 @@ use base64::{Engine, engine::general_purpose::STANDARD};
 use lattice_application::{
     AdaptiveRouteRepository, ApplicationError, AuditSink, BodyRepository, CommandQueue,
     HandoffRepository, InspectionRound, MissionRepository, Proposal, ProposalRepository,
-    RoundRepository, RoutePlanRepository,
+    RoundRepository, RoutePlanRepository, StoredAuditRecord,
 };
 use lattice_domain::{
-    AuditActor, AuditRecord, BodyId, BodySnapshot, Mission, MissionId, SignedCommand,
+    AuditActor, AuditRecord, BodyId, BodySnapshot, Mission, MissionId, SignedCommand, chain_hash,
 };
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::Value;
-use sha2::{Digest, Sha256};
 use std::sync::{
     Arc,
     atomic::{AtomicBool, Ordering},
@@ -469,12 +468,7 @@ impl AuditSink for PostgresUnit {
             .await
             .map_err(failure)?
             .map(|row| row.get(0));
-        let mut hash = Sha256::new();
-        if let Some(bytes) = &previous {
-            hash.update(bytes);
-        }
-        hash.update(serde_json::to_vec(&r).map_err(failure)?);
-        let digest = hash.finalize().to_vec();
+        let digest = chain_hash(previous.as_deref(), &r).map_err(failure)?;
         let (kind, id) = match &r.actor {
             AuditActor::Operator(id) => ("operator", id),
             AuditActor::Body(id) => ("body", id),
@@ -498,6 +492,44 @@ impl AuditSink for PostgresUnit {
             .map_err(failure)?
             .into_iter()
             .map(|r| decode(r.get(0)))
+            .collect()
+    }
+    async fn chain(
+        &self,
+        latest: Option<usize>,
+    ) -> Result<Vec<StoredAuditRecord>, ApplicationError> {
+        let rows = match latest {
+            Some(count) => {
+                let count = i64::try_from(count).map_err(failure)?;
+                let mut rows = self
+                    .client()
+                    .query(
+                        "SELECT position,record,previous_hash,record_hash FROM audit_log ORDER BY position DESC LIMIT $1",
+                        &[&count],
+                    )
+                    .await
+                    .map_err(failure)?;
+                rows.reverse();
+                rows
+            }
+            None => self
+                .client()
+                .query(
+                    "SELECT position,record,previous_hash,record_hash FROM audit_log ORDER BY position",
+                    &[],
+                )
+                .await
+                .map_err(failure)?,
+        };
+        rows.into_iter()
+            .map(|row| {
+                Ok(StoredAuditRecord {
+                    position: u64::try_from(row.get::<_, i64>(0)).map_err(failure)?,
+                    record: decode(row.get(1))?,
+                    previous_hash: row.get(2),
+                    record_hash: row.get(3),
+                })
+            })
             .collect()
     }
 }
