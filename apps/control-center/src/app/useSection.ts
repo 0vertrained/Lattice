@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import type { SectionId } from './sections';
 
 const fromHash = (available: readonly SectionId[]): SectionId => {
@@ -14,8 +14,9 @@ export function useSection(available: readonly SectionId[]) {
   const key = available.join(' ');
   const [current, setCurrent] = useState<SectionId>(() => fromHash(available));
   const [moved, setMoved] = useState(0);
+  // Listening from before the first paint, so a move made the moment the rail appears still counts.
   // biome-ignore lint/correctness/useExhaustiveDependencies: `key` stands for the list of sections.
-  useEffect(() => {
+  useLayoutEffect(() => {
     setCurrent(fromHash(available));
     const follow = () => {
       setCurrent(fromHash(available));
