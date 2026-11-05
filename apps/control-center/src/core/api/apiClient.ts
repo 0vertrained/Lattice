@@ -164,8 +164,9 @@ class ApiClient {
     return z.array(missionSchema).parse(payload);
   }
 
-  async listAudit(): Promise<readonly AuditRecord[]> {
-    const payload = await this.request('/audit');
+  /** The latest `limit` audit records, oldest first; without a limit, the whole log. */
+  async listAudit(limit?: number): Promise<readonly AuditRecord[]> {
+    const payload = await this.request(limit === undefined ? '/audit' : `/audit?limit=${limit}`);
     return z.array(auditRecordSchema).parse(payload);
   }
 

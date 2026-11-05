@@ -1,7 +1,7 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
 
-/** Preloads the tour's headline face; its hashed file name is only known once the bundle is written. */
+/** Preloads the headline face on both pages; its hashed file name is only known once the bundle is written. */
 function preloadTourFont(): Plugin {
   let base = '/';
   return {
@@ -13,7 +13,7 @@ function preloadTourFont(): Plugin {
     transformIndexHtml: {
       order: 'post',
       handler(_html, context) {
-        if (!context.bundle || !context.filename.endsWith('index.html')) return [];
+        if (!context.bundle || !/(index|operator)\.html$/.test(context.filename)) return [];
         return Object.keys(context.bundle)
           .filter((file) => /archivo-variable-[\w-]+\.woff2$/.test(file))
           .map((file) => ({

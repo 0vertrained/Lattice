@@ -1,0 +1,261 @@
+/* Ink and Signal: one system for the tour and the operator console. */
+@font-face {
+  font-family: Archivo;
+  src: url("./fonts/archivo-variable.woff2") format("woff2");
+  font-weight: 400 700;
+  font-stretch: 100% 125%;
+  font-display: swap;
+}
+@font-face {
+  font-family: "B612 Mono";
+  src: url("./fonts/b612-mono-400.woff2") format("woff2");
+  font-display: swap;
+}
+:root {
+  color-scheme: light;
+  --paper: #f3f5f6;
+  --film: #fafbfb;
+  --ink: #0f1a22;
+  --graphite: #56646e;
+  --rule: #d2dadf;
+  --lane: #f2c40c;
+  --hold: #b04e00;
+  --stop: #c3262a;
+  --clear: #17784a;
+  --body: #1c5bcb;
+  --sans: Archivo, ui-sans-serif, system-ui, sans-serif;
+  --mono: "B612 Mono", ui-monospace, Menlo, Consolas, monospace;
+  --edge: clamp(16px, 4vw, 56px);
+  font: 400 1rem / 1.6 var(--sans);
+  color: var(--ink);
+  background: var(--paper);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #0b1118;
+  --film: #0e1620;
+  --ink: #e6edf1;
+  --graphite: #8e9faa;
+  --rule: #1c2832;
+  --lane: #ffd23f;
+  --hold: #ff9b42;
+  --stop: #ff6159;
+  --clear: #45d48d;
+  --body: #78a6ff;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--paper);
+}
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+a {
+  color: var(--body);
+  text-underline-offset: 3px;
+}
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 6px var(--lane);
+}
+[tabindex="-1"]:focus {
+  outline: none;
+  box-shadow: none;
+}
+h1,
+h2,
+h3,
+p {
+  margin: 0 0 16px;
+}
+h2,
+h3 {
+  font-stretch: 112%;
+  font-weight: 600;
+  line-height: 1.2;
+}
+h3 {
+  font-size: 1.25rem;
+}
+code {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+details {
+  border-top: 1px solid var(--rule);
+  padding: 16px 0;
+}
+summary {
+  cursor: pointer;
+  color: var(--body);
+}
+details p {
+  margin-top: 16px;
+}
+details dd {
+  margin: 4px 0 16px;
+}
+details code {
+  display: block;
+}
+/* Measurements use Archivo's tabular figures: B612 Mono's full-width point and colon read as gaps. */
+.figures,
+.readouts dd,
+.d-dim {
+  font-family: var(--sans);
+  font-stretch: 112%;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+small {
+  font-size: 0.8125rem;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.skip-link {
+  position: absolute;
+  top: -90px;
+  left: 16px;
+  z-index: 5;
+  background: var(--paper);
+  padding: 12px 16px;
+}
+.skip-link:focus {
+  top: 16px;
+}
+/* Buttons: square, ink-edged; the primary action is solid ink and turns lane yellow under the pointer. */
+.button,
+.visitor-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 10px 20px;
+  border: 1px solid var(--ink);
+  background: none;
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+  text-align: center;
+}
+.button:hover,
+.visitor-button:hover {
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+.primary {
+  background: var(--ink);
+  color: var(--paper);
+}
+.primary:hover {
+  background: var(--lane);
+  color: #0f1a22;
+}
+.visitor-button.quiet {
+  border-color: var(--rule);
+  color: var(--graphite);
+}
+.text-button {
+  border: 0;
+  background: none;
+  padding: 4px 0;
+  color: var(--graphite);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-size: 0.8125rem;
+}
+/* The lattice mark and the theme switch */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: auto;
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 1.25rem;
+  font-weight: 650;
+  font-stretch: 125%;
+}
+.lattice-mark {
+  width: 30px;
+  height: 30px;
+  fill: none;
+}
+.mark-grid {
+  stroke: var(--graphite);
+  stroke-width: 1.25;
+}
+.mark-lane-edge {
+  stroke: var(--ink);
+  stroke-width: 7;
+}
+.mark-lane {
+  stroke: var(--lane);
+  stroke-width: 4;
+}
+.mark-node {
+  fill: var(--ink);
+}
+.theme-toggle {
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--rule);
+  background: none;
+}
+.theme-toggle svg {
+  display: block;
+  width: 20px;
+  margin: auto;
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.5;
+}
+.theme-toggle path {
+  fill: var(--ink);
+}
+/* Plates: a hairline frame with registration crosses at the corners. */
+.plate {
+  position: relative;
+  border: 1px solid var(--rule);
+  background: var(--film);
+}
+.plate::before {
+  content: "";
+  position: absolute;
+  inset: -9px;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--graphite) 0 0) left 0 top 8px / 17px 1px,
+    linear-gradient(var(--graphite) 0 0) left 8px top 0 / 1px 17px,
+    linear-gradient(var(--graphite) 0 0) right 0 top 8px / 17px 1px,
+    linear-gradient(var(--graphite) 0 0) right 8px top 0 / 1px 17px,
+    linear-gradient(var(--graphite) 0 0) left 0 bottom 8px / 17px 1px,
+    linear-gradient(var(--graphite) 0 0) left 8px bottom 0 / 1px 17px,
+    linear-gradient(var(--graphite) 0 0) right 0 bottom 8px / 17px 1px,
+    linear-gradient(var(--graphite) 0 0) right 8px bottom 0 / 1px 17px;
+  background-repeat: no-repeat;
+}

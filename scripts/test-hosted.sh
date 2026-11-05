@@ -62,6 +62,7 @@ node tests/browser/identity.cjs
 
 node tests/browser/visitor.cjs
 node tests/browser/accessibility.cjs
+node tests/browser/console-accessibility.cjs
 node tests/browser/handoff-ui.cjs
 node tests/browser/route-planner.cjs
 node tests/browser/adaptive-route-ui.cjs

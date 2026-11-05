@@ -271,6 +271,18 @@ async fn transaction_cancellation_restart_and_concurrent_recovery() {
         previous = Some(hash.finalize().to_vec());
         assert_eq!(row.get::<_, Vec<u8>>(2), previous.clone().unwrap());
     }
+    // The ledger the API serves rechecks the same stored links, for the whole log and for
+    // a window of the latest records.
+    let tx = db.begin().await.unwrap();
+    let app = service(tx.clone(), signer.clone());
+    let ledger = app.audit_ledger(None).await.unwrap();
+    assert_eq!(ledger.len(), rows.len());
+    assert!(ledger.iter().all(|entry| entry.verified));
+    let window = app.audit_ledger(Some(2)).await.unwrap();
+    assert_eq!(window, ledger[ledger.len() - 2..]);
+    tx.finish(false).await.unwrap();
+    drop(app);
+    drop(tx);
     assert_eq!(
         client
             .query_one("SELECT count(*) FROM outbox", &[])

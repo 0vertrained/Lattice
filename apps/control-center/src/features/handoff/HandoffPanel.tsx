@@ -1,9 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { z } from 'zod';
 import { apiClient } from '../../core/api/apiClient';
 import type { Body, Mission } from '../../core/api/schemas';
+import { useSectionActive } from '../../core/sectionActivity';
+import { FenceTimer } from '../guard/FenceTimer';
+import { GuardedAction } from '../guard/GuardedAction';
+import { useReached } from '../guard/useReached';
 import { observationTime } from '../memory/observation';
+import { StatusChip } from '../status';
 import {
   type Handoff,
   type HandoffStep,
@@ -12,6 +17,11 @@ import {
   transferOptionsSchema,
 } from './handoff';
 import { RetainedEvidence } from './RetainedEvidence';
+
+const placeLabel = (id: string) => {
+  const words = id.replaceAll('_', ' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
+};
 
 export function HandoffPanel({
   bodies,
@@ -23,34 +33,29 @@ export function HandoffPanel({
   readonly canOperate: boolean;
 }) {
   const client = useQueryClient();
+  const active = useSectionActive();
   const [roundId, setRoundId] = useState('');
   const [targetId, setTargetId] = useState('');
   const [review, setReview] = useState<Handoff | null>(null);
-  const [now, setNow] = useState(Date.now());
   const [approved, setApproved] = useState(false);
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
   const rounds = useQuery({
     queryKey: ['rounds', 'handoff'],
     queryFn: async () => z.array(handoffRoundSchema).parse(await apiClient.request('/rounds')),
+    enabled: active,
     refetchInterval: 2000,
   });
   const history = useQuery({
     queryKey: ['handoffs'],
     queryFn: async () => z.array(handoffSchema).parse(await apiClient.request('/handoffs')),
+    enabled: active,
     refetchInterval: 2000,
   });
   const refresh = async () => {
-    await Promise.all([
-      client.invalidateQueries({ queryKey: ['rounds'] }),
-      client.invalidateQueries({ queryKey: ['missions'] }),
-      client.invalidateQueries({ queryKey: ['handoffs'] }),
-      client.invalidateQueries({ queryKey: ['audit'] }),
-      client.invalidateQueries({ queryKey: ['bodies'] }),
-      client.invalidateQueries({ queryKey: ['route-transfer-options'] }),
-    ]);
+    await Promise.all(
+      ['rounds', 'missions', 'handoffs', 'audit', 'bodies', 'route-transfer-options'].map((key) =>
+        client.invalidateQueries({ queryKey: [key] }),
+      ),
+    );
   };
   const prepare = useMutation({
     mutationFn: async ({ round, target }: { round: string; target: string }) =>
@@ -97,7 +102,7 @@ export function HandoffPanel({
           `/rounds/${encodeURIComponent(selectedRound?.id ?? '')}/transfer-options`,
         ),
       ),
-    enabled: Boolean(selectedRound?.route_plan_id),
+    enabled: active && Boolean(selectedRound?.route_plan_id),
     refetchInterval: 2000,
   });
   const routeBound = Boolean(selectedRound?.route_plan_id);
@@ -111,144 +116,144 @@ export function HandoffPanel({
   const selectedTarget =
     targets.find((body) => body.id === targetId) ?? (routeBound ? targets[0] : undefined);
   const bodyName = (id: string) => bodies.find((body) => body.id === id)?.display_name ?? id;
-  const expired = review !== null && now >= Date.parse(review.expires_at);
-  const waitSeconds = review
-    ? Math.max(0, Math.ceil((Date.parse(review.not_before_at) - now) / 1000))
-    : 0;
+  const expired = useReached(review?.expires_at);
+  const fenceOpen = useReached(review?.not_before_at);
   const currentReview = history.data?.find((entry) => entry.id === review?.id);
   const invalidated =
     review !== null && currentReview !== undefined && currentReview.status !== 'pending';
   const error =
     prepare.error ?? approve.error ?? rounds.error ?? history.error ?? plannedTransfer.error;
   return (
-    <section className="panel handoff-panel" aria-labelledby="handoff-heading">
-      <div className="section-heading">
+    <section className="plate handoff-panel" aria-labelledby="handoff-heading">
+      <header className="plate-head">
         <div>
-          <p className="eyebrow">Continue an objective on another body</p>
           <h2 id="handoff-heading">Reviewed handoff</h2>
+          <p className="note">Continue an objective on another body</p>
         </div>
-        <span className="status-pill">Operator approval required</span>
-      </div>
-      <p className="handoff-note">
-        Transfer the remaining inspection round to another body while retaining completed steps and
-        camera evidence. The receiving body must acknowledge the reviewed context.
-      </p>
-      {!canOperate && (
+      </header>
+      <div className="plate-body">
         <p className="handoff-note">
-          Viewer access: inspect handoff history and retained evidence. An operator prepares and
-          approves transfers.
+          Hand the rest of an inspection round to another body, keeping completed steps and camera
+          evidence. The receiving body must acknowledge the reviewed context.
         </p>
-      )}
-      {routeBound && recommendation && (
-        <div className="route-transfer-recommendation" role="status">
-          <h3>
-            {recommendation.required ? 'Recommended capability transfer' : 'Route transfer status'}
-          </h3>
-          <p>{recommendation.reason}</p>
-          {recommendation.transfer_place_id && (
-            <p>
-              Transfer point:{' '}
-              <strong>{recommendation.transfer_place_id.replaceAll('_', ' ')}</strong>
-            </p>
-          )}
-          {recommendation.recommended_target_body_id && (
-            <p>
-              Planned receiving body:{' '}
-              <strong>{bodyName(recommendation.recommended_target_body_id)}</strong>
-            </p>
-          )}
-          {recommendation.blocking_reasons.length > 0 && (
-            <ul>
-              {recommendation.blocking_reasons.map((reason) => (
-                <li key={reason}>{reason}</li>
-              ))}
-            </ul>
-          )}
+        {!canOperate && (
           <p className="handoff-note">
-            This recommendation does not pause a body or authorize motion. An operator must prepare
-            and approve the exact transfer.
+            Viewer access: inspect handoff history and retained evidence. An operator prepares and
+            approves transfers.
           </p>
-        </div>
-      )}
-      {canOperate &&
-        !review &&
-        (candidates.length > 0 ? (
-          <div className="handoff-selectors">
-            <label>
-              Round to continue
-              <select
-                value={selectedRound?.id ?? ''}
-                onChange={(event) => {
-                  setRoundId(event.target.value);
-                  setTargetId('');
-                  prepare.reset();
-                  approve.reset();
-                }}
-              >
-                {candidates.map((round) => (
-                  <option key={round.id} value={round.id}>
-                    Round {round.id.slice(-8)} · step {round.current_step + 1} of{' '}
-                    {round.steps.length}
-                  </option>
+        )}
+        {routeBound && recommendation && (
+          <div className="route-transfer-recommendation" role="status">
+            <h3>
+              {recommendation.required
+                ? 'Recommended capability transfer'
+                : 'Route transfer status'}
+            </h3>
+            <p>{recommendation.reason}</p>
+            {recommendation.transfer_place_id && (
+              <p>
+                Transfer point: <strong>{placeLabel(recommendation.transfer_place_id)}</strong>
+              </p>
+            )}
+            {recommendation.recommended_target_body_id && (
+              <p>
+                Planned receiving body:{' '}
+                <strong>{bodyName(recommendation.recommended_target_body_id)}</strong>
+              </p>
+            )}
+            {recommendation.blocking_reasons.length > 0 && (
+              <ul>
+                {recommendation.blocking_reasons.map((reason) => (
+                  <li key={reason}>{reason}</li>
                 ))}
-              </select>
-            </label>
+              </ul>
+            )}
             <p className="handoff-note">
-              Source body: <strong>{sourceId ? bodyName(sourceId) : 'No source assigned'}</strong>
+              This recommendation does not pause a body or authorize motion. An operator must
+              prepare and approve the exact transfer.
             </p>
-            <label>
-              Receiving body
-              <select
-                value={selectedTarget?.id ?? ''}
-                onChange={(event) => {
-                  setTargetId(event.target.value);
-                  prepare.reset();
-                  approve.reset();
-                }}
-              >
-                <option value="">
-                  {routeBound ? 'Awaiting planned transfer' : 'Select another body'}
-                </option>
-                {targets.map((body) => (
-                  <option key={body.id} value={body.id}>
-                    {body.display_name} · {body.status.replaceAll('_', ' ')} · {body.battery}%
-                    battery
-                  </option>
-                ))}
-              </select>
-            </label>
-            <p className="handoff-note">
-              Preparing a review holds the round and retires the source command. It stays held if
-              you close the review. The core checks the target’s freshness, capabilities, battery
-              and availability again at approval.
-            </p>
-            <button
-              type="button"
-              disabled={
-                prepare.isPending ||
-                !selectedRound ||
-                !sourceId ||
-                !selectedTarget ||
-                (routeBound && !recommendation?.ready)
-              }
-              onClick={() => {
-                if (selectedRound && selectedTarget) {
-                  approve.reset();
-                  setApproved(false);
-                  prepare.mutate({ round: selectedRound.id, target: selectedTarget.id });
-                }
-              }}
-            >
-              {prepare.isPending ? 'Preparing handoff…' : 'Pause source and review handoff'}
-            </button>
           </div>
-        ) : (
-          <p className="empty-state">
-            Start an inspection round to review a transfer between bodies.
-          </p>
-        ))}
+        )}
+        {canOperate &&
+          !review &&
+          (candidates.length > 0 ? (
+            <div className="handoff-selectors">
+              <label>
+                Round to continue
+                <select
+                  value={selectedRound?.id ?? ''}
+                  onChange={(event) => {
+                    setRoundId(event.target.value);
+                    setTargetId('');
+                    prepare.reset();
+                    approve.reset();
+                  }}
+                >
+                  {candidates.map((round) => (
+                    <option key={round.id} value={round.id}>
+                      Round {round.id.slice(-8)}, step {round.current_step + 1} of{' '}
+                      {round.steps.length}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <p className="handoff-note">
+                Source body: <strong>{sourceId ? bodyName(sourceId) : 'No source assigned'}</strong>
+              </p>
+              <label>
+                Receiving body
+                <select
+                  value={selectedTarget?.id ?? ''}
+                  onChange={(event) => {
+                    setTargetId(event.target.value);
+                    prepare.reset();
+                    approve.reset();
+                  }}
+                >
+                  <option value="">
+                    {routeBound ? 'Awaiting planned transfer' : 'Select another body'}
+                  </option>
+                  {targets.map((body) => (
+                    <option key={body.id} value={body.id}>
+                      {body.display_name} ({body.status.replaceAll('_', ' ')}, {body.battery}%
+                      battery)
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <p className="handoff-note">
+                Preparing a review holds the round and retires the source command. It stays held if
+                you close the review. The core checks the target’s freshness, capabilities, battery
+                and availability again at approval.
+              </p>
+              <button
+                type="button"
+                disabled={
+                  prepare.isPending ||
+                  !selectedRound ||
+                  !sourceId ||
+                  !selectedTarget ||
+                  (routeBound && !recommendation?.ready)
+                }
+                onClick={() => {
+                  if (selectedRound && selectedTarget) {
+                    approve.reset();
+                    setApproved(false);
+                    prepare.mutate({ round: selectedRound.id, target: selectedTarget.id });
+                  }
+                }}
+              >
+                {prepare.isPending ? 'Preparing handoff…' : 'Pause source and review handoff'}
+              </button>
+            </div>
+          ) : (
+            <p className="empty-state">
+              Start an inspection round to review a transfer between bodies.
+            </p>
+          ))}
+      </div>
       {review && (
-        <div className="handoff-review">
+        <div className="review-box handoff-review">
           <h3>Review this exact continuation</h3>
           <HandoffDetails handoff={review} bodyName={bodyName} />
           <dl className="handoff-facts">
@@ -265,10 +270,12 @@ export function HandoffPanel({
               </dd>
             </div>
           </dl>
-          {waitSeconds > 0 && (
-            <p className="notice" role="status">
-              Waiting {waitSeconds}s for the source command’s signed execution window to expire,
-              plus the stop margin. The receiving body cannot be approved yet.
+          {!expired && !invalidated && (
+            <FenceTimer from={review.created_at} until={review.not_before_at} what="This handoff" />
+          )}
+          {!fenceOpen && (
+            <p className="handoff-note">
+              The fence covers the source command’s signed execution window plus the stop margin.
             </p>
           )}
           {expired && (
@@ -283,6 +290,18 @@ export function HandoffPanel({
             </p>
           )}
           <div className="actions">
+            {canOperate && (
+              <GuardedAction
+                label="Approve reviewed handoff"
+                confirmLabel="Confirm handoff"
+                consequence={`${bodyName(review.target_body_id)} receives the ${review.remaining_steps.length} remaining ${review.remaining_steps.length === 1 ? 'step' : 'steps'} and the retained evidence; ${bodyName(review.source_body_id)} stays stopped. The core rechecks the receiving body first.`}
+                pending={approve.isPending}
+                pendingLabel="Approving handoff…"
+                disabled={expired || !fenceOpen || invalidated}
+                confirmDisabled={expired || !fenceOpen || invalidated}
+                onConfirm={() => approve.mutate(review)}
+              />
+            )}
             <button
               className="secondary"
               type="button"
@@ -295,28 +314,23 @@ export function HandoffPanel({
             >
               Close review
             </button>
-            {canOperate && (
-              <button
-                type="button"
-                disabled={approve.isPending || expired || waitSeconds > 0 || invalidated}
-                onClick={() => approve.mutate(review)}
-              >
-                {approve.isPending ? 'Approving handoff…' : 'Approve reviewed handoff'}
-              </button>
-            )}
           </div>
         </div>
       )}
-      {approved && (
-        <p className="notice success" role="status">
-          Handoff approved. Follow the receiving body’s context acknowledgement and remaining
-          missions below.
-        </p>
-      )}
-      {error && (
-        <p className="notice error" role="alert">
-          {error.message}
-        </p>
+      {(approved || error) && (
+        <div className="plate-body">
+          {approved && (
+            <p className="notice success" role="status">
+              Handoff approved. Follow the receiving body’s context acknowledgement and remaining
+              missions below.
+            </p>
+          )}
+          {error && (
+            <p className="notice error" role="alert">
+              {error.message}
+            </p>
+          )}
+        </div>
       )}
       <div className="handoff-history">
         <h3>Handoff history</h3>
@@ -324,46 +338,46 @@ export function HandoffPanel({
         {history.data?.length === 0 && (
           <p className="empty-state">No handoffs have been proposed.</p>
         )}
-        {history.data?.slice(0, 5).map((handoff) => (
-          <article key={handoff.id}>
-            <div className="card-title-row">
-              <strong>
-                {bodyName(handoff.source_body_id)} → {bodyName(handoff.target_body_id)}
-              </strong>
-              <span
-                className={`status-pill ${handoff.status === 'approved' ? 'succeeded' : 'interrupted'}`}
-              >
-                {handoff.status}
-              </span>
-            </div>
-            <p className="handoff-note">
-              {handoff.context_acknowledged_at
-                ? `Context acknowledged ${observationTime(handoff.context_acknowledged_at)}`
-                : handoff.status === 'approved'
-                  ? 'Waiting for receiving body to acknowledge context'
-                  : 'Execution awaits explicit approval'}
-            </p>
-            <time dateTime={handoff.created_at}>{observationTime(handoff.created_at)}</time>
-            <details>
-              <summary>Steps, evidence and approval record</summary>
-              <HandoffDetails handoff={handoff} bodyName={bodyName} />
-            </details>
-            {canOperate && handoff.status === 'pending' && handoff.id !== review?.id && (
-              <button
-                className="secondary"
-                type="button"
-                onClick={() => {
-                  setReview(handoff);
-                  prepare.reset();
-                  approve.reset();
-                  setApproved(false);
-                }}
-              >
-                Open handoff review
-              </button>
-            )}
-          </article>
-        ))}
+        <ul>
+          {history.data?.slice(0, 5).map((handoff) => (
+            <li key={handoff.id}>
+              <div className="card-title-row">
+                <div>
+                  <strong>
+                    {bodyName(handoff.source_body_id)} to {bodyName(handoff.target_body_id)}
+                  </strong>
+                  <small>
+                    {handoff.context_acknowledged_at
+                      ? `Context acknowledged ${observationTime(handoff.context_acknowledged_at)}`
+                      : handoff.status === 'approved'
+                        ? 'Waiting for the receiving body to acknowledge the context'
+                        : 'Execution waits for explicit approval'}
+                  </small>
+                </div>
+                <StatusChip status={handoff.status} />
+              </div>
+              <time dateTime={handoff.created_at}>{observationTime(handoff.created_at)}</time>
+              <details>
+                <summary>Steps, evidence and approval record</summary>
+                <HandoffDetails handoff={handoff} bodyName={bodyName} />
+              </details>
+              {canOperate && handoff.status === 'pending' && handoff.id !== review?.id && (
+                <button
+                  className="secondary"
+                  type="button"
+                  onClick={() => {
+                    setReview(handoff);
+                    prepare.reset();
+                    approve.reset();
+                    setApproved(false);
+                  }}
+                >
+                  Open handoff review
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   );
@@ -396,15 +410,15 @@ function HandoffDetails({
           </dd>
         </div>
       </dl>
-      <h3>Completed steps ({handoff.completed_steps.length})</h3>
+      <h4>Completed steps ({handoff.completed_steps.length})</h4>
       {handoff.completed_steps.length > 0 ? (
         <StepList steps={handoff.completed_steps} start={1} />
       ) : (
         <p className="handoff-note">No completed steps yet.</p>
       )}
-      <h3>Remaining steps ({handoff.remaining_steps.length})</h3>
+      <h4>Remaining steps ({handoff.remaining_steps.length})</h4>
       <StepList steps={handoff.remaining_steps} start={handoff.completed_steps.length + 1} />
-      <h3>Retained observations ({handoff.retained_observation_ids.length})</h3>
+      <h4>Retained observations ({handoff.retained_observation_ids.length})</h4>
       {handoff.retained_observation_ids.length === 0 && (
         <p className="handoff-note">No camera observations have been recorded in this round yet.</p>
       )}
@@ -481,11 +495,13 @@ function StepList({
         <li key={`${start + index}-${step.title}`}>
           <strong>{step.title}</strong>
           <small>
-            {step.command.type === 'traverse_route' ? (
-              `${step.command.traversal.from.id.replaceAll('_', ' ')} → ${step.command.traversal.to.id.replaceAll('_', ' ')} · ${step.command.traversal.required_capabilities.join(', ')} required · maximum ${step.command.traversal.max_speed_mps} m/s`
-            ) : (
-              <code>{JSON.stringify(step.command)}</code>
-            )}
+            {step.command.type === 'traverse_route'
+              ? `${placeLabel(step.command.traversal.from.id)} to ${placeLabel(step.command.traversal.to.id)}, needs ${step.command.traversal.required_capabilities.join(', ')}, at most ${Number(step.command.traversal.max_speed_mps.toFixed(2))} m/s`
+              : step.command.type === 'inspect'
+                ? `Inspect at ${placeLabel(step.command.location)}`
+                : step.command.type === 'navigate'
+                  ? `Navigate to ${placeLabel(step.command.destination)}, at most ${Number(step.command.max_speed_mps.toFixed(2))} m/s`
+                  : JSON.stringify(step.command)}
           </small>
           <small>
             {step.continue_on_missing_marker

@@ -1,0 +1,37 @@
+/* The console's 3D view: a plate around a canvas drawn in the theme's colours. */
+.twin-canvas {
+  height: 360px;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+.twin-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 0;
+  padding: 16px 24px;
+  list-style: none;
+  color: var(--graphite);
+  font-size: 0.8125rem;
+}
+.twin-legend li::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  border: 1px solid var(--graphite);
+  border-radius: 50%;
+}
+.twin-legend li[data-online]::before {
+  border-color: var(--body);
+  background: var(--body);
+}
+@media (max-width: 760px) {
+  .twin-canvas {
+    height: 280px;
+  }
+  .twin-legend {
+    padding: 12px 16px;
+  }
+}

@@ -5,6 +5,7 @@ import { erase, play } from './engine';
 import { poseAt } from './geometry';
 import { deg, K, layout, PAD, placed, polyline, r1, ring, wedge } from './layout';
 import type { Scene } from './scenes';
+import './drawing.css';
 
 /** The fading trail behind a body in the replay loop, oldest piece first. */
 const TRAIL = [0.08, 0.16, 0.28, 0.42, 0.6, 0.85] as const;

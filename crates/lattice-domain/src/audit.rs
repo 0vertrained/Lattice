@@ -27,3 +27,19 @@ pub struct AuditRecord {
     /// Redacted structured context.
     pub metadata: serde_json::Value,
 }
+
+/// A record's link in the audit hash chain: SHA-256 over the previous record's hash, when
+/// there is one, then this record's JSON. Every store computes it the same way, so the core
+/// can recompute any stored link.
+pub fn chain_hash(
+    previous: Option<&[u8]>,
+    record: &AuditRecord,
+) -> Result<Vec<u8>, serde_json::Error> {
+    use sha2::{Digest, Sha256};
+    let mut hash = Sha256::new();
+    if let Some(bytes) = previous {
+        hash.update(bytes);
+    }
+    hash.update(serde_json::to_vec(record)?);
+    Ok(hash.finalize().to_vec())
+}

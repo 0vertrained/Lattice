@@ -28,6 +28,15 @@ breaks equal-cost ties. This distance is a deterministic baseline cost, not a
 collision-free trajectory, predicted battery consumption or measured travel.
 Local navigation and locomotion controllers still own the physical path.
 
+Each plan also records how the search reached it: the first time it settled each
+segment with each body, and each change of body, in settlement order, with the cost
+at that state. Once the first goal is selected, the search continues only to collect
+up to three complete alternatives that do not revisit a place, ranked by the same
+cost. Both are explanation for the operator's review. They change neither the
+selected route nor what approval authorizes, and plans made before they were
+recorded omit them, so those reviews keep their digests. Rerunning the evaluation
+below after this addition selected identical routes in all thirty scenarios.
+
 Each proposed leg freezes the segment, source and target places, endpoint geometry,
 arrival tolerance, speed ceiling, required capabilities and selected body. Each
 transfer identifies both bodies, the allowed place, the cursor at which it occurs

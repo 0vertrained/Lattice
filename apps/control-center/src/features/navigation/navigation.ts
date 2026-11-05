@@ -85,6 +85,31 @@ const routePlanSchema = z.object({
   distance_m: z.number(),
   explanation: z.array(z.string()),
   assessments: z.array(assessmentSchema),
+  /** How the planner reached this route, in settlement order; absent on older plans. */
+  search: z
+    .array(
+      z.object({
+        reached_by: z.enum(['start', 'leg', 'transfer']),
+        place_id: z.string(),
+        body_id: z.string(),
+        segment_id: z.string().nullable(),
+        transfers: z.number().int().nonnegative(),
+        distance_m: z.number().nonnegative(),
+      }),
+    )
+    .default([]),
+  /** Complete routes the same search ranked below this one, best first. */
+  alternatives: z
+    .array(
+      z.object({
+        segment_ids: z.array(z.string()),
+        body_ids: z.array(z.string()),
+        transfer_place_ids: z.array(z.string()),
+        destination_body_id: z.string(),
+        distance_m: z.number().nonnegative(),
+      }),
+    )
+    .default([]),
 });
 export const routeProposalSchema = z.object({
   id: z.string(),
@@ -120,5 +145,7 @@ export const routeProposalSchema = z.object({
 export type SemanticMap = z.infer<typeof semanticMapSchema>;
 export type RouteProposal = z.infer<typeof routeProposalSchema>;
 export type RoutePlan = z.infer<typeof routePlanSchema>;
+export type SearchStep = RoutePlan['search'][number];
+export type RouteAlternative = RoutePlan['alternatives'][number];
 export type RouteAssessment = z.infer<typeof assessmentSchema>;
 export type RouteObjective = z.infer<typeof objectiveSchema>;

@@ -1,0 +1,132 @@
+/* The audit ledger: machine strings in B612 Mono, the hash chain drawn down the margin. */
+.ledger {
+  margin: 0;
+  padding: 0 24px 12px;
+  list-style: none;
+}
+.ledger-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 20px 8.5em minmax(0, 1fr) auto;
+  grid-template-areas: "chain hash entry when";
+  gap: 0 16px;
+  padding: 14px 0;
+  border-top: 1px solid var(--rule);
+}
+.ledger-row:first-child {
+  border-top-color: var(--ink);
+}
+.ledger-chain {
+  grid-area: chain;
+  position: relative;
+}
+/* Each record is a node; the line below it is its link to the older record underneath. */
+.ledger-chain::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: 4px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--ink);
+  background: var(--ink);
+}
+.ledger-chain::after {
+  content: "";
+  position: absolute;
+  top: 18px;
+  /* Down through this row's padding and border and the next row's, to the next node. */
+  bottom: -35px;
+  left: 9px;
+  width: 2px;
+  background: var(--ink);
+}
+/* The oldest record shown: the chain goes on below this page, or it is the first record of all. */
+.ledger-row:not([data-link]) .ledger-chain::after {
+  bottom: -8px;
+  background: repeating-linear-gradient(var(--graphite) 0 3px, transparent 3px 7px);
+}
+.ledger-row[data-first] .ledger-chain::after {
+  content: none;
+}
+.ledger-row[data-verified="false"] .ledger-chain::before {
+  border-color: var(--stop);
+  background: repeating-linear-gradient(-45deg, var(--stop) 0 2px, var(--film) 2px 4px);
+}
+.ledger-row[data-link="false"] .ledger-chain::after {
+  left: 6px;
+  width: 8px;
+  background: repeating-linear-gradient(-45deg, var(--stop) 0 2px, transparent 2px 5px);
+  box-shadow:
+    inset 1px 0 var(--stop),
+    inset -1px 0 var(--stop);
+}
+.ledger-hash {
+  grid-area: hash;
+  min-width: 0;
+}
+.ledger-hash code {
+  font-size: 0.875rem;
+}
+.ledger-hash small,
+.ledger-entry small,
+.ledger-when small {
+  display: block;
+  margin-top: 2px;
+  color: var(--graphite);
+  font-size: 0.8125rem;
+}
+.ledger-hash small code,
+.ledger-entry small code {
+  font-size: 0.8125rem;
+}
+.ledger-entry {
+  grid-area: entry;
+  min-width: 0;
+}
+.ledger-entry small {
+  overflow-wrap: anywhere;
+}
+.ledger-event {
+  display: block;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  overflow-wrap: break-word;
+}
+.ledger-broken {
+  margin: 6px 0 0;
+  color: var(--ink);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.ledger-when {
+  grid-area: when;
+  text-align: right;
+  font-stretch: 112%;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ledger-when time {
+  font-size: 0.875rem;
+}
+@media (max-width: 760px) {
+  .ledger {
+    padding: 0 16px 8px;
+  }
+  .ledger-row {
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "chain entry when"
+      "chain hash hash";
+    gap: 6px 12px;
+  }
+  .ledger-hash {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 10px;
+  }
+  .ledger-hash small {
+    margin: 0;
+  }
+}

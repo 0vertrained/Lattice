@@ -1,28 +1,12 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { z } from 'zod';
 import { apiClient } from '../../core/api/apiClient';
-import { skillCommandSchema } from '../../core/api/schemas';
+import { useSectionActive } from '../../core/sectionActivity';
+import { GuardedAction } from '../guard/GuardedAction';
+import { StatusChip } from '../status';
+import { type Round, type RoundStep, roundSchema, useRounds } from './rounds';
 
-const stepSchema = z.object({
-  title: z.string(),
-  command: skillCommandSchema,
-  continue_on_missing_marker: z.boolean(),
-});
-const roundSchema = z.object({
-  id: z.string(),
-  digest: z.string(),
-  steps: z.array(stepSchema),
-  expires_at: z.string(),
-  status: z.string(),
-  current_step: z.number(),
-  current_mission_id: z.string().nullable(),
-  mission_ids: z.array(z.string()),
-  anomaly_count: z.number(),
-  route_plan_id: z.string().nullable().optional(),
-});
-type Round = z.infer<typeof roundSchema>;
-const steps = [
+const steps: readonly RoundStep[] = [
   {
     title: 'Inspect the bay safety station',
     command: { type: 'inspect', location: 'inspection_bay' },
@@ -39,16 +23,28 @@ const steps = [
     continue_on_missing_marker: false,
   },
 ];
+
+type StepState = 'done' | 'current' | 'held' | 'next';
+const stepWords: Record<StepState, string> = {
+  done: 'Done',
+  current: 'In progress',
+  held: 'Held for review',
+  next: 'Not started',
+};
+function stepState(round: Round | undefined, index: number): StepState | undefined {
+  if (!round) return undefined;
+  if (index < round.current_step) return 'done';
+  if (index > round.current_step) return 'next';
+  return round.status === 'recovery_required' ? 'held' : 'current';
+}
+const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
+
 export function InspectionRound({ canOperate }: { readonly canOperate: boolean }) {
   const client = useQueryClient();
   const [review, setReview] = useState<Round | null>(null);
   const [abandonReview, setAbandonReview] = useState<Round | null>(null);
   const [abandoned, setAbandoned] = useState(false);
-  const rounds = useQuery({
-    queryKey: ['rounds'],
-    queryFn: async () => z.array(roundSchema).parse(await apiClient.request('/rounds')),
-    refetchInterval: 2000,
-  });
+  const rounds = useRounds(useSectionActive(), 2_000);
   const refresh = async () => {
     await client.invalidateQueries({ queryKey: ['rounds'] });
     await client.invalidateQueries({ queryKey: ['missions'] });
@@ -61,11 +57,11 @@ export function InspectionRound({ canOperate }: { readonly canOperate: boolean }
     onSuccess: setReview,
   });
   const approve = useMutation({
-    mutationFn: async (p: Round) =>
+    mutationFn: async (round: Round) =>
       roundSchema.parse(
-        await apiClient.request(`/rounds/${p.id}/approve`, {
+        await apiClient.request(`/rounds/${round.id}/approve`, {
           method: 'POST',
-          body: JSON.stringify({ digest: p.digest }),
+          body: JSON.stringify({ digest: round.digest }),
         }),
       ),
     onSuccess: async () => {
@@ -91,135 +87,170 @@ export function InspectionRound({ canOperate }: { readonly canOperate: boolean }
     },
     onError: refresh,
   });
-  const currentAbandon = rounds.data?.find((round) => round.id === abandonReview?.id);
   const active = rounds.data?.find((r) => ['active', 'recovery_required'].includes(r.status));
-  const displayedSteps = review?.steps ?? active?.steps ?? steps;
+  const sheet = review?.steps ?? active?.steps ?? steps;
+  const shownRound = review ? undefined : active;
+  const recent =
+    rounds.data?.filter((r) => r.status !== 'pending' && r.status !== 'invalidated').slice(0, 3) ??
+    [];
+  const expired = review !== null && Date.now() >= Date.parse(review.expires_at);
+  const failure = prepare.error ?? approve.error ?? abandon.error ?? rounds.error;
+
   return (
-    <section className="panel inspection-round" aria-labelledby="round-heading">
-      <div className="section-heading">
+    <section className="plate round-plate" aria-labelledby="round-heading">
+      <header className="plate-head">
         <div>
-          <p className="eyebrow">
+          <h2 id="round-heading">Inspection round</h2>
+          <p className="note">
             {active?.route_plan_id
-              ? 'Follow the reviewed route objective'
+              ? 'Following the reviewed route objective'
               : 'A complete warehouse objective'}
           </p>
-          <h2 id="round-heading">Inspection round</h2>
         </div>
-        <span className="status-pill">{displayedSteps.length} reviewed steps</span>
-      </div>
-      <p>
+        {shownRound ? (
+          <StatusChip status={shownRound.status} />
+        ) : (
+          <span className="note figures">{plural(sheet.length, 'step', 'steps')}</span>
+        )}
+      </header>
+      <p className="round-intro">
         {active?.route_plan_id
-          ? 'Execute the approved route assignments and retain inspection evidence. The round holds at each body change for an explicit handoff review.'
-          : 'Inspect two stations, retain the camera evidence, and return to charge. A validated image with no marker at the dock records an anomaly and continues. Navigation or capture failures stop the round.'}
+          ? 'The round runs the approved route assignments and keeps each inspection’s evidence. It holds at every body change for an explicit handoff review.'
+          : 'Inspect two stations, keep the camera evidence, and return to charge. A clear image without a marker at the dock is recorded as an anomaly and the round continues. A failed navigation or capture stops the round.'}
       </p>
-      <ol className="round-steps">
-        {displayedSteps.map((step, i) => (
-          <li key={step.title}>
-            <strong>
-              {i + 1}. {step.title}
-            </strong>
-            <span>
-              {step.continue_on_missing_marker
-                ? 'Record a missing-marker image and continue'
-                : 'Stop the round if this step fails'}
-            </span>
-          </li>
-        ))}
+      <ol className="round-sheet">
+        {sheet.map((step, index) => {
+          const state = stepState(shownRound, index);
+          return (
+            <li key={step.title} data-state={state}>
+              <span className="round-number figures" aria-hidden="true">
+                {index + 1}
+              </span>
+              <div>
+                <strong>{step.title}</strong>
+                <span>
+                  {step.continue_on_missing_marker
+                    ? 'A missing marker is recorded and the round continues'
+                    : 'The round stops if this step fails'}
+                </span>
+              </div>
+              {state && <span className="round-step-state">{stepWords[state]}</span>}
+            </li>
+          );
+        })}
       </ol>
+
       {canOperate && !active && (
-        <div className="actions">
+        <div className="round-actions">
           {!review ? (
             <button type="button" disabled={prepare.isPending} onClick={() => prepare.mutate()}>
-              Review inspection round
+              {prepare.isPending ? 'Preparing review…' : 'Review inspection round'}
             </button>
           ) : (
-            <>
-              <p className="muted">
-                Review expires {new Date(review.expires_at).toLocaleTimeString()}. This plan is
-                operator-authored.
+            <div className="review-box">
+              <h3>Review this round</h3>
+              <dl>
+                <div>
+                  <dt>Plan digest</dt>
+                  <dd>
+                    <code>{review.digest}</code>
+                  </dd>
+                </div>
+                <div>
+                  <dt>Review expires</dt>
+                  <dd className="figures">{new Date(review.expires_at).toLocaleTimeString()}</dd>
+                </div>
+              </dl>
+              <p className="note">
+                This plan is operator-authored. Approval applies to this exact digest.
               </p>
-              <button type="button" className="secondary" onClick={() => setReview(null)}>
-                Discard review
-              </button>
-              <button
-                type="button"
-                disabled={approve.isPending || Date.now() >= Date.parse(review.expires_at)}
-                onClick={() => approve.mutate(review)}
-              >
-                Approve entire round
-              </button>
-            </>
+              {expired && <p role="status">This review expired. Discard it and review again.</p>}
+              <div className="actions">
+                <GuardedAction
+                  label="Approve entire round"
+                  confirmLabel="Confirm round approval"
+                  consequence={`Approving sends all ${plural(review.steps.length, 'step', 'steps')} to the fleet, in order, without asking again between them.`}
+                  pending={approve.isPending}
+                  pendingLabel="Approving round…"
+                  disabled={expired}
+                  confirmDisabled={expired}
+                  onConfirm={() => approve.mutate(review)}
+                />
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={approve.isPending}
+                  onClick={() => setReview(null)}
+                >
+                  Discard review
+                </button>
+              </div>
+            </div>
           )}
         </div>
       )}
-      {rounds.data
-        ?.filter((r) => r.status !== 'pending' && r.status !== 'invalidated')
-        .slice(0, 3)
-        .map((r) => (
-          <div className="round-progress" key={r.id}>
-            <strong>
-              {r.status.replaceAll('_', ' ')} · step {r.current_step + 1} of {r.steps.length}
-            </strong>
-            <span>
-              {r.anomaly_count} recorded {r.anomaly_count === 1 ? 'anomaly' : 'anomalies'} ·{' '}
-              {r.mission_ids.length} mission attempts
-            </span>
-            {r.status === 'recovery_required' && (
-              <>
-                <p>
-                  {r.route_plan_id
-                    ? 'Execution is held. Review the planned transfer, or use “Continue a held objective” to prepare another route while preserving completed work. Retire the round when this objective should end.'
-                    : 'Execution is held. Review the recovery on the current mission below; approval resumes this round.'}
+
+      {recent.length > 0 && (
+        <div className="round-log">
+          <h3>Recent rounds</h3>
+          {recent.map((round) => {
+            const held = round.status === 'recovery_required';
+            const current = rounds.data?.find((r) => r.id === abandonReview?.id);
+            return (
+              <article key={round.id} className="round-entry" data-held={held ? '' : undefined}>
+                <div className="round-entry-head">
+                  <StatusChip status={round.status} />
+                  <code>{round.id.slice(-8)}</code>
+                </div>
+                <p className="round-facts figures">
+                  <span>
+                    Step {Math.min(round.current_step + 1, round.steps.length)} of{' '}
+                    {round.steps.length}
+                  </span>
+                  <span>{plural(round.anomaly_count, 'anomaly', 'anomalies')} recorded</span>
+                  <span>
+                    {plural(round.mission_ids.length, 'mission attempt', 'mission attempts')}
+                  </span>
                 </p>
-                {canOperate && !abandonReview && (
-                  <button
-                    type="button"
-                    className="secondary"
-                    onClick={() => {
-                      setAbandonReview(r);
-                      setAbandoned(false);
-                      abandon.reset();
-                    }}
-                  >
-                    Abandon held round
-                  </button>
+                {held && (
+                  <>
+                    <p>
+                      {round.route_plan_id
+                        ? 'Execution is held. Review the planned transfer, or continue the held objective from the routes section with another reviewed route. Retire the round when this objective should end.'
+                        : 'Execution is held. Review the recovery on the current mission in the missions section; approving it resumes this round.'}
+                    </p>
+                    {canOperate && (
+                      <GuardedAction
+                        danger
+                        label="Abandon held round"
+                        confirmLabel="Confirm abandon round"
+                        cancelLabel="Keep held round"
+                        consequence={`Round ${round.id.slice(-8)} ends without completing its remaining steps. Recorded observations and approval history are kept. The source stop fence stays in force; abandoning does not authorize new motion or create a replacement plan.`}
+                        pending={abandon.isPending}
+                        pendingLabel="Abandoning round…"
+                        confirmDisabled={
+                          current?.status !== 'recovery_required' ||
+                          current.digest !== abandonReview?.digest
+                        }
+                        onArm={() => {
+                          setAbandonReview(round);
+                          setAbandoned(false);
+                          abandon.reset();
+                        }}
+                        onCancel={() => {
+                          setAbandonReview(null);
+                          abandon.reset();
+                        }}
+                        onConfirm={() => {
+                          if (abandonReview) abandon.mutate(abandonReview);
+                        }}
+                      />
+                    )}
+                  </>
                 )}
-              </>
-            )}
-          </div>
-        ))}
-      {canOperate && abandonReview && (
-        <div className="review-box">
-          <h3>Retire this held objective?</h3>
-          <p>
-            Round {abandonReview.id.slice(-8)} will end without completing its remaining steps.
-            Recorded observations and approval history are preserved. The source stop fence remains
-            in force; abandoning does not authorize new motion or create a replacement plan.
-          </p>
-          <div className="actions">
-            <button
-              type="button"
-              className="secondary"
-              disabled={abandon.isPending}
-              onClick={() => {
-                setAbandonReview(null);
-                abandon.reset();
-              }}
-            >
-              Keep held round
-            </button>
-            <button
-              type="button"
-              disabled={
-                abandon.isPending ||
-                currentAbandon?.status !== 'recovery_required' ||
-                currentAbandon.digest !== abandonReview.digest
-              }
-              onClick={() => abandon.mutate(abandonReview)}
-            >
-              {abandon.isPending ? 'Abandoning round…' : 'Confirm abandon round'}
-            </button>
-          </div>
+              </article>
+            );
+          })}
         </div>
       )}
       {abandoned && (
@@ -228,9 +259,9 @@ export function InspectionRound({ canOperate }: { readonly canOperate: boolean }
           and review a new objective separately.
         </p>
       )}
-      {(prepare.error || approve.error || abandon.error || rounds.error) && (
+      {failure && (
         <p className="notice error" role="alert">
-          {(prepare.error || approve.error || abandon.error || rounds.error)?.message}
+          {failure.message}
         </p>
       )}
     </section>

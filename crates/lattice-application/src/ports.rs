@@ -63,10 +63,28 @@ pub trait CommandSigner: Send + Sync {
 /// Append-only audit boundary.
 #[async_trait]
 pub trait AuditSink: Send + Sync {
-    /// Appends a record.
+    /// Appends a record, linking it to the hash of the record before it.
     async fn append(&self, record: AuditRecord) -> Result<(), ApplicationError>;
     /// Lists records for the development UI.
     async fn list(&self) -> Result<Vec<AuditRecord>, ApplicationError>;
+    /// The latest `latest` records, or all of them, oldest first, as stored with their links.
+    async fn chain(
+        &self,
+        latest: Option<usize>,
+    ) -> Result<Vec<StoredAuditRecord>, ApplicationError>;
+}
+
+/// An audit record as stored, with its place in the log and its hash-chain link.
+#[derive(Debug, Clone, PartialEq)]
+pub struct StoredAuditRecord {
+    /// Position in the log, counting from 1.
+    pub position: u64,
+    /// The record.
+    pub record: AuditRecord,
+    /// Stored hash of the record before it; none for the first record.
+    pub previous_hash: Option<Vec<u8>>,
+    /// Stored hash of this record.
+    pub record_hash: Vec<u8>,
 }
 
 /// Testable wall-clock boundary.

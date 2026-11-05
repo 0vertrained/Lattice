@@ -1,0 +1,101 @@
+/* An armed action sits in a frame under caution tape: lane yellow and ink to approve, red and paper to retire. */
+.guard {
+  --tape: var(--lane);
+  --tape-ground: #0f1a22;
+  position: relative;
+  margin: 12px 0 0;
+  padding: 26px 20px 20px;
+  border: 1px solid var(--ink);
+  background: var(--paper);
+}
+.guard[data-danger] {
+  --tape: var(--stop);
+  --tape-ground: var(--paper);
+}
+.actions > .guard {
+  flex-basis: 100%;
+}
+.guard::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 8px;
+  background: repeating-linear-gradient(-45deg, var(--tape) 0 8px, var(--tape-ground) 8px 16px);
+}
+.guard-consequence {
+  max-width: 44em;
+}
+.console-main .guard-confirm:enabled {
+  outline-offset: 3px;
+}
+.console-main .guard[data-danger] .guard-confirm {
+  border-color: var(--stop);
+  background: var(--stop);
+  color: var(--paper);
+}
+.console-main .guard[data-danger] .guard-confirm:hover:enabled {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .guard::before {
+    animation: tape-in 0.2s ease-out;
+  }
+  @keyframes tape-in {
+    from {
+      clip-path: inset(0 100% 0 0);
+    }
+  }
+}
+/* The stop fence before an approval opens: a ring that empties until the not-before time. */
+.fence {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 16px 0 0;
+  padding: 12px 16px;
+  border: 1px solid var(--rule);
+  border-left: 4px solid var(--hold);
+}
+.fence[data-open] {
+  border-left-color: var(--clear);
+}
+.fence-ring {
+  width: 44px;
+  height: 44px;
+  flex: none;
+}
+.fence-ring circle,
+.fence-ring path {
+  fill: none;
+}
+.fence-track {
+  stroke: var(--rule);
+  stroke-width: 4;
+}
+.fence-left {
+  stroke: var(--hold);
+  stroke-width: 4;
+  stroke-dasharray: 1;
+  transition: stroke-dashoffset 250ms linear;
+}
+.fence-tick {
+  stroke: var(--clear);
+  stroke-width: 3;
+}
+.fence-text {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.fence-text strong {
+  display: block;
+  font-size: 1.25rem;
+  font-stretch: 112%;
+  line-height: 1.2;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fence-ring {
+    display: none;
+  }
+}

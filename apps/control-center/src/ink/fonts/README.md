@@ -1,4 +1,4 @@
-# Tour typefaces
+# Lattice typefaces
 
 Both fonts are self-hosted so the page needs no third-party requests (`font-src 'self'`).
 

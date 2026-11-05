@@ -26,10 +26,13 @@ export function useMissions(enabled: boolean) {
   });
 }
 
+/** Records the audit section shows; the log itself can grow without bound. */
+export const AUDIT_PAGE = 50;
+
 export function useAudit(enabled: boolean) {
   return useQuery({
     queryKey: queryKeys.audit,
-    queryFn: () => apiClient.listAudit(),
+    queryFn: () => apiClient.listAudit(AUDIT_PAGE),
     enabled,
     refetchInterval: 5_000,
   });

@@ -3,13 +3,10 @@ import { useState } from 'react';
 import { apiClient } from '../../core/api/apiClient';
 import { useApproveProposal } from '../../core/api/queries';
 import type { Proposal, SkillCommand } from '../../core/api/schemas';
+import { GuardedAction } from '../guard/GuardedAction';
 import { missionApprovalMachine } from './missionApprovalMachine';
 
-interface MissionComposerProps {
-  readonly onCreated: () => void;
-}
-
-export function MissionComposer({ onCreated }: MissionComposerProps) {
+export function MissionComposer() {
   const approve = useApproveProposal();
   const [snapshot, send] = useMachine(missionApprovalMachine);
   const [mode, setMode] = useState<'language' | 'manual'>('language');
@@ -52,11 +49,9 @@ export function MissionComposer({ onCreated }: MissionComposerProps) {
   return (
     <section className="panel mission-composer" aria-labelledby="mission-composer-title">
       <div className="section-heading">
-        <div>
-          <p className="eyebrow">Language → review → approved mission</p>
-          <h2 id="mission-composer-title">Create mission</h2>
-        </div>
+        <h2 id="mission-composer-title">Create mission</h2>
       </div>
+      <p className="note">Describe the job, review the command it becomes, then approve it.</p>
       {proposal === null && (
         <div className="form-grid">
           <label>
@@ -169,30 +164,28 @@ export function MissionComposer({ onCreated }: MissionComposerProps) {
               Edit request
             </button>
             {proposal.input.decision === 'ready' && (
-              <button
-                type="button"
-                disabled={approve.isPending}
-                onClick={() => {
+              <GuardedAction
+                label="Approve and dispatch"
+                confirmLabel="Confirm dispatch"
+                consequence="Approving signs this exact command and sends it to the assigned body now."
+                pending={approve.isPending}
+                pendingLabel="Authorizing…"
+                onConfirm={() => {
                   if (snapshot.matches('failed')) send({ type: 'RETRY' });
                   send({ type: 'AUTHORIZE' });
                   approve.mutate(proposal, {
-                    onSuccess: () => {
-                      send({ type: 'SUCCESS' });
-                      onCreated();
-                    },
+                    onSuccess: () => send({ type: 'SUCCESS' }),
                     onError: () => send({ type: 'FAILURE' }),
                   });
                 }}
-              >
-                {approve.isPending ? 'Authorizing…' : 'Approve and dispatch'}
-              </button>
+              />
             )}
           </div>
         </div>
       )}
       {complete && (
         <div className="notice success" role="status">
-          <p>Approved. Track execution and inspection evidence below.</p>
+          <p>Approved. Follow its progress and evidence in the mission list.</p>
           <button type="button" onClick={reset}>
             Create another
           </button>
@@ -205,7 +198,7 @@ export function MissionComposer({ onCreated }: MissionComposerProps) {
       )}
       <button
         type="button"
-        className="secondary"
+        className="text-button"
         onClick={() => {
           void apiClient
             .exportTrace()

@@ -16,6 +16,7 @@ const MAX_SEGMENTS: usize = 32;
 const MAX_BODIES: usize = 4;
 const MAX_LEGS: usize = 12;
 const MAX_EXPANSIONS: usize = 16_384;
+const MAX_ALTERNATIVES: usize = 3;
 
 /// Position in the semantic map's common frame, in metres.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -321,6 +322,61 @@ pub struct RoutePlan {
     pub explanation: Vec<String>,
     /// Eligibility and capability gaps for all supplied candidates.
     pub assessments: Vec<CandidateAssessment>,
+    /// How the search reached this route: the first time it settled each segment with each
+    /// body, and each change of body, in settlement order. Absent on plans made before it was
+    /// recorded, so their review digests stay valid.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub search: Vec<SearchStep>,
+    /// Up to three complete routes the same search reached after this one, best first. They
+    /// are explanation only; nothing can approve or execute them.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub alternatives: Vec<RouteAlternative>,
+}
+
+/// How the planner reached a search state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SearchMove {
+    /// The source body at its verified starting place.
+    Start,
+    /// One segment traversed by the body holding the objective.
+    Leg,
+    /// A change of body at an allowed transfer point.
+    Transfer,
+}
+
+/// One state the planner settled, with the cost it had reached there.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SearchStep {
+    /// Move that reached this state.
+    pub reached_by: SearchMove,
+    /// Place of the state.
+    pub place_id: String,
+    /// Body holding the objective in this state.
+    pub body_id: BodyId,
+    /// Segment traversed, for a leg.
+    pub segment_id: Option<String>,
+    /// Body transfers so far, the planner's first cost.
+    pub transfers: usize,
+    /// Summed straight-line graph distance so far, its second cost.
+    pub distance_m: f64,
+}
+
+/// A complete route the planner ranked below the selected plan.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RouteAlternative {
+    /// Segments in travel order.
+    pub segment_ids: Vec<String>,
+    /// Body assigned to each segment, in the same order.
+    pub body_ids: Vec<BodyId>,
+    /// Allowed transfer points where the body would change, in order.
+    pub transfer_place_ids: Vec<String>,
+    /// Body that would perform the destination task.
+    pub destination_body_id: BodyId,
+    /// Summed straight-line graph distance, as for the selected plan.
+    pub distance_m: f64,
 }
 
 /// Reasons why the bounded planner declined to produce a route.
@@ -517,16 +573,26 @@ pub fn plan_route_with_blocked_segments(
         },
         legs: vec![],
         transfers: vec![],
+        reached_by: SearchMove::Start,
+        via_segment: None,
     };
     let mut best = BTreeMap::from([(initial.key, initial.cost.clone())]);
     let mut frontier = BinaryHeap::from([initial]);
     let mut expansions = 0;
+    let mut search = Vec::new();
+    let mut recorded = BTreeSet::new();
+    let mut selected: Option<SearchEntry> = None;
+    let mut alternatives: Vec<RouteAlternative> = Vec::new();
     while let Some(current) = frontier.pop() {
         if best.get(&current.key) != Some(&current.cost) {
             continue;
         }
         expansions += 1;
         if expansions > MAX_EXPANSIONS {
+            // Ranking alternatives is best effort; a route already selected stands.
+            if selected.is_some() {
+                break;
+            }
             return Err(failure(
                 RouteFailureCode::SearchLimit,
                 "bounded route search exhausted; no partial plan is authorized",
@@ -535,19 +601,44 @@ pub fn plan_route_with_blocked_segments(
         }
         let body = bodies[current.key.body];
         let place = places[current.key.place];
+        if selected.is_none() {
+            let step = SearchStep {
+                reached_by: current.reached_by,
+                place_id: place.id.clone(),
+                body_id: body.body_id.clone(),
+                segment_id: current.via_segment.clone(),
+                transfers: current.cost.transfers,
+                distance_m: current.cost.distance,
+            };
+            // The first settlement of each segment per body, and of each change of body, is
+            // enough to draw the search; later ones only differ in leg count.
+            let move_key = (
+                step.reached_by,
+                step.segment_id.clone(),
+                step.place_id.clone(),
+            );
+            if recorded.insert((move_key, step.body_id.clone())) {
+                search.push(step);
+            }
+        }
         if current.key.place == destination
             && request
                 .destination_capability
                 .is_none_or(|capability| body.capabilities.contains(&capability))
         {
-            let mut plan = finish_plan(map, request, &bodies, current, assessments)?;
-            if !blocked_segments.is_empty() {
-                plan.explanation.insert(1, format!(
-                    "Excluded segments [{}] from the current condition snapshot; trusted map geometry and digest are unchanged. Approval must recheck the condition revision.",
-                    blocked_segments.iter().cloned().collect::<Vec<_>>().join(", ")
-                ));
+            // The first goal popped is the plan. The search goes on only to rank a few
+            // complete alternatives, and never expands past a goal.
+            if selected.is_none() {
+                selected = Some(current);
+            } else if let Some(alternative) = alternative_route(request, &bodies, &current)
+                && !alternatives.contains(&alternative)
+            {
+                alternatives.push(alternative);
+                if alternatives.len() == MAX_ALTERNATIVES {
+                    break;
+                }
             }
-            return Ok(plan);
+            continue;
         }
         if current.key.legs < MAX_LEGS {
             for segment in &segments {
@@ -571,6 +662,8 @@ pub fn plan_route_with_blocked_segments(
                 let target = places[next_place];
                 let distance = place.pose.distance_to(&target.pose);
                 let mut next = current.clone();
+                next.reached_by = SearchMove::Leg;
+                next.via_segment = Some(segment.id.clone());
                 next.key.place = next_place;
                 next.key.legs += 1;
                 next.cost.distance += distance;
@@ -601,6 +694,8 @@ pub fn plan_route_with_blocked_segments(
                     continue;
                 }
                 let mut next = current.clone();
+                next.reached_by = SearchMove::Transfer;
+                next.via_segment = None;
                 next.key.body = index;
                 next.key.used |= 1 << index;
                 next.cost.transfers += 1;
@@ -618,11 +713,51 @@ pub fn plan_route_with_blocked_segments(
             }
         }
     }
-    Err(failure(
-        RouteFailureCode::TransferUnavailable,
-        "capabilities exist, but no route within twelve legs can use them through allowed transfer points with replacements already staged; unknown positions and repeated-body transfers are not assumed",
-        assessments,
-    ))
+    let Some(found) = selected else {
+        return Err(failure(
+            RouteFailureCode::TransferUnavailable,
+            "capabilities exist, but no route within twelve legs can use them through allowed transfer points with replacements already staged; unknown positions and repeated-body transfers are not assumed",
+            assessments,
+        ));
+    };
+    let mut plan = finish_plan(map, request, &bodies, found, assessments)?;
+    plan.search = search;
+    plan.alternatives = alternatives;
+    if !blocked_segments.is_empty() {
+        plan.explanation.insert(1, format!(
+            "Excluded segments [{}] from the current condition snapshot; trusted map geometry and digest are unchanged. Approval must recheck the condition revision.",
+            blocked_segments.iter().cloned().collect::<Vec<_>>().join(", ")
+        ));
+    }
+    Ok(plan)
+}
+
+/// A later goal state as a reviewable alternative. Routes that revisit a place are left out:
+/// a loop can never beat the same route without it.
+fn alternative_route(
+    request: &RouteRequest,
+    bodies: &[&RouteCandidate],
+    entry: &SearchEntry,
+) -> Option<RouteAlternative> {
+    let mut visited = BTreeSet::from([request.source_place_id.as_str()]);
+    if !entry.legs.iter().all(|leg| visited.insert(leg.to.as_str())) {
+        return None;
+    }
+    Some(RouteAlternative {
+        segment_ids: entry
+            .legs
+            .iter()
+            .map(|leg| leg.segment_id.clone())
+            .collect(),
+        body_ids: entry.legs.iter().map(|leg| leg.body_id.clone()).collect(),
+        transfer_place_ids: entry
+            .transfers
+            .iter()
+            .map(|transfer| transfer.place_id.clone())
+            .collect(),
+        destination_body_id: bodies[entry.key.body].body_id.clone(),
+        distance_m: entry.cost.distance,
+    })
 }
 
 fn finish_plan(
@@ -698,6 +833,8 @@ fn finish_plan(
         distance_m: found.cost.distance,
         explanation,
         assessments,
+        search: vec![],
+        alternatives: vec![],
     })
 }
 
@@ -812,6 +949,9 @@ struct SearchEntry {
     cost: Cost,
     legs: Vec<PlannedLeg>,
     transfers: Vec<PlannedTransfer>,
+    /// Recorded for the search trace only; never part of ordering or identity.
+    reached_by: SearchMove,
+    via_segment: Option<String>,
 }
 impl PartialEq for SearchEntry {
     fn eq(&self, other: &Self) -> bool {
@@ -1322,5 +1462,131 @@ mod tests {
             plan_route(&map, &request, &[rover]).unwrap_err().code,
             RouteFailureCode::SearchLimit
         );
+    }
+    /// The warehouse with a west bypass: two ways to the stair foot, then stairs.
+    fn bypass_fixture() -> (SemanticMap, RouteRequest, Vec<RouteCandidate>) {
+        let (mut map, request, bodies) = fixture();
+        map.places.push(SemanticPlace {
+            pose: RoutePose {
+                x: -1.0,
+                y: 1.5,
+                z: 0.0,
+            },
+            ..place("west", 0.0, 0.0, false)
+        });
+        map.segments.extend([
+            segment("bay_to_west", "bay", "west", &[Capability::Navigate]),
+            segment("west_to_bay", "west", "bay", &[Capability::Navigate]),
+            segment(
+                "west_to_foot",
+                "west",
+                "stair_foot",
+                &[Capability::Navigate],
+            ),
+        ]);
+        (map, request, bodies)
+    }
+    #[test]
+    fn the_search_trace_shows_how_the_selected_route_was_reached() {
+        let (map, request, bodies) = bypass_fixture();
+        let plan = plan_route(&map, &request, &bodies).unwrap();
+        let segments: Vec<_> = plan.legs.iter().map(|l| l.segment_id.as_str()).collect();
+        assert_eq!(segments, ["approach", "stairs"]);
+        let first = &plan.search[0];
+        assert_eq!(first.reached_by, SearchMove::Start);
+        assert_eq!(
+            (first.place_id.as_str(), first.body_id.as_str()),
+            ("bay", "rover-a")
+        );
+        assert_eq!((first.transfers, first.distance_m), (0, 0.0));
+        // Settled in the planner's order: fewer transfers first, then shorter distance.
+        for pair in plan.search.windows(2) {
+            assert!(
+                (pair[0].transfers, pair[0].distance_m) <= (pair[1].transfers, pair[1].distance_m)
+            );
+        }
+        // Every transfer-free state is settled before the first change of body, so the
+        // bypass the rover could drive is explored even though it is not selected.
+        assert!(
+            plan.search
+                .iter()
+                .any(|step| step.segment_id.as_deref() == Some("west_to_foot"))
+        );
+        let transfer = plan
+            .search
+            .iter()
+            .find(|step| step.reached_by == SearchMove::Transfer)
+            .unwrap();
+        assert_eq!(
+            (transfer.place_id.as_str(), transfer.body_id.as_str()),
+            ("stair_foot", "quad-b")
+        );
+        let last = plan.search.last().unwrap();
+        assert_eq!(last.place_id, "landing");
+        assert_eq!(last.transfers, plan.transfers.len());
+        assert!((last.distance_m - plan.distance_m).abs() < 1e-9);
+        // Each move is recorded once per body.
+        let mut seen = BTreeSet::new();
+        for step in &plan.search {
+            assert!(seen.insert((
+                step.reached_by,
+                step.segment_id.clone(),
+                step.place_id.clone(),
+                step.body_id.clone()
+            )));
+        }
+    }
+    #[test]
+    fn alternatives_are_complete_loop_free_routes_ranked_after_the_plan() {
+        let (map, request, bodies) = bypass_fixture();
+        let plan = plan_route(&map, &request, &bodies).unwrap();
+        assert_eq!(
+            plan.alternatives.len(),
+            1,
+            "the loop through the bay is left out"
+        );
+        let alternative = &plan.alternatives[0];
+        assert_eq!(
+            alternative.segment_ids,
+            ["bay_to_west", "west_to_foot", "stairs"]
+        );
+        assert_eq!(
+            alternative
+                .body_ids
+                .iter()
+                .map(BodyId::as_str)
+                .collect::<Vec<_>>(),
+            ["rover-a", "rover-a", "quad-b"]
+        );
+        assert_eq!(alternative.transfer_place_ids, ["stair_foot"]);
+        assert_eq!(alternative.destination_body_id.as_str(), "quad-b");
+        assert!(alternative.distance_m > plan.distance_m);
+
+        // With the approach reported blocked, the bypass is the plan, the search never
+        // settles the blocked segment, and no alternative remains.
+        let blocked = BTreeSet::from(["approach".into()]);
+        let detour = plan_route_with_blocked_segments(&map, &request, &bodies, &blocked).unwrap();
+        let segments: Vec<_> = detour.legs.iter().map(|l| l.segment_id.as_str()).collect();
+        assert_eq!(segments, ["bay_to_west", "west_to_foot", "stairs"]);
+        assert!(
+            detour
+                .search
+                .iter()
+                .all(|step| step.segment_id.as_deref() != Some("approach"))
+        );
+        assert!(detour.alternatives.is_empty());
+    }
+    #[test]
+    fn plans_without_a_recorded_search_keep_their_serialized_form() {
+        let (map, request, bodies) = bypass_fixture();
+        let mut plan = plan_route(&map, &request, &bodies).unwrap();
+        let recorded = serde_json::to_value(&plan).unwrap();
+        assert!(recorded.get("search").is_some() && recorded.get("alternatives").is_some());
+        plan.search.clear();
+        plan.alternatives.clear();
+        let legacy = serde_json::to_value(&plan).unwrap();
+        assert!(legacy.get("search").is_none() && legacy.get("alternatives").is_none());
+        let restored: RoutePlan = serde_json::from_value(legacy).unwrap();
+        assert_eq!(restored, plan);
     }
 }

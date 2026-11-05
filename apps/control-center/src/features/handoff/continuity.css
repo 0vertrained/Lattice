@@ -1,0 +1,169 @@
+/* Observation memory and handoffs; loads with the continuity section. */
+.continuity-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 40px 32px;
+}
+.continuity-grid h3 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+}
+.continuity-grid h4 {
+  margin: 20px 0 6px;
+  font-size: 0.9375rem;
+}
+.memory-panel .plate-body,
+.handoff-panel .plate-body {
+  display: grid;
+  gap: 16px;
+}
+.memory-panel .plate-body > *,
+.handoff-panel .plate-body > * {
+  margin: 0;
+}
+.memory-search,
+.handoff-selectors {
+  display: grid;
+  gap: 12px;
+}
+.memory-results {
+  display: grid;
+  gap: 20px;
+}
+.observation-card {
+  min-width: 0;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--ink);
+}
+.observation-card dl,
+.handoff-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+  margin: 16px 0;
+}
+.observation-card dt,
+.handoff-facts dt {
+  margin-bottom: 2px;
+  color: var(--graphite);
+  font-size: 0.8125rem;
+}
+.observation-card dd,
+.handoff-facts dd {
+  margin: 0;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+.observation-card details,
+.handoff-review details,
+.handoff-history details {
+  margin-top: 12px;
+}
+.observation-provenance {
+  overflow-wrap: anywhere;
+}
+.observation-provenance dl {
+  grid-template-columns: minmax(0, 1fr);
+}
+.memory-negative {
+  padding-left: 12px;
+  border-left: 4px solid var(--hold);
+  font-size: 0.875rem;
+}
+.memory-note,
+.handoff-note {
+  color: var(--graphite);
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+.route-transfer-recommendation {
+  padding: 16px 16px 16px 20px;
+  border: 1px solid var(--rule);
+  border-left: 4px solid var(--body);
+}
+.route-transfer-recommendation h3 {
+  margin: 0 0 8px;
+}
+.route-transfer-recommendation p {
+  margin: 6px 0;
+}
+.handoff-review {
+  min-width: 0;
+  margin: 0 24px 24px;
+}
+.handoff-review h3 {
+  margin: 0 0 12px;
+  font-size: 1.25rem;
+}
+.handoff-review .actions {
+  margin-top: 16px;
+}
+.handoff-step-list {
+  margin: 0;
+  padding-left: 22px;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+.handoff-step-list li {
+  padding: 5px 0;
+}
+.handoff-step-list small {
+  display: block;
+  margin-top: 2px;
+  color: var(--graphite);
+}
+.handoff-history {
+  padding: 20px 24px 8px;
+  border-top: 1px solid var(--rule);
+}
+.handoff-history ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.handoff-history li {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: 0.875rem;
+}
+.handoff-history li:last-child {
+  border-bottom: 0;
+}
+.handoff-history small {
+  margin-top: 2px;
+  color: var(--graphite);
+}
+.handoff-history time {
+  display: block;
+  margin-top: 4px;
+  color: var(--graphite);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+.handoff-history li > button {
+  margin-top: 12px;
+}
+@media (max-width: 1100px) {
+  .continuity-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 760px) {
+  .handoff-review {
+    margin: 0 16px 16px;
+  }
+  .handoff-history {
+    padding: 16px 16px 4px;
+  }
+}
+@media (max-width: 420px) {
+  .observation-card dl,
+  .handoff-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .continuity-grid .actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

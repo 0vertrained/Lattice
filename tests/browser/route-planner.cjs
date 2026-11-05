@@ -42,6 +42,12 @@ const plan = {
   transfers: [{ place_id: 'landing', source_body_id: 'rover', target_body_id: 'quadruped', before_leg_index: 1, reason: 'The rover lacks stairs. The staged quadruped can continue the upper-floor route.' }],
   explanation: ['The source covers the ground-floor segment before a reviewed transfer to a body with stairs capability.'],
   assessments,
+  search: [
+    { reached_by: 'start', place_id: 'bay', body_id: 'rover', segment_id: null, transfers: 0, distance_m: 0 },
+    { reached_by: 'leg', place_id: 'landing', body_id: 'rover', segment_id: 'ground', transfers: 0, distance_m: 3 },
+    { reached_by: 'transfer', place_id: 'landing', body_id: 'quadruped', segment_id: null, transfers: 1, distance_m: 3 },
+    { reached_by: 'leg', place_id: 'upper', body_id: 'quadruped', segment_id: 'stairs', transfers: 1, distance_m: 7.4 },
+  ],
 };
 const traverse = (index) => ({
   type: 'traverse_route', traversal: {
@@ -149,15 +155,20 @@ async function startPage(browser, role, options = {}) {
     if (endpoint === '/observations/last-seen') return reply({ subject_key: 'fixture', last_seen: null, later_negative: null, queried_at: iso(), explanation: 'No fixture observation.' });
     return reply({ code: 'unknown_fixture_endpoint', message: endpoint }, 404);
   });
-  await page.goto(new URL('operator.html', base).href);
+  await page.goto(new URL('operator.html#routes', base).href);
   await page.getByLabel('Development API key').fill('isolated-browser-fixture-key-'.repeat(3));
   await page.getByRole('button', { name: 'Connect to local core', exact: true }).click();
   const panel = page.getByRole('region', { name: 'Capability route planner', exact: true });
   await panel.waitFor();
-  await panel.getByText(options.unconfigured ? /Route planning is unavailable/ : /Revision 1 · map frame/).waitFor();
+  await panel.getByText(options.unconfigured ? /Route planning is unavailable/ : /revision 1, map frame/).waitFor();
   return { page, panel, context, state };
 }
 
+/** Opens a console section from the rail and waits for its heading. */
+async function openSection(page, name) {
+  await page.getByRole('navigation', { name: 'Console sections' }).getByRole('link', { name: new RegExp(`^${name}`) }).click();
+  await page.getByRole('heading', { level: 1, name, exact: true }).waitFor();
+}
 async function prepareRoute(test) {
   await test.panel.getByLabel('Starting body').selectOption('rover');
   await test.panel.getByLabel('Starting place').selectOption('bay');
@@ -183,8 +194,11 @@ async function finish(test) {
     assert.equal(await viewer.panel.getByRole('button', { name: 'Approve reviewed route', exact: true }).count(), 0);
     await viewer.panel.getByText(/Missing stairs for/).waitFor();
     await viewer.panel.getByText('Heartbeat is stale.', { exact: true }).waitFor();
+    await openSection(viewer.page, 'Continuity');
     await viewer.page.getByRole('heading', { name: 'Recommended capability transfer', exact: true }).waitFor();
     assert.equal(await viewer.page.getByRole('button', { name: 'Pause source and review handoff', exact: true }).count(), 0);
+    await openSection(viewer.page, 'Rounds');
+    await viewer.page.getByRole('region', { name: 'Inspection round', exact: true }).getByText('Recovery required').first().waitFor();
     assert.equal(await viewer.page.getByRole('button', { name: 'Abandon held round', exact: true }).count(), 0);
     assert.equal(viewer.state.mutations.length, 0, 'Viewing recommendation must never pause or approve');
     await finish(viewer);
@@ -196,6 +210,16 @@ async function finish(test) {
     assert.equal(operator.state.mutations.length, 1, 'Preparation never approves automatically');
     await operator.panel.getByText(/elevation not reported/).waitFor();
     await operator.panel.getByText(/finishing with Stair quadruped/).waitFor();
+    const ranking = operator.panel.getByRole('region', { name: 'Routes the planner compared', exact: true });
+    assert.equal(await ranking.locator('tbody tr').count(), 1, 'Only the selected route when the search ranked no alternative');
+    await ranking.getByText(/reached no other route/).waitFor();
+    await operator.panel.getByText('How the planner searched', { exact: true }).click();
+    assert.deepEqual(await operator.panel.locator('.route-search-steps li').allTextContents(), [
+      'Starts at Inspection bay · ground floor with Warehouse rover. 0.00 m',
+      'Inspection bay · ground floor to Transfer landing · ground floor with Warehouse rover. 3.00 m',
+      'Stair quadruped could take over at Transfer landing · ground floor. 3.00 m, 1 body change',
+      'Transfer landing · ground floor to Upper station · first floor with Stair quadruped. 7.40 m, 1 body change Reaches the destination.',
+    ]);
     await operator.panel.getByText('Review binding and provenance', { exact: true }).click();
     await operator.panel.getByText(proposal.digest, { exact: true }).waitFor();
     await operator.page.screenshot({ path: '/tmp/lattice-route-planner-desktop.png', fullPage: true });
@@ -208,6 +232,9 @@ async function finish(test) {
     await operator.panel.getByRole('button', { name: 'View route plan', exact: true }).click();
     await operator.panel.getByText(/starting with Warehouse rover/).waitFor();
     await operator.panel.getByRole('button', { name: 'Approve reviewed route', exact: true }).click();
+    await operator.panel.getByText(/The source runs the 4 reviewed steps in order up to the first change of body/).waitFor();
+    assert.equal(operator.state.mutations.length, 1, 'Arming an approval sends nothing');
+    await operator.panel.getByRole('button', { name: 'Confirm route approval', exact: true }).click();
     await operator.panel.getByText(/Route approved as round/).waitFor();
     assert.deepEqual(operator.state.mutations.map((entry) => entry.endpoint), ['/navigation/plans', `/navigation/plans/${proposal.id}/approve`]);
     await finish(operator);
@@ -238,6 +265,7 @@ async function finish(test) {
     const rejected = await startPage(browser, 'operator', { saved: true, rejectApproval: true });
     await rejected.panel.getByRole('button', { name: 'View route plan', exact: true }).click();
     await rejected.panel.getByRole('button', { name: 'Approve reviewed route', exact: true }).click();
+    await rejected.panel.getByRole('button', { name: 'Confirm route approval', exact: true }).click();
     await rejected.panel.getByRole('alert').filter({ hasText: 'planned receiving body heartbeat is stale' }).waitFor();
     assert.equal(rejected.state.mutations.length, 1, 'Rejected approval cannot automatically retry');
     rejected.state.plans[0].status = 'invalidated';
@@ -247,6 +275,7 @@ async function finish(test) {
 
     for (const absent of [false, true]) {
       const unavailable = await startPage(browser, 'operator', { active: true, unstaged: true, absent });
+      await openSection(unavailable.page, 'Continuity');
       const handoffs = unavailable.page.getByRole('region', { name: 'Reviewed handoff', exact: true });
       await handoffs.getByText('Planned receiving body is not at the transfer point.', { exact: true }).waitFor();
       assert.equal(await handoffs.getByRole('button', { name: 'Pause source and review handoff', exact: true }).isDisabled(), true);
@@ -255,6 +284,7 @@ async function finish(test) {
     }
 
     const ready = await startPage(browser, 'operator', { active: true });
+    await openSection(ready.page, 'Continuity');
     const handoffs = ready.page.getByRole('region', { name: 'Reviewed handoff', exact: true });
     await handoffs.getByRole('heading', { name: 'Recommended capability transfer', exact: true }).waitFor();
     assert.equal(await handoffs.getByLabel('Receiving body').inputValue(), 'quadruped');
@@ -268,6 +298,7 @@ async function finish(test) {
     await finish(ready);
 
     const held = await startPage(browser, 'operator', { active: true, held: true });
+    await openSection(held.page, 'Rounds');
     const roundPanel = held.page.getByRole('region', { name: 'Inspection round', exact: true });
     await roundPanel.getByRole('button', { name: 'Abandon held round', exact: true }).click();
     await roundPanel.getByText(/abandoning does not authorize new motion/).waitFor();
@@ -284,7 +315,7 @@ async function finish(test) {
     assert.equal(await unconfigured.panel.getByRole('combobox').count(), 0);
     assert.equal(unconfigured.state.mutations.length, 0);
     await finish(unconfigured);
-    console.log('PASS: explicit route source and immutable review, typed traversal, viewer read-only, exact digest approval, map changes, expiry, stale/invalidated review, capability rejections, readonly transfer recommendation, absent/unstaged target blocks, explicit handoff preparation, confirmed abandonment without auto-replan, optional map and 390px layout');
+    console.log('PASS: explicit route source and immutable review, typed traversal, viewer read-only, exact digest approval, map changes, expiry, stale/invalidated review, capability rejections, readonly transfer recommendation, absent/unstaged target blocks, explicit handoff preparation, the recorded planner search and ranking, armed and confirmed approval, confirmed abandonment without auto-replan, optional map and 390px layout');
   } finally {
     await browser.close();
   }

@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { apiClient } from '../../core/api/apiClient';
+import { GuardedAction } from '../guard/GuardedAction';
+import { StatusChip } from '../status';
 export function DevicePanel() {
   const client = useQueryClient();
   const devices = useQuery({ queryKey: ['devices'], queryFn: () => apiClient.listDevices() });
@@ -24,10 +26,7 @@ export function DevicePanel() {
   return (
     <section className="panel" aria-labelledby="devices-heading">
       <div className="section-heading">
-        <div>
-          <p className="eyebrow">Administrator</p>
-          <h2 id="devices-heading">Robot identities</h2>
-        </div>
+        <h2 id="devices-heading">Robot identities</h2>
       </div>
       <p className="muted">
         Each credential can act only as its assigned body. Credentials expire after 30 days and can
@@ -87,27 +86,30 @@ export function DevicePanel() {
           </button>
         </div>
       )}
-      <div className="mission-list">
+      <h3 className="device-list-title">Issued credentials</h3>
+      <div className="device-list">
         {devices.data?.map((d) => (
           <article key={d.id}>
             <div className="card-title-row">
               <div>
                 <strong>{d.label}</strong>
                 <small>
-                  {d.body_id} · expires {new Date(d.expires_at).toLocaleDateString()}
+                  <code>{d.body_id}</code>, expires {new Date(d.expires_at).toLocaleDateString()}
                 </small>
               </div>
               {d.revoked_at ? (
-                <span className="status-pill">Revoked</span>
+                <StatusChip status="cancelled" label="Revoked" />
               ) : (
-                <button
-                  type="button"
-                  className="secondary"
+                <GuardedAction
+                  danger
+                  label={`Revoke ${d.label}`}
+                  confirmLabel="Confirm revoke"
+                  consequence={`${d.body_id} loses access immediately. The robot must be given a new credential before it can connect again.`}
+                  pending={revoke.isPending && revoke.variables === d.id}
+                  pendingLabel="Revoking…"
                   disabled={revoke.isPending}
-                  onClick={() => revoke.mutate(d.id)}
-                >
-                  Revoke {d.label}
-                </button>
+                  onConfirm={() => revoke.mutate(d.id)}
+                />
               )}
             </div>
           </article>

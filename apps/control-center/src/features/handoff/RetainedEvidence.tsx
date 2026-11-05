@@ -22,7 +22,7 @@ export function RetainedEvidence({
   });
   return (
     <details onToggle={(event) => setOpen(event.currentTarget.open)}>
-      <summary>Retained image · {observationId}</summary>
+      <summary>Retained image from {observationId}</summary>
       {imageHash && (
         <p className="memory-note">
           Reviewed JPEG SHA-256 <code>{imageHash}</code>
@@ -47,7 +47,7 @@ export function RetainedEvidence({
               ? 'No supported marker detected'
               : `${evidence.data.detections.length} supported marker detection(s)`}
             <small>
-              {evidence.data.model_id} · {new Date(evidence.data.captured_at_ms).toLocaleString()}
+              {evidence.data.model_id}, {new Date(evidence.data.captured_at_ms).toLocaleString()}
             </small>
             <small>{evidence.data.confidence_domain}</small>
           </figcaption>
