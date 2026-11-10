@@ -2,6 +2,19 @@ name: Robotics integration
 
 on:
   workflow_dispatch:
+  # On main as well as on pull requests, so the default branch shows whether the simulated warehouse still passes.
+  push:
+    branches: [main]
+    paths:
+      - 'simulation/**'
+      - 'services/lattice-ros2-gateway/**'
+      - 'robots/lattice-ros2-body/**'
+      - 'crates/**'
+      - 'services/lattice-ai-gateway/**'
+      - 'services/lattice-core-api/**'
+      - 'scripts/*warehouse*'
+      - 'scripts/smoke-*.py'
+      - '.github/workflows/robotics.yml'
   pull_request:
     paths:
       - 'simulation/**'
