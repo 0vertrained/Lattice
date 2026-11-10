@@ -4,6 +4,9 @@ set -eo pipefail
 # Gazebo writes its log under HOME and crashes at startup when it cannot, so give it one it can write.
 [[ -w "${HOME:-/}" ]] || export HOME=/tmp/lattice-home
 mkdir -p "$HOME"
+# Gazebo's transport groups processes by host and user name, and gives each process a random name of its own
+# when the ID has no user: the bridge then never hears the simulator. Name the partition, one per container.
+export GZ_PARTITION="${GZ_PARTITION:-$(hostname):lattice}"
 source /opt/ros/jazzy/setup.bash
 source /work/target/nav2-install/setup.bash
 source /work/target/gateway-install/setup.bash
