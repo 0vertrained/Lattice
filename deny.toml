@@ -3,10 +3,12 @@ yanked = "deny"
 # Both arrive through jsonwebtoken's rust_crypto backend, which lattice-core-api uses only to verify RS256
 # access tokens against the identity provider's public keys. The timing leaks concern secret-key operations
 # (RSA decryption and signing, constant-time big-integer arithmetic on secrets), which Lattice never performs.
-# Keep in step with .cargo/audit.toml.
+# chrono is marked unmaintained, with no known vulnerability. Six crates and tokio-postgres's timestamps use it, so
+# moving to jiff or time is a change of its own. Keep in step with .cargo/audit.toml.
 ignore = [
   { id = "RUSTSEC-2023-0071", reason = "rsa Marvin attack: private-key timing; core only verifies RS256 with public keys" },
   { id = "RUSTSEC-2026-0387", reason = "crypto-bigint timing on secret values; no secret enters verification" },
+  { id = "RUSTSEC-2026-0543", reason = "chrono unmaintained, no known vulnerability; replacing it is a change of its own" },
 ]
 
 [licenses]
