@@ -121,7 +121,7 @@ services:
       - "8222:8222"
 
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.156.0
+    image: otel/opentelemetry-collector-contrib:0.165.0
     profiles: ["observability"]
     command: ["--config=/etc/otelcol/config.yaml"]
     volumes:
