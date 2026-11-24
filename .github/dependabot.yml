@@ -1,0 +1,64 @@
+# Weekly update proposals for every dependency the project pins. Each waits 7 days after a release before it is
+# proposed, so a hijacked release has time to be caught first. Security updates are not delayed by this.
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: "/"
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      rust:
+        patterns: ["*"]
+
+  - package-ecosystem: pip
+    directories:
+      - "/services/lattice-ai-gateway"
+      - "/simulation/quadruped"
+      - "/tests/identity"
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      python:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: "/apps/control-center"
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      control-center:
+        patterns: ["*"]
+
+  # Updates the commit SHAs the workflows pin, and the version comment beside each.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directories:
+      - "/"
+      - "/apps/control-center"
+      - "/services/lattice-ai-gateway"
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: docker-compose
+    directory: "/"
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
