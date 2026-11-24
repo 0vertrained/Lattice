@@ -8,7 +8,7 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
-jsonwebtoken = { version = "10.3", default-features = false, features = ["rust_crypto"] }
+jsonwebtoken = { version = "11.1", default-features = false, features = ["rust_crypto"] }
 chrono.workspace = true
 base64.workspace = true
 rand_core.workspace = true
