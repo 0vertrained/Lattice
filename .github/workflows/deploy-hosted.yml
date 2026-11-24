@@ -24,7 +24,7 @@ jobs:
       GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
       GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Validate deployment bindings before cloud authentication
         run: python3 infrastructure/cloud-run/preflight.py --require-wif
       - name: Check the core can load the identity provider's signing keys
@@ -73,7 +73,7 @@ jobs:
           curl --fail --silent "$url/v1/auth/config" > /tmp/lattice-auth.json
           python3 -c 'import json,os; c=json.load(open("/tmp/lattice-auth.json")); assert c["mode"] == "oidc" and c["durable"] and c["issuer"] == os.environ["LATTICE_OIDC_ISSUER"]'
           printf 'Set Netlify LATTICE_API_ORIGIN to %s\n' "$url"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: hosted-release-configuration
           path: target/hosted-release/
